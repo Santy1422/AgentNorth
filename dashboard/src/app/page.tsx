@@ -8,6 +8,7 @@ import { DepsView } from "@/components/DepsView";
 import { CoverageView } from "@/components/CoverageView";
 import { RisksView } from "@/components/RisksView";
 import { ApisView } from "@/components/ApisView";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { LoginScreen } from "@/components/LoginScreen";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 
@@ -271,6 +272,7 @@ export default function Home() {
         lastRefresh={lastRefresh}
         onRefresh={() => fetchDashboard(activeProject?.id)}
       />
+      <GlobalSearch data={data} onNavigate={setView} />
       <main className="simple-main">
         {view === "main" && (
           <MainView feedRows={feedRows} savedTokens={savedTokens} data={data} />
