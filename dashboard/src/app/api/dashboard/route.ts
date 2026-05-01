@@ -28,6 +28,59 @@ interface ProjectLean {
   last_synced_at?: Date;
 }
 
+export async function POST(req: NextRequest) {
+  try {
+    const { resolved } = await getSession();
+    if (!resolved) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { orgId } = resolved;
+    await db();
+    const { Project, Decision } = await models();
+    const body = await req.json();
+
+    const project = await Project.findOne({ org_id: orgId, name: body.project });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    const decision = await Decision.findOneAndUpdate(
+      { org_id: orgId, project_id: project._id, title: body.title },
+      {
+        org_id: orgId,
+        project_id: project._id,
+        module: body.module || "",
+        title: body.title,
+        context: body.context || "",
+        decision: body.decision || "",
+        author_name: "dashboard",
+        status: body.status || "active",
+        source: "dashboard",
+        created_at: new Date(),
+      },
+      { upsert: true, new: true },
+    );
+
+    // Notify SSE
+    try {
+      const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
+        ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
+      if (notify) {
+        notify(project._id.toString(), {
+          type: "decision",
+          data: { title: body.title, module: body.module, at: new Date().toISOString() },
+        });
+      }
+    } catch {}
+
+    return NextResponse.json({ ok: true, decision_id: decision._id });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { raw, resolved } = await getSession();

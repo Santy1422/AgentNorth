@@ -7,6 +7,8 @@ import { docsCommand } from "../cli/commands/docs.js";
 import { setupCommand } from "../cli/commands/setup.js";
 import { validateCommand } from "../cli/commands/validate.js";
 import { syncCommand } from "../cli/commands/sync.js";
+import { pullCommand } from "../cli/commands/pull.js";
+import { watchCommand } from "../cli/commands/watch.js";
 
 program
   .name("agentnorth")
@@ -54,5 +56,15 @@ program
   .command("sync")
   .description("Push local bundles and decisions to the AgentNorth dashboard")
   .action(syncCommand);
+
+program
+  .command("pull")
+  .description("Pull decisions and changes from the dashboard to local files")
+  .action(pullCommand);
+
+program
+  .command("watch")
+  .description("Watch for file changes and auto-sync to dashboard in real-time")
+  .action(watchCommand);
 
 program.parse();

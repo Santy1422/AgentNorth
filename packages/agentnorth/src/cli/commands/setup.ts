@@ -224,8 +224,8 @@ npx agentnorth sync
 
 function generateGitPostCommitHook(): string {
   return `#!/bin/bash
-# AgentNorth — Auto-sync on every commit
-# Runs index + sync in the background so it doesn't block your workflow
+# AgentNorth — Bidirectional sync on every commit
+# Runs pull + index + sync in the background so it doesn't block your workflow
 
 # Load env from .agentnorth/.env if it exists
 if [ -f ".agentnorth/.env" ]; then
@@ -237,6 +237,7 @@ fi
 # Only sync if keys are configured
 if [ -n "$AGENTNORTH_ORG_KEY" ] && [ -n "$AGENTNORTH_DEV_KEY" ]; then
   (
+    npx agentnorth pull 2>/dev/null
     npx agentnorth index 2>/dev/null
     npx agentnorth sync 2>/dev/null
   ) &

@@ -147,6 +147,20 @@ app.post("/events", authMiddleware, async (c) => {
     timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
   });
 
+  // Notify SSE
+  if (project?._id) {
+    try {
+      const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
+        ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
+      if (notify) {
+        notify(project._id.toString(), {
+          type: "event",
+          data: { action: body.action, module: body.module, at: new Date().toISOString() },
+        });
+      }
+    } catch {}
+  }
+
   return c.json({ ok: true });
 });
 
@@ -293,7 +307,119 @@ app.post("/sync", authMiddleware, async (c) => {
     }
   }
 
+  // Notify SSE listeners of the update
+  try {
+    const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
+      ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
+    if (notify) {
+      notify(project._id.toString(), {
+        type: "sync",
+        data: { modules: (body.modules || []).length, decisions: (body.decisions || []).length, at: new Date().toISOString() },
+      });
+    }
+  } catch { /* non-critical */ }
+
   return c.json({ ok: true, project_id: project._id });
+});
+
+// ── Pull endpoint: CLI pulls decisions/changes from dashboard ──
+app.get("/pull", authMiddleware, async (c) => {
+  await db();
+  const { Project, Decision, AgentChange } = await models();
+  const org = c.get("org");
+
+  const projectName = c.req.query("project");
+  const since = c.req.query("since"); // ISO date string
+
+  const project = projectName
+    ? await Project.findOne({ org_id: org._id, name: projectName })
+    : await Project.findOne({ org_id: org._id }).sort({ last_synced_at: -1 });
+
+  if (!project) {
+    return c.json({ error: "Project not found" }, 404);
+  }
+
+  const query: Record<string, unknown> = { project_id: project._id };
+  if (since) {
+    query.created_at = { $gt: new Date(since) };
+  }
+
+  const [decisions, changes] = await Promise.all([
+    Decision.find(query).sort({ created_at: -1 }).limit(50).lean(),
+    AgentChange.find(query).sort({ created_at: -1 }).limit(50).lean(),
+  ]);
+
+  return c.json({
+    ok: true,
+    project_id: project._id.toString(),
+    project_name: project.name,
+    last_synced_at: project.last_synced_at,
+    decisions: decisions.map((d: Record<string, unknown>) => ({
+      module: d.module,
+      title: d.title,
+      context: d.context,
+      decision: d.decision,
+      author: d.author_name,
+      status: d.status,
+      date: d.created_at,
+      source: d.source || "local",
+    })),
+    changes: changes.map((ch: Record<string, unknown>) => ({
+      module: ch.module,
+      summary: ch.summary,
+      files_changed: ch.files_changed,
+      breaking: ch.breaking,
+      notes: ch.notes,
+      author: ch.author_name,
+      date: ch.created_at,
+      source: ch.source || "local",
+    })),
+  });
+});
+
+// ── Create decision from dashboard ──
+app.post("/decisions", authMiddleware, async (c) => {
+  await db();
+  const { Project, Decision } = await models();
+  const body = await c.req.json();
+  const org = c.get("org");
+  const dev = c.get("dev");
+
+  const project = await Project.findOne({ org_id: org._id, name: body.project });
+  if (!project) {
+    return c.json({ error: "Project not found" }, 404);
+  }
+
+  const decision = await Decision.findOneAndUpdate(
+    { org_id: org._id, project_id: project._id, title: body.title },
+    {
+      org_id: org._id,
+      project_id: project._id,
+      module: body.module || "",
+      title: body.title,
+      context: body.context || "",
+      decision: body.decision || "",
+      author_name: dev.name || "dashboard",
+      status: body.status || "active",
+      source: "dashboard",
+      created_at: new Date(),
+    },
+    { upsert: true, new: true },
+  );
+
+  // Notify SSE
+  try {
+    const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
+      ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
+    if (notify) {
+      notify(project._id.toString(), {
+        type: "decision",
+        data: { title: body.title, module: body.module, at: new Date().toISOString() },
+      });
+    }
+  } catch {}
+
+  return c.json({ ok: true, decision_id: decision._id });
 });
 
 export const GET = handle(app);

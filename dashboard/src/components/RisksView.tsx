@@ -6,12 +6,19 @@ import type { DecisionData, ChangeData } from "@/app/page";
 export function RisksView({
   decisions,
   changes,
+  projectName,
+  onRefresh,
 }: {
   decisions: DecisionData[];
   changes: ChangeData[];
+  projectName?: string;
+  onRefresh?: () => void;
 }) {
   const [tab, setTab] = useState<"timeline" | "decisions" | "changes">("timeline");
   const [search, setSearch] = useState("");
+  const [showNewDecision, setShowNewDecision] = useState(false);
+  const [newDecision, setNewDecision] = useState({ module: "", title: "", context: "", decision: "" });
+  const [saving, setSaving] = useState(false);
   const breakingChanges = changes.filter((c) => c.breaking);
 
   const filteredDecisions = useMemo(() => {
@@ -58,12 +65,22 @@ export function RisksView({
     <section className="risks-view">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
         <h2>Decisiones y cambios</h2>
-        <span className="meta">
-          {decisions.length} decisiones · {changes.length} cambios
-          {breakingChanges.length > 0 && (
-            <span style={{ color: "var(--accent)" }}> · {breakingChanges.length} breaking</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span className="meta">
+            {decisions.length} decisiones · {changes.length} cambios
+            {breakingChanges.length > 0 && (
+              <span style={{ color: "var(--accent)" }}> · {breakingChanges.length} breaking</span>
+            )}
+          </span>
+          {projectName && (
+            <button
+              className="ndf-trigger"
+              onClick={() => setShowNewDecision(!showNewDecision)}
+            >
+              + Nueva decision
+            </button>
           )}
-        </span>
+        </div>
       </div>
 
       <div className="risks-summary">
@@ -82,6 +99,68 @@ export function RisksView({
           </div>
         )}
       </div>
+
+      {/* New Decision Form */}
+      {showNewDecision && (
+        <div className="new-decision-form">
+          <div className="ndf-head">
+            <h3>Nueva decision</h3>
+            <button className="btn-simple" onClick={() => setShowNewDecision(false)}>cancelar</button>
+          </div>
+          <input
+            className="ndf-input"
+            placeholder="Titulo de la decision"
+            value={newDecision.title}
+            onChange={(e) => setNewDecision({ ...newDecision, title: e.target.value })}
+          />
+          <input
+            className="ndf-input"
+            placeholder="Modulo (opcional)"
+            value={newDecision.module}
+            onChange={(e) => setNewDecision({ ...newDecision, module: e.target.value })}
+          />
+          <textarea
+            className="ndf-textarea"
+            placeholder="Contexto — por que se toma esta decision?"
+            value={newDecision.context}
+            onChange={(e) => setNewDecision({ ...newDecision, context: e.target.value })}
+            rows={3}
+          />
+          <textarea
+            className="ndf-textarea"
+            placeholder="Decision — que se decidio?"
+            value={newDecision.decision}
+            onChange={(e) => setNewDecision({ ...newDecision, decision: e.target.value })}
+            rows={3}
+          />
+          <button
+            className="ndf-submit"
+            disabled={saving || !newDecision.title.trim()}
+            onClick={async () => {
+              if (!newDecision.title.trim() || !projectName) return;
+              setSaving(true);
+              try {
+                const res = await fetch("/api/dashboard", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    project: projectName,
+                    ...newDecision,
+                  }),
+                });
+                if (res.ok) {
+                  setShowNewDecision(false);
+                  setNewDecision({ module: "", title: "", context: "", decision: "" });
+                  onRefresh?.();
+                }
+              } catch {}
+              setSaving(false);
+            }}
+          >
+            {saving ? "Guardando..." : "Crear decision"}
+          </button>
+        </div>
+      )}
 
       <div className="risks-toolbar">
         <div className="cov-filters">

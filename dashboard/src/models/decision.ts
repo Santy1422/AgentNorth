@@ -10,6 +10,7 @@ export interface IDecision extends Document {
   author_dev_id: Types.ObjectId;
   author_name: string;
   status: "active" | "superseded" | "deprecated";
+  source: "local" | "dashboard";
   created_at: Date;
 }
 
@@ -23,6 +24,7 @@ const DecisionSchema = new Schema<IDecision>({
   author_dev_id: { type: Schema.Types.ObjectId, ref: "Developer" },
   author_name: { type: String, default: "unknown" },
   status: { type: String, enum: ["active", "superseded", "deprecated"], default: "active" },
+  source: { type: String, enum: ["local", "dashboard"], default: "local" },
   created_at: { type: Date, default: Date.now },
 });
 

@@ -235,13 +235,50 @@ export default function Home() {
     fetchDashboard();
   }, [fetchDashboard]);
 
-  // Auto-refresh every 30s
+  // Real-time SSE connection + fallback polling
   useEffect(() => {
-    if (authState !== "ready") return;
-    const i = setInterval(() => {
-      fetchDashboard(activeProject?.id);
-    }, 30000);
-    return () => clearInterval(i);
+    if (authState !== "ready" || !activeProject?.id) return;
+
+    let es: EventSource | null = null;
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+
+    try {
+      es = new EventSource(`/api/stream?project=${activeProject.id}`);
+
+      es.addEventListener("sync", () => {
+        // Server notified us of a sync — refresh immediately
+        fetchDashboard(activeProject.id);
+      });
+
+      es.addEventListener("event", () => {
+        fetchDashboard(activeProject.id);
+      });
+
+      es.addEventListener("decision", () => {
+        fetchDashboard(activeProject.id);
+      });
+
+      es.onerror = () => {
+        // SSE failed, fall back to polling
+        es?.close();
+        es = null;
+        if (!fallbackInterval) {
+          fallbackInterval = setInterval(() => {
+            fetchDashboard(activeProject.id);
+          }, 30000);
+        }
+      };
+    } catch {
+      // SSE not supported, fall back to polling
+      fallbackInterval = setInterval(() => {
+        fetchDashboard(activeProject.id);
+      }, 30000);
+    }
+
+    return () => {
+      es?.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
   }, [authState, fetchDashboard, activeProject]);
 
   const switchProject = useCallback((p: ProjectRef) => {
@@ -291,7 +328,14 @@ export default function Home() {
             }}
           />
         )}
-        {view === "risks" && <RisksView decisions={data?.decisions || []} changes={data?.changes || []} />}
+        {view === "risks" && (
+          <RisksView
+            decisions={data?.decisions || []}
+            changes={data?.changes || []}
+            projectName={activeProject?.name}
+            onRefresh={() => fetchDashboard(activeProject?.id)}
+          />
+        )}
         {view === "apis" && <ApisView modules={data?.project.modules || []} />}
         {view === "onboarding" && <OnboardingGuide data={data} />}
         {view === "module-detail" && selectedModule && (
