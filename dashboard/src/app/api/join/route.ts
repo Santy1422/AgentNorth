@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function getAuth() {
+async function getSession() {
   const { auth } = await import("@/lib/auth");
-  return auth();
+  const { resolveSession } = await import("@/lib/resolve-session");
+  const session = await auth();
+  return resolveSession(session);
 }
 
 async function db() {
@@ -15,9 +17,8 @@ async function db() {
 
 /** POST /api/join — Join an org via invite code */
 export async function POST(req: Request) {
-  const session = await getAuth();
-  const devId = session?.devId;
-  if (!devId) {
+  const resolved = await getSession();
+  if (!resolved) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid invite code" }, { status: 404 });
   }
 
-  const dev = await Developer.findById(devId);
+  const dev = await Developer.findById(resolved.devId);
   if (!dev) {
     return NextResponse.json({ error: "Developer not found" }, { status: 404 });
   }

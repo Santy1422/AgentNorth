@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function getAuth() {
+async function getSession() {
   const { auth } = await import("@/lib/auth");
-  return auth();
+  const { resolveSession } = await import("@/lib/resolve-session");
+  const session = await auth();
+  return resolveSession(session);
 }
 
 async function db() {
@@ -15,17 +17,16 @@ async function db() {
 
 /** GET /api/team — Get team members + invite code */
 export async function GET() {
-  const session = await getAuth();
-  const orgId = session?.orgId;
-  if (!orgId) {
+  const resolved = await getSession();
+  if (!resolved) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   await db();
   const { Organization, Developer } = await import("@/models");
 
-  const org = await Organization.findById(orgId);
-  const members = await Developer.find({ org_id: orgId })
+  const org = await Organization.findById(resolved.orgId);
+  const members = await Developer.find({ org_id: resolved.orgId })
     .select("name email role github_id last_active_at created_at")
     .sort({ created_at: 1 });
 

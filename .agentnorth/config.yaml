@@ -1,0 +1,43 @@
+version: 1
+project:
+  name: AgentNorth
+modules:
+  mcp-server:
+    paths:
+      - packages/agentnorth/src/server/
+    description: "MCP server — 6 tools for Claude Code agents"
+    depends_on:
+      - core
+  core:
+    paths:
+      - packages/agentnorth/src/core/
+    description: "Indexer, parser, config, decisions, changelog"
+  cli:
+    paths:
+      - packages/agentnorth/src/cli/
+    description: "CLI commands — init, index, setup, serve, sync, status, docs, validate"
+    depends_on:
+      - core
+  schemas:
+    paths:
+      - packages/agentnorth/src/schemas/
+    description: "Zod schemas for bundles, config, decisions"
+  dashboard-api:
+    paths:
+      - dashboard/src/app/api/
+      - dashboard/src/lib/
+      - dashboard/src/models/
+    description: "Next.js API routes, auth, MongoDB models"
+  dashboard-ui:
+    paths:
+      - dashboard/src/app/
+      - dashboard/src/components/
+    description: "React frontend — landing, onboarding, dashboard views"
+    depends_on:
+      - dashboard-api
+ignore:
+  - node_modules/
+  - dist/
+  - .next/
+  - "*.test.ts"
+  - "*.spec.ts"

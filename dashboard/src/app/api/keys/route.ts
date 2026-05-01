@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function getAuth() {
+async function getSession() {
   const { auth } = await import("@/lib/auth");
-  return auth();
+  const { resolveSession } = await import("@/lib/resolve-session");
+  const session = await auth();
+  return resolveSession(session);
 }
 
 async function db() {
@@ -15,17 +17,15 @@ async function db() {
 
 /** GET /api/keys — Show current key prefixes (not full keys) */
 export async function GET() {
-  const session = await getAuth();
-  const orgId = session?.orgId;
-  const devId = session?.devId;
-  if (!orgId || !devId) {
+  const resolved = await getSession();
+  if (!resolved) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   await db();
   const { Organization, Developer } = await import("@/models");
-  const org = await Organization.findById(orgId);
-  const dev = await Developer.findById(devId);
+  const org = await Organization.findById(resolved.orgId);
+  const dev = await Developer.findById(resolved.devId);
 
   return NextResponse.json({
     org_key_prefix: org?.org_key_prefix || null,
@@ -36,10 +36,8 @@ export async function GET() {
 
 /** POST /api/keys — Regenerate API keys for the current user */
 export async function POST() {
-  const session = await getAuth();
-  const orgId = session?.orgId;
-  const devId = session?.devId;
-  if (!orgId || !devId) {
+  const resolved = await getSession();
+  if (!resolved) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
@@ -48,8 +46,8 @@ export async function POST() {
   const { generateKey, getKeyPrefix } = await import("@/lib/auth-keys");
   const { hash } = await import("bcryptjs");
 
-  const org = await Organization.findById(orgId);
-  const dev = await Developer.findById(devId);
+  const org = await Organization.findById(resolved.orgId);
+  const dev = await Developer.findById(resolved.devId);
   if (!org || !dev) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

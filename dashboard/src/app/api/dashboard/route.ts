@@ -4,9 +4,12 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function getAuth() {
+async function getSession() {
   const { auth } = await import("@/lib/auth");
-  return auth();
+  const { resolveSession } = await import("@/lib/resolve-session");
+  const rawSession = await auth();
+  const resolved = await resolveSession(rawSession);
+  return { raw: rawSession, resolved };
 }
 
 async function db() {
@@ -27,48 +30,16 @@ interface ProjectLean {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAuth();
-    let orgId = session?.orgId;
+    const { raw, resolved } = await getSession();
 
-    // User is signed in but Developer record missing (DB was down during sign-in)
-    if (!orgId && (session?.githubId || session?.user?.email)) {
-      try {
-        await db();
-        const { Developer } = await models();
-        const { createOrgKey, createDevKey } = await import("@/lib/auth-keys");
-
-        let existing = session.githubId
-          ? await Developer.findOne({ github_id: session.githubId })
-          : null;
-        if (!existing && session.user?.email) {
-          existing = await Developer.findOne({ email: session.user.email });
-        }
-
-        if (existing) {
-          orgId = existing.org_id.toString();
-        } else {
-          const { org } = await createOrgKey(
-            session.user?.name ? `${session.user.name}'s Team` : "My Team",
-          );
-          await createDevKey(
-            org._id.toString(),
-            session.user?.name || "Unknown",
-            session.user?.email || "",
-            session.githubId || "",
-          );
-          orgId = org._id.toString();
-        }
-      } catch (err) {
-        console.error("[dashboard] Failed to create developer:", err);
-      }
-    }
-
-    if (!orgId) {
+    if (!resolved) {
       return NextResponse.json({
-        authenticated: !!session?.user,
+        authenticated: !!raw?.user,
         data: null,
       });
     }
+
+    const { orgId } = resolved;
 
     await db();
     const { Project, Decision, AgentChange, Session, UsageEvent } = await models();
