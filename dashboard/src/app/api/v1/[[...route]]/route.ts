@@ -14,6 +14,11 @@ interface AuthEnv {
 
 const app = new Hono<AuthEnv>().basePath("/api/v1");
 
+app.onError((err, c) => {
+  console.error("[api/v1]", err.message);
+  return c.json({ error: err.message }, 500);
+});
+
 async function db() {
   const { connectDB } = await import("@/lib/db");
   return connectDB();
@@ -36,14 +41,21 @@ const authMiddleware = async (c: Context<AuthEnv>, next: Next) => {
     return c.json({ error: "Missing X-Org-Key or X-Dev-Key" }, 401);
   }
 
-  await db();
-  const auth = await authKeys(orgKey, devKey);
-  if (!auth) {
-    return c.json({ error: "Invalid API keys" }, 401);
+  try {
+    await db();
+    const auth = await authKeys(orgKey, devKey);
+    if (!auth) {
+      return c.json({ error: "Invalid API keys" }, 401);
+    }
+
+    c.set("org", auth.org);
+    c.set("dev", auth.dev);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Auth failed";
+    console.error("[api/v1] Auth error:", message);
+    return c.json({ error: "Authentication failed" }, 500);
   }
 
-  c.set("org", auth.org);
-  c.set("dev", auth.dev);
   await next();
 };
 
