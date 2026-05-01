@@ -6,6 +6,7 @@ import { statusCommand } from "../cli/commands/status.js";
 import { docsCommand } from "../cli/commands/docs.js";
 import { setupCommand } from "../cli/commands/setup.js";
 import { validateCommand } from "../cli/commands/validate.js";
+import { syncCommand } from "../cli/commands/sync.js";
 
 program
   .name("agentnorth")
@@ -48,5 +49,10 @@ program
   .command("validate")
   .description("Check project health: config, bundles, enforcement")
   .action(validateCommand);
+
+program
+  .command("sync")
+  .description("Push local bundles and decisions to the AgentNorth dashboard")
+  .action(syncCommand);
 
 program.parse();
