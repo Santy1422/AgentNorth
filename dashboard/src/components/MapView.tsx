@@ -236,42 +236,46 @@ function ArchitectureOverview({
   return (
     <div className="arch-overview">
       {/* Screens - the main entry point */}
-      <div className="arch-layer">
-        <div className="arch-layer-label">
-          <span className="arch-dot" style={{ background: KIND_COLORS.page }}></span>
-          Pantallas
-        </div>
-        <div className="arch-cards">
-          {screens.map((s) => {
-            const deps = getDirectDeps(s, allFiles);
-            const compCount = deps.filter((d) => d.kind === "component").length;
-            return (
-              <button key={s.path} className="arch-screen-card" onClick={() => onSelectScreen(s)}>
-                <div className="asc-icon">&#x1F4F1;</div>
-                <div className="asc-info">
-                  <div className="asc-name">{screenLabel(s)}</div>
-                  <div className="asc-path mono">{s.path}</div>
-                  <div className="asc-meta">
-                    {s.loc} LOC
-                    {compCount > 0 && <span> · {compCount} componentes</span>}
-                    {deps.length > compCount && (
-                      <span> · {deps.length - compCount} otros</span>
-                    )}
+      {screens.length > 0 && (
+        <div className="arch-layer">
+          <div className="arch-layer-label">
+            <span className="arch-dot" style={{ background: KIND_COLORS.page }}></span>
+            Pantallas ({screens.length})
+          </div>
+          <div className="arch-cards">
+            {screens.map((s) => {
+              const deps = getDirectDeps(s, allFiles);
+              const compCount = deps.filter((d) => d.kind === "component").length;
+              return (
+                <button key={s.path} className="arch-screen-card" onClick={() => onSelectScreen(s)}>
+                  <div className="asc-icon">&#x1F4F1;</div>
+                  <div className="asc-info">
+                    <div className="asc-name">{screenLabel(s)}</div>
+                    <div className="asc-path mono">{s.path}</div>
+                    <div className="asc-meta">
+                      {s.loc} LOC
+                      {compCount > 0 && <span> · {compCount} componentes</span>}
+                      {deps.length > compCount && (
+                        <span> · {deps.length - compCount} otros</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="asc-arrow">&rarr;</div>
-              </button>
-            );
-          })}
+                  <div className="asc-arrow">&rarr;</div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Connector */}
-      <div className="arch-connector">
-        <div className="arch-connector-line"></div>
-        <span className="arch-connector-label">usan</span>
-        <div className="arch-connector-line"></div>
-      </div>
+      {screens.length > 0 && components.length > 0 && (
+        <div className="arch-connector">
+          <div className="arch-connector-line"></div>
+          <span className="arch-connector-label">usan</span>
+          <div className="arch-connector-line"></div>
+        </div>
+      )}
 
       {/* Components */}
       {components.length > 0 && (
@@ -659,6 +663,13 @@ function NodeDetail({
       </div>
 
       <div className="fd-sections">
+        {file.summary && (
+          <div className="fd-section">
+            <div className="fd-section-title">Resumen</div>
+            <div className="fd-summary">{file.summary}</div>
+          </div>
+        )}
+
         {file.exports.length > 0 && (
           <div className="fd-section">
             <div className="fd-section-title">Exports</div>

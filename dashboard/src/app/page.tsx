@@ -7,10 +7,11 @@ import { MapView } from "@/components/MapView";
 import { DepsView } from "@/components/DepsView";
 import { CoverageView } from "@/components/CoverageView";
 import { RisksView } from "@/components/RisksView";
+import { ApisView } from "@/components/ApisView";
 import { LoginScreen } from "@/components/LoginScreen";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 
-export type View = "main" | "map" | "deps" | "coverage" | "risks";
+export type View = "main" | "map" | "deps" | "coverage" | "risks" | "apis";
 
 export interface ProjectRef {
   id: string;
@@ -278,6 +279,7 @@ export default function Home() {
         {view === "deps" && <DepsView deps={data?.project.deps || []} audit={data?.project.audit || []} />}
         {view === "coverage" && <CoverageView modules={data?.project.modules || []} />}
         {view === "risks" && <RisksView decisions={data?.decisions || []} changes={data?.changes || []} />}
+        {view === "apis" && <ApisView modules={data?.project.modules || []} />}
       </main>
     </div>
   );

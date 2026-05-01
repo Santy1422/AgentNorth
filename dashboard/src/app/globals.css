@@ -465,7 +465,7 @@ html, body {
   background: linear-gradient(135deg, #c98b5b, #e8a96e);
 }
 
-/* ─── Map ─── */
+/* ─── Map (legacy — overridden by architecture map styles below) ─── */
 .map-simple {
   position: relative;
 }
@@ -2954,6 +2954,16 @@ html, body {
   margin-left: auto;
 }
 
+.fd-summary {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--accent);
+}
+
 .fd-orphan {
   padding: 12px 16px;
   background: #fbbf2410;
@@ -3306,4 +3316,113 @@ html, body {
   font-size: 11px;
   font-family: var(--mono);
   text-transform: uppercase;
+}
+
+/* ─── API Catalog ─── */
+.api-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bg-4);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.api-row {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--bg-4);
+  cursor: pointer;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  padding: 0;
+  transition: background 0.1s;
+}
+
+.api-row:first-child { border-top: none; }
+.api-row:hover { background: var(--bg-2); }
+.api-row.selected { background: var(--bg-2); }
+
+.api-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.api-methods {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.api-method {
+  font-size: 10px;
+  font-weight: 700;
+  color: #000;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+
+.api-path {
+  font-size: 13px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.api-loc {
+  font-size: 11px;
+  color: var(--text-4);
+  font-family: var(--mono);
+  flex-shrink: 0;
+}
+
+.api-detail {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--bg-4);
+  padding-top: 12px;
+  margin: 0 14px;
+}
+
+.api-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.api-detail-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-4);
+}
+
+.api-detail-value {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.api-dep-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.api-dep-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-3);
+  border: 1px solid var(--bg-4);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
 }
