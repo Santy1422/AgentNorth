@@ -35,6 +35,8 @@ export async function indexModule(
     path: p.path,
     summary: buildSummary(p),
     exports: p.exports,
+    imports: p.imports.map((i) => ({ source: i.source, specifiers: i.specifiers })),
+    kind: classifyFile(p),
     loc: p.loc,
   }));
 
@@ -95,6 +97,26 @@ function buildSummary(parsed: ParsedFile): string {
   }
   parts.push(`${parsed.loc} lines`);
   return parts.join(" · ");
+}
+
+function classifyFile(parsed: ParsedFile): FileRef["kind"] {
+  const p = parsed.path.toLowerCase();
+  const name = p.split("/").pop() || "";
+
+  if (name.includes(".test.") || name.includes(".spec.") || p.includes("/tests/") || p.includes("/__tests__/")) return "test";
+  if (name === "page.tsx" || name === "page.ts" || p.includes("/pages/")) return "page";
+  if (p.includes("/api/") && (name === "route.ts" || name === "route.tsx")) return "route";
+  if (p.includes("/hooks/") || name.startsWith("use")) return "hook";
+  if (p.includes("/models/") || p.includes("/schemas/") || name.endsWith(".schema.ts")) return "model";
+  if (p.includes("/components/") || (name.endsWith(".tsx") && parsed.exports.some((e) => /^[A-Z]/.test(e)))) return "component";
+  if (p.includes("/lib/") || p.includes("/utils/") || p.includes("/helpers/")) return "lib";
+  if (name.endsWith(".config.ts") || name.endsWith(".config.js") || name === "config.yaml") return "config";
+  if (name.endsWith(".sql") || name.endsWith(".prisma")) return "schema";
+
+  // Default: if it exports PascalCase names and is tsx, it's a component
+  if (name.endsWith(".tsx") && parsed.exports.some((e) => /^[A-Z]/.test(e))) return "component";
+
+  return "unknown";
 }
 
 function resolveInternalDeps(

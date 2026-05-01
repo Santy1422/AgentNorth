@@ -17,11 +17,21 @@ export interface ProjectRef {
   name: string;
 }
 
+export interface FileData {
+  path: string;
+  exports: string[];
+  imports: { source: string; specifiers: string[] }[];
+  kind: string;
+  loc: number;
+  summary: string;
+}
+
 export interface ModuleData {
   name: string;
   description: string;
   paths: string[];
   files_count: number;
+  files?: FileData[];
   loc: number;
   exports_count: number;
   dependencies?: {

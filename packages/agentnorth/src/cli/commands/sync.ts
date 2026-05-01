@@ -26,18 +26,27 @@ export async function syncCommand(): Promise<void> {
     const bundlePath = join(bundlesDir, `${name}.json`);
     if (existsSync(bundlePath)) {
       const bundle = JSON.parse(await readFile(bundlePath, "utf-8"));
+      const files = (bundle.files || []).map((f: {
+        path?: string; exports?: string[]; imports?: { source: string; specifiers: string[] }[];
+        kind?: string; loc?: number; summary?: string;
+      }) => ({
+        path: f.path || "",
+        exports: f.exports || [],
+        imports: f.imports || [],
+        kind: f.kind || "unknown",
+        loc: f.loc || 0,
+        summary: f.summary || "",
+      }));
+
       modules.push({
         name,
         description: mod.description || "",
         paths: mod.paths,
-        files_count: bundle.files?.length || 0,
-        loc: bundle.files?.reduce((sum: number, f: { loc?: number }) => sum + (f.loc || 0), 0) || 0,
-        exports_count: bundle.files?.reduce((sum: number, f: { exports?: string[] }) => sum + (f.exports?.length || 0), 0) || 0,
+        files_count: files.length,
+        files,
+        loc: files.reduce((sum: number, f: { loc: number }) => sum + f.loc, 0),
+        exports_count: files.reduce((sum: number, f: { exports: string[] }) => sum + f.exports.length, 0),
         dependencies: bundle.dependencies || { internal: [], external: [] },
-        schema: {
-          tables: bundle.schema?.tables || [],
-          mermaid_erd: bundle.schema?.mermaid || "",
-        },
         last_indexed_at: new Date().toISOString(),
       });
     }

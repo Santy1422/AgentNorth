@@ -4,6 +4,8 @@ export interface FileRef {
   path: string;
   summary: string;
   exports: string[];
+  imports: { source: string; specifiers: string[] }[];
+  kind: "page" | "component" | "hook" | "lib" | "model" | "route" | "schema" | "test" | "config" | "unknown";
   loc: number;
 }
 

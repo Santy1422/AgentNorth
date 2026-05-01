@@ -1620,6 +1620,36 @@ html, body {
   color: var(--accent);
 }
 
+/* ─── Map file nodes ─── */
+.fn-kind-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.file-node .fn-kind {
+  font-size: 8px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #000;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.file-node.active {
+  z-index: 10 !important;
+  transform: translate(-50%, -50%) scale(1.15);
+}
+.file-node.mod-hover {
+  opacity: 1 !important;
+}
+.aside-path {
+  font-size: 11px;
+  color: var(--text-4);
+  margin-bottom: 12px;
+  word-break: break-all;
+}
+
 /* ─── Coverage todo items ─── */
 .cov-todo {
   padding: 8px 0;
