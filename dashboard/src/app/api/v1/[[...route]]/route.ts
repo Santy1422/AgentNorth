@@ -28,11 +28,6 @@ async function models() {
   return import("@/models");
 }
 
-async function authKeys(orgKey: string, devKey: string) {
-  const { authenticateKeys } = await import("@/lib/auth-keys");
-  return authenticateKeys(orgKey, devKey);
-}
-
 const authMiddleware = async (c: Context<AuthEnv>, next: Next) => {
   const orgKey = c.req.header("X-Org-Key");
   const devKey = c.req.header("X-Dev-Key");
@@ -43,17 +38,33 @@ const authMiddleware = async (c: Context<AuthEnv>, next: Next) => {
 
   try {
     await db();
-    const auth = await authKeys(orgKey, devKey);
-    if (!auth) {
+    const { compare } = await import("bcryptjs");
+    const { Organization, Developer } = await models();
+
+    // Inline key validation (avoids auth-keys.ts mongoose scope issues)
+    const getPrefix = (key: string) => {
+      const parts = key.split("_");
+      return parts.length >= 3 ? `${parts[0]}_${parts[1]}_${parts[2].slice(0, 8)}` : key.slice(0, 20);
+    };
+
+    const org = await Organization.findOne({ org_key_prefix: getPrefix(orgKey) }).lean() as
+      { _id: string; name: string; org_key_hash: string } | null;
+    if (!org || !(await compare(orgKey, org.org_key_hash))) {
       return c.json({ error: "Invalid API keys" }, 401);
     }
 
-    c.set("org", auth.org);
-    c.set("dev", auth.dev);
+    const dev = await Developer.findOne({ dev_key_prefix: getPrefix(devKey), org_id: org._id }).lean() as
+      { _id: string; name: string; dev_key_hash: string } | null;
+    if (!dev || !(await compare(devKey, dev.dev_key_hash))) {
+      return c.json({ error: "Invalid API keys" }, 401);
+    }
+
+    c.set("org", org);
+    c.set("dev", dev);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.stack || err.message : "Auth failed";
+    const message = err instanceof Error ? err.message : "Auth failed";
     console.error("[api/v1] Auth error:", message);
-    return c.json({ error: "Authentication failed", detail: err instanceof Error ? err.message : String(err) }, 500);
+    return c.json({ error: "Authentication failed" }, 500);
   }
 
   await next();
