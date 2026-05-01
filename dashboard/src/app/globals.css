@@ -1575,6 +1575,84 @@ html, body {
   font-size: 11px;
 }
 
+/* ─── Deps view ─── */
+.deps-list {
+  margin-top: 16px;
+}
+.deps-header {
+  display: grid;
+  grid-template-columns: 1fr 120px 70px 200px;
+  gap: 12px;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+.deps-row {
+  display: grid;
+  grid-template-columns: 1fr 120px 70px 200px;
+  gap: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--bg-3);
+  transition: background 0.1s;
+}
+.deps-row:hover {
+  background: var(--bg-2);
+}
+.deps-col-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deps-col-ver { color: var(--text-3); }
+.deps-col-src { color: var(--text-4); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.dep-pill {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.dep-pill.prod {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--green);
+}
+.dep-pill.dev {
+  background: rgba(167, 139, 250, 0.15);
+  color: var(--accent);
+}
+
+/* ─── Coverage todo items ─── */
+.cov-todo {
+  padding: 8px 0;
+}
+.cov-todo-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--bg-3);
+}
+.cov-todo-check {
+  font-size: 18px;
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+.cov-todo-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.cov-todo-desc {
+  font-size: 12px;
+  color: var(--text-4);
+  line-height: 1.4;
+}
+.cov-todo-desc code {
+  background: var(--bg-3);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
 /* ─── Loading screen ─── */
 .loading-screen {
   display: flex;

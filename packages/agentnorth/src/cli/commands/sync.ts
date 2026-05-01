@@ -56,10 +56,14 @@ export async function syncCommand(): Promise<void> {
     githubUrl = stdout.trim();
   } catch {}
 
+  // Scan package.json files for dependencies
+  const deps = await scanDependencies(rootDir);
+
   const payload = {
     project: config.project.name,
     github_url: githubUrl,
     modules,
+    deps,
     decisions: decisions.map((d) => ({
       module: d.module,
       title: d.title,
@@ -96,4 +100,62 @@ export async function syncCommand(): Promise<void> {
     console.error(`[agentnorth] Sync error: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   }
+}
+
+interface DepInfo {
+  name: string;
+  version: string;
+  kind: "prod" | "dev";
+  source: string;
+}
+
+async function scanDependencies(rootDir: string): Promise<DepInfo[]> {
+  const deps: DepInfo[] = [];
+  const seen = new Set<string>();
+
+  // Find all package.json files (max 2 levels deep)
+  const candidates = [
+    join(rootDir, "package.json"),
+  ];
+
+  try {
+    const topEntries = await readdir(rootDir, { withFileTypes: true });
+    for (const entry of topEntries) {
+      if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
+        candidates.push(join(rootDir, entry.name, "package.json"));
+        try {
+          const subEntries = await readdir(join(rootDir, entry.name), { withFileTypes: true });
+          for (const sub of subEntries) {
+            if (sub.isDirectory() && !sub.name.startsWith(".") && sub.name !== "node_modules") {
+              candidates.push(join(rootDir, entry.name, sub.name, "package.json"));
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+
+  for (const pkgPath of candidates) {
+    if (!existsSync(pkgPath)) continue;
+    try {
+      const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+      const source = pkgPath.replace(rootDir + "/", "");
+
+      const addDeps = (obj: Record<string, string> | undefined, kind: "prod" | "dev") => {
+        if (!obj) return;
+        for (const [name, version] of Object.entries(obj)) {
+          const key = `${name}@${kind}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            deps.push({ name, version, kind, source });
+          }
+        }
+      };
+
+      addDeps(pkg.dependencies, "prod");
+      addDeps(pkg.devDependencies, "dev");
+    } catch {}
+  }
+
+  return deps;
 }

@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { MainView } from "@/components/MainView";
 import { MapView } from "@/components/MapView";
+import { DepsView } from "@/components/DepsView";
 import { CoverageView } from "@/components/CoverageView";
 import { RisksView } from "@/components/RisksView";
-import { SkillsView } from "@/components/SkillsView";
 import { LoginScreen } from "@/components/LoginScreen";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 
-export type View = "main" | "map" | "coverage" | "risks" | "skills";
+export type View = "main" | "map" | "deps" | "coverage" | "risks";
 
 export interface ProjectRef {
   id: string;
@@ -68,8 +68,15 @@ export interface EventData {
   timestamp: string;
 }
 
+export interface DepData {
+  name: string;
+  version: string;
+  kind: "prod" | "dev";
+  source: string;
+}
+
 export interface DashboardData {
-  project: { id: string; name: string; modules: ModuleData[] };
+  project: { id: string; name: string; modules: ModuleData[]; deps: DepData[] };
   decisions: DecisionData[];
   changes: ChangeData[];
   sessions: SessionData[];
@@ -246,9 +253,9 @@ export default function Home() {
           <MainView feedRows={feedRows} savedTokens={savedTokens} data={data} />
         )}
         {view === "map" && <MapView modules={data?.project.modules || []} />}
+        {view === "deps" && <DepsView deps={data?.project.deps || []} />}
         {view === "coverage" && <CoverageView modules={data?.project.modules || []} />}
         {view === "risks" && <RisksView decisions={data?.decisions || []} changes={data?.changes || []} />}
-        {view === "skills" && <SkillsView />}
       </main>
     </div>
   );

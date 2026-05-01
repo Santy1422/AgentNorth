@@ -99,6 +99,7 @@ export async function GET(req: NextRequest) {
           id: project._id,
           name: project.name,
           modules: project.modules || [],
+          deps: project.deps || [],
         },
         decisions,
         changes,

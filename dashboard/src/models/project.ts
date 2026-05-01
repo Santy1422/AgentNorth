@@ -18,11 +18,19 @@ export interface IModuleEmbed {
   last_indexed_at: Date;
 }
 
+export interface IDepEmbed {
+  name: string;
+  version: string;
+  kind: "prod" | "dev";
+  source: string;
+}
+
 export interface IProject extends Document {
   org_id: Types.ObjectId;
   name: string;
   github_url: string;
   modules: IModuleEmbed[];
+  deps: IDepEmbed[];
   last_synced_at: Date;
 }
 
@@ -32,6 +40,7 @@ const ProjectSchema = new Schema({
   name: { type: String, required: true },
   github_url: { type: String, default: "" },
   modules: { type: [Schema.Types.Mixed], default: [] },
+  deps: { type: [Schema.Types.Mixed], default: [] },
   last_synced_at: { type: Date, default: Date.now },
 });
 

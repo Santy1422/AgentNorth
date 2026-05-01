@@ -6,9 +6,9 @@ import type { View, ProjectRef } from "@/app/page";
 const NAV_ITEMS: { view: View; label: string }[] = [
   { view: "main", label: "Inicio" },
   { view: "map", label: "Mapa" },
+  { view: "deps", label: "Deps" },
   { view: "coverage", label: "Cobertura" },
-  { view: "risks", label: "Riesgos" },
-  { view: "skills", label: "Skills" },
+  { view: "risks", label: "Decisiones" },
 ];
 
 export function Header({
