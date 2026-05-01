@@ -253,6 +253,41 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
                   </div>
                 )}
 
+                {/* Who calls this API */}
+                {(() => {
+                  const apiName = shortName(route.file.path).replace(/\.(tsx?|jsx?)$/, "");
+                  const callers = allFiles.filter(
+                    (f) =>
+                      f.path !== route.file.path &&
+                      f.kind !== "route" &&
+                      f.imports?.some(
+                        (imp) =>
+                          imp.source.endsWith(apiName) ||
+                          imp.source.endsWith("/" + apiName) ||
+                          imp.source.includes(route.path.replace("/api/", "api/"))
+                      )
+                  );
+                  if (callers.length === 0) return null;
+                  return (
+                    <div className="api-detail-section">
+                      <div className="api-detail-label">Usado por ({callers.length})</div>
+                      <div className="api-dep-list">
+                        {callers.map((c) => (
+                          <div key={c.path} className="api-dep-item">
+                            <span className="cov-file-kind" style={{
+                              background: c.kind === "page" ? "#f97316" :
+                                c.kind === "component" ? "#a78bfa" : "#71717a"
+                            }}>
+                              {c.kind}
+                            </span>
+                            <span className="mono">{shortName(c.path)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {route.file.summary && (
                   <div className="api-detail-section">
                     <div className="api-detail-label">Resumen</div>

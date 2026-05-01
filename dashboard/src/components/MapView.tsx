@@ -342,10 +342,12 @@ function ArchitectureOverview({
           <div className="arch-chips-grid">
             {components.map((c) => {
               const usedBy = getUsedBy(c, allFiles);
+              const isLarge = c.loc > 300;
               return (
-                <button key={c.path} className="arch-chip" onClick={() => onSelectFile(c)}>
+                <button key={c.path} className={"arch-chip" + (isLarge ? " large" : "")} onClick={() => onSelectFile(c)}>
                   <span className="arch-chip-dot" style={{ background: KIND_COLORS.component }}></span>
                   <span className="arch-chip-name mono">{shortName(c.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
+                  {isLarge && <span className="arch-chip-warn" title="Archivo grande">!</span>}
                   {usedBy.length > 0 && (
                     <span className="arch-chip-badge">{usedBy.length}</span>
                   )}

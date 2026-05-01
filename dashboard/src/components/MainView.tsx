@@ -211,6 +211,46 @@ export function MainView({
         </section>
       )}
 
+      {/* Activity Sparkline */}
+      {data && data.events && data.events.length > 0 && (
+        <section className="card-simple" style={{ marginBottom: 16 }}>
+          <div className="card-simple-head">
+            <h2>Actividad reciente</h2>
+            <span className="meta">tokens ahorrados por dia</span>
+          </div>
+          <div className="spark-chart">
+            {(() => {
+              // Group events by day
+              const dayMs = 86400000;
+              const now = Date.now();
+              const days: { date: string; tokens: number; events: number }[] = [];
+              for (let i = 13; i >= 0; i--) {
+                const d = new Date(now - i * dayMs);
+                const key = d.toISOString().slice(0, 10);
+                const dayEvents = data.events.filter(
+                  (e) => e.timestamp && e.timestamp.slice(0, 10) === key
+                );
+                const tokens = dayEvents.reduce((s, e) => s + (e.tokens_saved_estimate || 0), 0);
+                days.push({ date: key, tokens, events: dayEvents.length });
+              }
+              const maxTokens = Math.max(1, ...days.map((d) => d.tokens));
+              return days.map((d) => (
+                <div key={d.date} className="spark-bar-wrap" title={`${d.date}: ${d.events} eventos, ${d.tokens.toLocaleString("es")} tokens`}>
+                  <div
+                    className="spark-bar"
+                    style={{
+                      height: `${Math.max(4, (d.tokens / maxTokens) * 100)}%`,
+                      background: d.tokens > 0 ? "var(--accent)" : "var(--bg-4)",
+                    }}
+                  ></div>
+                  <div className="spark-label">{d.date.slice(8)}</div>
+                </div>
+              ));
+            })()}
+          </div>
+        </section>
+      )}
+
       {/* Health Scorecard */}
       {healthScore && (
         <section className="card-simple health-scorecard" style={{ marginBottom: 16 }}>

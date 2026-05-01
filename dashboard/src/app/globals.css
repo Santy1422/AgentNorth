@@ -4454,6 +4454,57 @@ html, body {
   margin-top: 2px;
 }
 
+/* ─── Sparkline Chart ─── */
+.spark-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 80px;
+  padding: 8px 0;
+}
+
+.spark-bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.spark-bar {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  min-height: 4px;
+  transition: height 0.3s ease;
+}
+
+.spark-label {
+  font-size: 9px;
+  color: var(--text-4);
+  font-family: var(--mono);
+}
+
+/* ─── Architecture Chip Warnings ─── */
+.arch-chip.large {
+  border-color: var(--yellow);
+}
+
+.arch-chip-warn {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--yellow);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 /* ─── Deps source distribution ─── */
 .deps-source-bar {
   background: var(--bg-2);
