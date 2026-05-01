@@ -1,126 +1,168 @@
 "use client";
 
 import { useState } from "react";
-import { RISKS } from "@/data/mock";
+import type { DecisionData, ChangeData } from "@/app/page";
 
-export function RisksView() {
-  const r = RISKS;
-  const [sev, setSev] = useState<"all" | "high" | "med" | "low">("all");
-  const [kind, setKind] = useState("all");
-  const [open, setOpen] = useState<string | null>(null);
-  const allKinds = [...new Set(r.issues.map((i) => i.kind))];
-  const filtered = r.issues.filter(
-    (i) => (sev === "all" || i.sev === sev) && (kind === "all" || i.kind === kind)
-  );
+export function RisksView({
+  decisions,
+  changes,
+}: {
+  decisions: DecisionData[];
+  changes: ChangeData[];
+}) {
+  const [tab, setTab] = useState<"decisions" | "changes">("decisions");
+  const breakingChanges = changes.filter((c) => c.breaking);
+
+  if (decisions.length === 0 && changes.length === 0) {
+    return (
+      <section className="risks-view">
+        <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
+          <h2>Decisiones y cambios</h2>
+        </div>
+        <div className="empty-state-lg">
+          <div className="empty-icon">&#x1F4CC;</div>
+          <div className="empty-title">Sin decisiones ni cambios</div>
+          <div className="empty-desc">
+            Sincroniza decisiones con <code>npx agentnorth sync</code>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="risks-view">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-        <h2>Posibles cosas rotas</h2>
+        <h2>Decisiones y cambios</h2>
         <span className="meta">
-          escaneado {r.lastScan} por{" "}
-          <span style={{ color: "var(--accent)" }}>Claude</span> · skill{" "}
-          <span className="mono">{r.skill}</span>
+          {decisions.length} decisiones · {changes.length} cambios
+          {breakingChanges.length > 0 && (
+            <span style={{ color: "var(--accent)" }}> · {breakingChanges.length} breaking</span>
+          )}
         </span>
       </div>
 
       <div className="risks-summary">
-        <div className="rs-card high">
-          <div className="rs-num">{r.bySeverity.high}</div>
-          <div className="rs-label">alto · revisar ya</div>
+        <div className="rs-card total">
+          <div className="rs-num">{decisions.length}</div>
+          <div className="rs-label">decisiones</div>
         </div>
         <div className="rs-card med">
-          <div className="rs-num">{r.bySeverity.med}</div>
-          <div className="rs-label">medio · esta semana</div>
+          <div className="rs-num">{changes.length}</div>
+          <div className="rs-label">cambios</div>
         </div>
-        <div className="rs-card low">
-          <div className="rs-num">{r.bySeverity.low}</div>
-          <div className="rs-label">bajo · housekeeping</div>
-        </div>
-        <div className="rs-card total">
-          <div className="rs-num">{r.totalIssues}</div>
-          <div className="rs-label">issues totales</div>
-        </div>
+        {breakingChanges.length > 0 && (
+          <div className="rs-card high">
+            <div className="rs-num">{breakingChanges.length}</div>
+            <div className="rs-label">breaking changes</div>
+          </div>
+        )}
       </div>
 
       <div className="risks-toolbar">
         <div className="cov-filters">
-          <button className={"cov-filter" + (sev === "all" ? " active" : "")} onClick={() => setSev("all")}>Todas</button>
-          <button className={"cov-filter high" + (sev === "high" ? " active" : "")} onClick={() => setSev("high")}>Alto</button>
-          <button className={"cov-filter med" + (sev === "med" ? " active" : "")} onClick={() => setSev("med")}>Medio</button>
-          <button className={"cov-filter low" + (sev === "low" ? " active" : "")} onClick={() => setSev("low")}>Bajo</button>
-        </div>
-        <div className="cov-filters">
-          <button className={"cov-filter sm" + (kind === "all" ? " active" : "")} onClick={() => setKind("all")}>Todos</button>
-          {allKinds.map((k) => (
-            <button key={k} className={"cov-filter sm" + (kind === k ? " active" : "")} onClick={() => setKind(k)}>
-              {k}
-            </button>
-          ))}
+          <button
+            className={"cov-filter" + (tab === "decisions" ? " active" : "")}
+            onClick={() => setTab("decisions")}
+          >
+            Decisiones ({decisions.length})
+          </button>
+          <button
+            className={"cov-filter" + (tab === "changes" ? " active" : "")}
+            onClick={() => setTab("changes")}
+          >
+            Cambios ({changes.length})
+          </button>
         </div>
       </div>
 
       <div className="risks-list">
-        {filtered.map((issue) => (
-          <RiskRow
-            key={issue.id}
-            issue={issue}
-            isOpen={open === issue.id}
-            onToggle={() => setOpen(open === issue.id ? null : issue.id)}
-          />
+        {tab === "decisions" && decisions.map((d) => (
+          <DecisionRow key={d._id} decision={d} />
         ))}
-        {filtered.length === 0 && (
-          <div className="risks-empty">
-            <span>&#x2713; Sin issues con estos filtros</span>
-          </div>
+        {tab === "changes" && changes.map((c) => (
+          <ChangeRow key={c._id} change={c} />
+        ))}
+        {tab === "decisions" && decisions.length === 0 && (
+          <div className="risks-empty"><span>Sin decisiones</span></div>
+        )}
+        {tab === "changes" && changes.length === 0 && (
+          <div className="risks-empty"><span>Sin cambios</span></div>
         )}
       </div>
     </section>
   );
 }
 
-function RiskRow({
-  issue,
-  isOpen,
-  onToggle,
-}: {
-  issue: (typeof RISKS.issues)[0];
-  isOpen: boolean;
-  onToggle: () => void;
-}) {
+function DecisionRow({ decision }: { decision: DecisionData }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <div className={"risk-row" + (isOpen ? " open" : "")} onClick={onToggle}>
+    <div className={"risk-row" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
       <div className="risk-row-head">
-        <span className={"risk-pill " + issue.sev}>
-          {issue.sev === "high" ? "alto" : issue.sev === "med" ? "medio" : "bajo"}
-        </span>
-        <span className="risk-kind mono">{issue.kind}</span>
-        <div className="risk-title">{issue.title}</div>
-        <span className="risk-loc mono">
-          {issue.file}
-          {issue.line ? `:${issue.line}` : ""}
-        </span>
-        <span className="risk-caret">{isOpen ? "-" : "+"}</span>
+        <span className="risk-pill med">decision</span>
+        {decision.module && <span className="risk-kind mono">{decision.module}</span>}
+        <div className="risk-title">{decision.title}</div>
+        <span className="risk-loc mono">{decision.status}</span>
+        <span className="risk-caret">{open ? "-" : "+"}</span>
       </div>
-      {isOpen && (
+      {open && (
         <div className="risk-row-body" onClick={(e) => e.stopPropagation()}>
-          <div className="risk-detail">{issue.detail}</div>
-          <div className="risk-suggest">
-            <span className="risk-suggest-label">Sugerencia</span>
-            <span className="risk-suggest-text">{issue.suggestion}</span>
-          </div>
-          <div className="risk-foot">
-            <span className="risk-by mono">detectado por {issue.detectedBy}</span>
-            {issue.decisions?.map((d) => (
-              <span key={d} className="risk-dec">&#x1F4CC; {d}</span>
-            ))}
-            <div className="risk-actions">
-              <button className="btn-simple sm">Asignar a Claude</button>
-              <button className="btn-simple sm ghost">Ignorar</button>
+          {decision.decision && <div className="risk-detail">{decision.decision}</div>}
+          {decision.context && (
+            <div className="risk-suggest">
+              <span className="risk-suggest-label">Contexto</span>
+              <span className="risk-suggest-text">{decision.context}</span>
             </div>
+          )}
+          <div className="risk-foot">
+            <span className="risk-by mono">por {decision.author_name}</span>
+            <span className="risk-by mono">· {timeAgo(decision.created_at)}</span>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function ChangeRow({ change }: { change: ChangeData }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className={"risk-row" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
+      <div className="risk-row-head">
+        <span className={"risk-pill " + (change.breaking ? "high" : "low")}>
+          {change.breaking ? "breaking" : "cambio"}
+        </span>
+        {change.module && <span className="risk-kind mono">{change.module}</span>}
+        <div className="risk-title">{change.summary}</div>
+        <span className="risk-loc mono">{change.files_changed?.length || 0} archivos</span>
+        <span className="risk-caret">{open ? "-" : "+"}</span>
+      </div>
+      {open && change.files_changed && change.files_changed.length > 0 && (
+        <div className="risk-row-body" onClick={(e) => e.stopPropagation()}>
+          <div className="risk-detail">
+            {change.files_changed.map((f) => (
+              <div key={f} className="mono" style={{ fontSize: 12, padding: "2px 0" }}>{f}</div>
+            ))}
+          </div>
+          <div className="risk-foot">
+            <span className="risk-by mono">{timeAgo(change.created_at)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function timeAgo(dateStr: string): string {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "ahora";
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
 }

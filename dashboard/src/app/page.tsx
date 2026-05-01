@@ -1,13 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-  SESSIONS as MOCK_SESSIONS,
-  FEED_SEED,
-  FEED_TICKER,
-  type FeedRow,
-  type Session as MockSession,
-} from "@/data/mock";
 import { Header } from "@/components/Header";
 import { MainView } from "@/components/MainView";
 import { MapView } from "@/components/MapView";
@@ -24,17 +17,20 @@ export interface ProjectRef {
   name: string;
 }
 
-type AuthState = "loading" | "unauthenticated" | "no-projects" | "ready";
-
-interface ModuleData {
+export interface ModuleData {
   name: string;
   description: string;
   paths: string[];
   files_count: number;
   loc: number;
+  exports_count: number;
+  dependencies?: {
+    internal: string[];
+    external: string[];
+  };
 }
 
-interface DecisionData {
+export interface DecisionData {
   _id: string;
   module: string;
   title: string;
@@ -45,7 +41,7 @@ interface DecisionData {
   created_at: string;
 }
 
-interface ChangeData {
+export interface ChangeData {
   _id: string;
   module: string;
   summary: string;
@@ -54,7 +50,7 @@ interface ChangeData {
   created_at: string;
 }
 
-interface SessionData {
+export interface SessionData {
   _id: string;
   dev_id: { name?: string } | null;
   started_at: string;
@@ -63,7 +59,7 @@ interface SessionData {
   tokens_saved_total: number;
 }
 
-interface EventData {
+export interface EventData {
   _id: string;
   action: string;
   module: string;
@@ -72,7 +68,7 @@ interface EventData {
   timestamp: string;
 }
 
-interface DashboardData {
+export interface DashboardData {
   project: { id: string; name: string; modules: ModuleData[] };
   decisions: DecisionData[];
   changes: ChangeData[];
@@ -82,77 +78,19 @@ interface DashboardData {
   total_events: number;
 }
 
-function mapEventsToFeed(data: DashboardData): FeedRow[] {
-  const rows: FeedRow[] = [];
-
-  for (const d of data.decisions.slice(0, 4)) {
-    rows.push({
-      id: d._id,
-      kind: "decision",
-      who: d.author_name === "agent" ? "claude" : d.author_name || "unknown",
-      verb: "fijo decision",
-      obj: d.title,
-      detail: d.decision || d.context || "",
-      ago: timeAgo(d.created_at),
-      badges: [{ t: "pinned", c: "violet" }, { t: d.module || "", c: "" }],
-    });
-  }
-
-  for (const c of data.changes.slice(0, 4)) {
-    rows.push({
-      id: c._id,
-      kind: "doc",
-      who: "claude",
-      verb: "modifico",
-      obj: c.summary,
-      detail: `${c.files_changed?.length || 0} archivos${c.breaking ? " · BREAKING" : ""}`,
-      ago: timeAgo(c.created_at),
-      badges: c.breaking
-        ? [{ t: "breaking", c: "accent" }]
-        : [{ t: "cambio", c: "blue" }],
-    });
-  }
-
-  for (const e of data.events.slice(0, 4)) {
-    rows.push({
-      id: e._id,
-      kind: "claude",
-      who: "claude",
-      verb: e.action?.replace(/_/g, " ") || "evento",
-      obj: e.module || "",
-      detail: "",
-      ago: timeAgo(e.timestamp),
-      badges: e.tokens_saved_estimate
-        ? [{ t: `-${(e.tokens_saved_estimate / 1000).toFixed(1)}k tokens`, c: "accent" }]
-        : [],
-      by: e.dev_id?.name || undefined,
-    });
-  }
-
-  rows.sort((a, b) => {
-    if (a.ago === "ahora") return -1;
-    if (b.ago === "ahora") return 1;
-    return 0;
-  });
-
-  return rows.slice(0, 8);
+export interface FeedRow {
+  id: string;
+  kind: string;
+  who: string;
+  verb: string;
+  obj: string;
+  detail: string;
+  ago: string;
+  badges?: { t: string; c: string }[];
+  fresh?: boolean;
 }
 
-function mapSessions(data: DashboardData): MockSession[] {
-  return data.sessions.slice(0, 4).map((s, i) => ({
-    id: s._id,
-    who: s.dev_id?.name || "agent",
-    status: s.ended_at ? "done" : "live",
-    task: `Session ${i + 1}`,
-    file: "",
-    bundle: "",
-    progress: s.ended_at ? 100 : 50,
-    tokens: s.tokens_total || 0,
-    cap: 80000,
-    saved: s.tokens_saved_total || 0,
-    ago: timeAgo(s.started_at),
-  }));
-}
+type AuthState = "loading" | "unauthenticated" | "no-projects" | "ready";
 
 function timeAgo(dateStr: string): string {
   if (!dateStr) return "";
@@ -166,13 +104,65 @@ function timeAgo(dateStr: string): string {
   return `${days}d`;
 }
 
+function buildFeed(data: DashboardData): FeedRow[] {
+  const rows: FeedRow[] = [];
+
+  for (const d of data.decisions.slice(0, 5)) {
+    rows.push({
+      id: d._id,
+      kind: "decision",
+      who: d.author_name === "agent" ? "Claude" : d.author_name || "unknown",
+      verb: "fijo decision",
+      obj: d.title,
+      detail: d.decision || d.context || "",
+      ago: timeAgo(d.created_at),
+      badges: [{ t: "pinned", c: "violet" }, { t: d.module || "", c: "" }],
+    });
+  }
+
+  for (const c of data.changes.slice(0, 5)) {
+    rows.push({
+      id: c._id,
+      kind: "doc",
+      who: "Claude",
+      verb: "modifico",
+      obj: c.summary,
+      detail: `${c.files_changed?.length || 0} archivos${c.breaking ? " · BREAKING" : ""}`,
+      ago: timeAgo(c.created_at),
+      badges: c.breaking ? [{ t: "breaking", c: "accent" }] : [{ t: "cambio", c: "blue" }],
+    });
+  }
+
+  for (const e of data.events.slice(0, 5)) {
+    rows.push({
+      id: e._id,
+      kind: "claude",
+      who: "Claude",
+      verb: e.action?.replace(/_/g, " ") || "evento",
+      obj: e.module || "",
+      detail: "",
+      ago: timeAgo(e.timestamp),
+      badges: e.tokens_saved_estimate
+        ? [{ t: `-${(e.tokens_saved_estimate / 1000).toFixed(1)}k tokens`, c: "accent" }]
+        : [],
+    });
+  }
+
+  rows.sort((a, b) => {
+    if (a.ago === "ahora") return -1;
+    if (b.ago === "ahora") return 1;
+    return 0;
+  });
+
+  return rows.slice(0, 10);
+}
+
 export default function Home() {
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [view, setView] = useState<View>("main");
-  const [feedRows, setFeedRows] = useState<FeedRow[]>(FEED_SEED.slice(0, 6));
-  const [sessions, setSessions] = useState<MockSession[]>(MOCK_SESSIONS);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [feedRows, setFeedRows] = useState<FeedRow[]>([]);
   const [savedTokens, setSavedTokens] = useState(0);
-  const [isLive, setIsLive] = useState(false);
   const [projects, setProjects] = useState<ProjectRef[]>([]);
   const [activeProject, setActiveProject] = useState<ProjectRef | null>(null);
 
@@ -198,21 +188,12 @@ export default function Home() {
         return;
       }
 
-      const data = json.data as DashboardData;
-      setActiveProject({ id: data.project.id, name: data.project.name });
-      setSavedTokens(data.tokens_saved || 0);
-      setIsLive(true);
+      const d = json.data as DashboardData;
+      setData(d);
+      setActiveProject({ id: d.project.id, name: d.project.name });
+      setSavedTokens(d.tokens_saved || 0);
+      setFeedRows(buildFeed(d));
       setAuthState("ready");
-
-      const realFeed = mapEventsToFeed(data);
-      if (realFeed.length > 0) {
-        setFeedRows(realFeed);
-      }
-
-      const realSessions = mapSessions(data);
-      if (realSessions.length > 0) {
-        setSessions(realSessions);
-      }
     } catch {
       setAuthState("unauthenticated");
     }
@@ -222,36 +203,22 @@ export default function Home() {
     fetchDashboard();
   }, [fetchDashboard]);
 
+  // Auto-refresh every 30s
+  useEffect(() => {
+    if (authState !== "ready") return;
+    const i = setInterval(() => {
+      fetchDashboard(activeProject?.id);
+    }, 30000);
+    return () => clearInterval(i);
+  }, [authState, fetchDashboard, activeProject]);
+
   const switchProject = useCallback((p: ProjectRef) => {
     setActiveProject(p);
-    setFeedRows(FEED_SEED.slice(0, 6));
-    setSessions(MOCK_SESSIONS);
+    setData(null);
+    setFeedRows([]);
     setSavedTokens(0);
     fetchDashboard(p.id);
   }, [fetchDashboard]);
-
-  useEffect(() => {
-    if (authState !== "ready") return;
-
-    if (isLive) {
-      const i = setInterval(() => {
-        fetchDashboard(activeProject?.id);
-      }, 15000);
-      return () => clearInterval(i);
-    }
-
-    const i = setInterval(() => {
-      setFeedRows((rows) => {
-        const next = FEED_TICKER[Math.floor(Math.random() * FEED_TICKER.length)];
-        return [
-          { ...next, id: "t" + Date.now(), ago: "ahora", fresh: true },
-          ...rows,
-        ].slice(0, 8);
-      });
-      setSavedTokens((s) => s + Math.floor(800 + Math.random() * 4000));
-    }, 5000);
-    return () => clearInterval(i);
-  }, [authState, isLive, fetchDashboard, activeProject]);
 
   if (authState === "loading") {
     return (
@@ -261,13 +228,8 @@ export default function Home() {
     );
   }
 
-  if (authState === "unauthenticated") {
-    return <LoginScreen />;
-  }
-
-  if (authState === "no-projects") {
-    return <OnboardingScreen />;
-  }
+  if (authState === "unauthenticated") return <LoginScreen />;
+  if (authState === "no-projects") return <OnboardingScreen />;
 
   return (
     <div className="simple-app">
@@ -277,15 +239,15 @@ export default function Home() {
         projects={projects}
         activeProject={activeProject}
         onSwitchProject={switchProject}
-        isLive={isLive}
+        isLive={true}
       />
       <main className="simple-main">
         {view === "main" && (
-          <MainView feedRows={feedRows} savedTokens={savedTokens} sessions={sessions} isLive={isLive} />
+          <MainView feedRows={feedRows} savedTokens={savedTokens} data={data} />
         )}
-        {view === "map" && <MapView />}
-        {view === "coverage" && <CoverageView />}
-        {view === "risks" && <RisksView />}
+        {view === "map" && <MapView modules={data?.project.modules || []} />}
+        {view === "coverage" && <CoverageView modules={data?.project.modules || []} />}
+        {view === "risks" && <RisksView decisions={data?.decisions || []} changes={data?.changes || []} />}
         {view === "skills" && <SkillsView />}
       </main>
     </div>
