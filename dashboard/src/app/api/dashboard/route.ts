@@ -30,26 +30,31 @@ export async function GET(req: NextRequest) {
     const session = await getAuth();
     let orgId = session?.orgId;
 
-    // User is signed in with GitHub but Developer record doesn't exist yet
-    // (can happen if DB was down during first sign-in)
-    if (!orgId && session?.user?.email) {
+    // User is signed in but Developer record missing (DB was down during sign-in)
+    if (!orgId && (session?.githubId || session?.user?.email)) {
       try {
         await db();
         const { Developer } = await models();
         const { createOrgKey, createDevKey } = await import("@/lib/auth-keys");
 
-        const existing = await Developer.findOne({ email: session.user.email });
+        let existing = session.githubId
+          ? await Developer.findOne({ github_id: session.githubId })
+          : null;
+        if (!existing && session.user?.email) {
+          existing = await Developer.findOne({ email: session.user.email });
+        }
+
         if (existing) {
           orgId = existing.org_id.toString();
         } else {
           const { org } = await createOrgKey(
-            session.user.name ? `${session.user.name}'s Team` : "My Team",
+            session.user?.name ? `${session.user.name}'s Team` : "My Team",
           );
-          const { dev } = await createDevKey(
+          await createDevKey(
             org._id.toString(),
-            session.user.name || "Unknown",
-            session.user.email,
-            "",
+            session.user?.name || "Unknown",
+            session.user?.email || "",
+            session.githubId || "",
           );
           orgId = org._id.toString();
         }
@@ -59,7 +64,10 @@ export async function GET(req: NextRequest) {
     }
 
     if (!orgId) {
-      return NextResponse.json({ authenticated: false, data: null });
+      return NextResponse.json({
+        authenticated: !!session?.user,
+        data: null,
+      });
     }
 
     await db();

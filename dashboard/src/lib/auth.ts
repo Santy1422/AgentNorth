@@ -21,7 +21,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const existing = await Developer.findOne({ github_id: githubId });
         if (existing) return true;
 
-        // New user — create org + dev
         const { org } = await createOrgKey(user.name ? `${user.name}'s Team` : "My Team");
         await createDevKey(
           org._id.toString(),
@@ -33,32 +32,54 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return true;
       } catch (err) {
         console.error("[auth] signIn callback error:", err);
-        // Allow sign-in even if DB fails — session callback will handle missing data
         return true;
       }
     },
 
-    async session({ session }) {
-      try {
-        const { connectDB } = await import("./db");
-        const { Developer } = await import("../models");
-
-        await connectDB();
-
-        if (session.user?.email) {
-          const dev = await Developer.findOne({ email: session.user.email }).populate("org_id");
-          if (dev) {
-            const org = dev.org_id as unknown as { _id: { toString(): string }; name: string };
-            session.orgId = org._id.toString();
-            session.devId = dev._id.toString();
-            session.role = dev.role;
-            session.orgName = org.name;
-          }
-        }
-      } catch (err) {
-        console.error("[auth] session callback error:", err);
+    async jwt({ token, account, profile }) {
+      // On initial sign-in, store githubId in the token
+      if (account && profile) {
+        token.githubId = String(profile.id || account.providerAccountId);
       }
 
+      // Load org/dev data from DB (cached in token so we don't query every request)
+      if (!token.orgId && (token.githubId || token.email)) {
+        try {
+          const { connectDB } = await import("./db");
+          const { Developer } = await import("../models");
+
+          await connectDB();
+
+          // Try github_id first (most reliable), fall back to email
+          let dev = token.githubId
+            ? await Developer.findOne({ github_id: token.githubId }).populate("org_id")
+            : null;
+
+          if (!dev && token.email) {
+            dev = await Developer.findOne({ email: token.email }).populate("org_id");
+          }
+
+          if (dev) {
+            const org = dev.org_id as unknown as { _id: { toString(): string }; name: string };
+            token.orgId = org._id.toString();
+            token.devId = dev._id.toString();
+            token.role = dev.role;
+            token.orgName = org.name;
+          }
+        } catch (err) {
+          console.error("[auth] jwt callback error:", err);
+        }
+      }
+
+      return token;
+    },
+
+    async session({ session, token }) {
+      session.orgId = token.orgId;
+      session.devId = token.devId;
+      session.role = token.role;
+      session.orgName = token.orgName;
+      session.githubId = token.githubId;
       return session;
     },
   },
