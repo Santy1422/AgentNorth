@@ -28,8 +28,8 @@ export async function docsCommand() {
     console.error(
       `[agentnorth] Done. Generated docs for ${bundles.length} modules in .agentnorth/docs/`,
     );
-  } catch (e: any) {
-    console.error(`[agentnorth] Error: ${e.message}`);
+  } catch (e: unknown) {
+    console.error(`[agentnorth] Error: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   }
 }

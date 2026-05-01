@@ -41,10 +41,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user?.email) {
         const dev = await Developer.findOne({ email: session.user.email }).populate("org_id");
         if (dev) {
-          (session as any).orgId = dev.org_id._id.toString();
-          (session as any).devId = dev._id.toString();
-          (session as any).role = dev.role;
-          (session as any).orgName = (dev.org_id as any).name;
+          const org = dev.org_id as unknown as { _id: { toString(): string }; name: string };
+          session.orgId = org._id.toString();
+          session.devId = dev._id.toString();
+          session.role = dev.role;
+          session.orgName = org.name;
         }
       }
 

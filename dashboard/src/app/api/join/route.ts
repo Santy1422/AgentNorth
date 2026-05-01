@@ -16,7 +16,7 @@ async function db() {
 /** POST /api/join — Join an org via invite code */
 export async function POST(req: Request) {
   const session = await getAuth();
-  const devId = (session as any)?.devId;
+  const devId = session?.devId;
   if (!devId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
@@ -34,7 +34,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid invite code" }, { status: 404 });
   }
 
-  // Move developer to the target org
   const dev = await Developer.findById(devId);
   if (!dev) {
     return NextResponse.json({ error: "Developer not found" }, { status: 404 });
@@ -47,12 +46,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, org_name: targetOrg.name, message: "Already in this team" });
   }
 
-  // Move to new org
   dev.org_id = targetOrg._id;
   dev.role = "member";
   await dev.save();
 
-  // Clean up old org if it has no members left
   const remaining = await Developer.countDocuments({ org_id: oldOrgId });
   if (remaining === 0) {
     await Organization.findByIdAndDelete(oldOrgId);

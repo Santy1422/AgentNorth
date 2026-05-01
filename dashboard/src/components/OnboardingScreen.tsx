@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 
 export function OnboardingScreen() {
   const [keys, setKeys] = useState<{ org_key: string; dev_key: string } | null>(null);
-  const [team, setTeam] = useState<{ org: any; members: any[] } | null>(null);
+  const [team, setTeam] = useState<{
+    org: { name?: string; invite_code?: string; plan?: string };
+    members: { _id: string; name: string; role: string }[];
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -175,7 +178,7 @@ export function OnboardingScreen() {
               </div>
               {team && team.members.length > 1 && (
                 <div className="os-team-list">
-                  {team.members.map((m: any) => (
+                  {team.members.map((m) => (
                     <div key={m._id} className="os-team-member">
                       <span className="os-team-name">{m.name}</span>
                       <span className="os-team-role">{m.role}</span>

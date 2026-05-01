@@ -21,8 +21,8 @@ export async function indexCommand(opts: { module?: string }) {
         `[agentnorth] Done: ${bundles.length} modules, ${totalFiles} files indexed`,
       );
     }
-  } catch (e: any) {
-    console.error(`[agentnorth] Error: ${e.message}`);
+  } catch (e: unknown) {
+    console.error(`[agentnorth] Error: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   }
 }

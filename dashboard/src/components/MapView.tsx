@@ -23,13 +23,15 @@ export function MapView() {
     if (!drill) setFileDrill(null);
   }, [drill]);
 
-  const searchHits = useMemo(() => {
+  type SearchHit = FileNode & { modId?: string };
+
+  const searchHits = useMemo((): SearchHit[] => {
     if (!search.trim()) return [];
     const q = search.toLowerCase();
     if (drill && detail) {
       return detail.files.filter((f) => f.name.toLowerCase().includes(q));
     }
-    const out: (FileNode & { modId?: string })[] = [];
+    const out: SearchHit[] = [];
     Object.entries(MODULE_DETAILS).forEach(([modId, mod]) => {
       mod.files.forEach((f) => {
         if (f.name.toLowerCase().includes(q)) out.push({ ...f, modId });
@@ -92,7 +94,7 @@ export function MapView() {
           )}
           {searchHits.length > 0 && (
             <div className="search-results">
-              {searchHits.map((h: any) => (
+              {searchHits.map((h) => (
                 <button
                   key={(h.modId || drill) + h.id}
                   className="search-hit"

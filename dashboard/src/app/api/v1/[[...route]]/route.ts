@@ -1,12 +1,19 @@
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
+import type { Context, Next } from "hono";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const app = new Hono().basePath("/api/v1");
+interface AuthEnv {
+  Variables: {
+    org: { _id: string; name: string };
+    dev: { _id: string; name: string };
+  };
+}
 
-// Lazy loaders to avoid mongoose at build time
+const app = new Hono<AuthEnv>().basePath("/api/v1");
+
 async function db() {
   const { connectDB } = await import("@/lib/db");
   return connectDB();
@@ -21,8 +28,7 @@ async function authKeys(orgKey: string, devKey: string) {
   return authenticateKeys(orgKey, devKey);
 }
 
-// --- Middleware: API key auth ---
-const authMiddleware = async (c: any, next: () => Promise<void>) => {
+const authMiddleware = async (c: Context<AuthEnv>, next: Next) => {
   const orgKey = c.req.header("X-Org-Key");
   const devKey = c.req.header("X-Dev-Key");
 
@@ -41,11 +47,9 @@ const authMiddleware = async (c: any, next: () => Promise<void>) => {
   await next();
 };
 
-// --- Health check ---
 app.get("/health", (c) => c.json({ status: "ok", service: "agentnorth" }));
 
-// --- Session start (from hooks) ---
-app.post("/sessions/start", authMiddleware, async (c: any) => {
+app.post("/sessions/start", authMiddleware, async (c) => {
   await db();
   const { Project, Session } = await models();
   const body = await c.req.json();
@@ -70,8 +74,7 @@ app.post("/sessions/start", authMiddleware, async (c: any) => {
   return c.json({ session_id: session._id });
 });
 
-// --- Session end (from hooks) ---
-app.post("/sessions/end", authMiddleware, async (c: any) => {
+app.post("/sessions/end", authMiddleware, async (c) => {
   await db();
   const { Session } = await models();
   const body = await c.req.json();
@@ -93,8 +96,7 @@ app.post("/sessions/end", authMiddleware, async (c: any) => {
   return c.json({ ok: true });
 });
 
-// --- Events (from hooks) ---
-app.post("/events", authMiddleware, async (c: any) => {
+app.post("/events", authMiddleware, async (c) => {
   await db();
   const { Project, UsageEvent } = await models();
   const body = await c.req.json();
@@ -116,7 +118,6 @@ app.post("/events", authMiddleware, async (c: any) => {
   return c.json({ ok: true });
 });
 
-// --- Dashboard read endpoints ---
 app.get("/orgs/:orgId/projects", async (c) => {
   await db();
   const { Project } = await models();
@@ -199,8 +200,7 @@ app.get("/orgs/:orgId/stats", async (c) => {
   });
 });
 
-// --- Sync endpoint: receive bundle data from MCP server ---
-app.post("/sync", authMiddleware, async (c: any) => {
+app.post("/sync", authMiddleware, async (c) => {
   await db();
   const { Project, Decision, AgentChange } = await models();
   const body = await c.req.json();

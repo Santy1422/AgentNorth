@@ -36,8 +36,8 @@ export async function statusCommand() {
     } catch {
       console.error("\n[agentnorth] Decisions: 0");
     }
-  } catch (e: any) {
-    console.error(`[agentnorth] Error: ${e.message}`);
+  } catch (e: unknown) {
+    console.error(`[agentnorth] Error: ${e instanceof Error ? e.message : String(e)}`);
     console.error("[agentnorth] Run `agentnorth init` first.");
     process.exit(1);
   }

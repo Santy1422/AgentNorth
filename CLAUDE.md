@@ -29,7 +29,6 @@ Este proyecto usa AgentNorth como Shared Context Layer. El MCP server `agentnort
 
 ## Estructura
 ```
-packages/agentnorth/   — MCP Server + CLI (Fase 1)
-dashboard/             — Next.js 15 dashboard (Fase 2 frontend)
-roadmap/               — 10 docs de arquitectura y plan
+packages/agentnorth/   — npm package (MCP Server + CLI)
+dashboard/             — Next.js 15 dashboard (agentnorth.io)
 ```

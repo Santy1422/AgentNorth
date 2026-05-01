@@ -26,12 +26,58 @@ export interface ProjectRef {
 
 type AuthState = "loading" | "unauthenticated" | "no-projects" | "ready";
 
+interface ModuleData {
+  name: string;
+  description: string;
+  paths: string[];
+  files_count: number;
+  loc: number;
+}
+
+interface DecisionData {
+  _id: string;
+  module: string;
+  title: string;
+  context?: string;
+  decision?: string;
+  author_name: string;
+  status: string;
+  created_at: string;
+}
+
+interface ChangeData {
+  _id: string;
+  module: string;
+  summary: string;
+  files_changed: string[];
+  breaking: boolean;
+  created_at: string;
+}
+
+interface SessionData {
+  _id: string;
+  dev_id: { name?: string } | null;
+  started_at: string;
+  ended_at: string | null;
+  tokens_total: number;
+  tokens_saved_total: number;
+}
+
+interface EventData {
+  _id: string;
+  action: string;
+  module: string;
+  dev_id: { name?: string } | null;
+  tokens_saved_estimate: number;
+  timestamp: string;
+}
+
 interface DashboardData {
-  project: { id: string; name: string; modules: any[] };
-  decisions: any[];
-  changes: any[];
-  sessions: any[];
-  events: any[];
+  project: { id: string; name: string; modules: ModuleData[] };
+  decisions: DecisionData[];
+  changes: ChangeData[];
+  sessions: SessionData[];
+  events: EventData[];
   tokens_saved: number;
   total_events: number;
 }
@@ -79,7 +125,7 @@ function mapEventsToFeed(data: DashboardData): FeedRow[] {
       badges: e.tokens_saved_estimate
         ? [{ t: `-${(e.tokens_saved_estimate / 1000).toFixed(1)}k tokens`, c: "accent" }]
         : [],
-      by: (e.dev_id as any)?.name || undefined,
+      by: e.dev_id?.name || undefined,
     });
   }
 
@@ -93,17 +139,17 @@ function mapEventsToFeed(data: DashboardData): FeedRow[] {
 }
 
 function mapSessions(data: DashboardData): MockSession[] {
-  return data.sessions.slice(0, 4).map((s: any, i: number) => ({
+  return data.sessions.slice(0, 4).map((s, i) => ({
     id: s._id,
-    who: (s.dev_id as any)?.name || "agent",
+    who: s.dev_id?.name || "agent",
     status: s.ended_at ? "done" : "live",
     task: `Session ${i + 1}`,
     file: "",
     bundle: "",
     progress: s.ended_at ? 100 : 50,
-    tokens: s.tokens_used || 0,
+    tokens: s.tokens_total || 0,
     cap: 80000,
-    saved: s.tokens_saved || 0,
+    saved: s.tokens_saved_total || 0,
     ago: timeAgo(s.started_at),
   }));
 }
@@ -184,7 +230,6 @@ export default function Home() {
     fetchDashboard(p.id);
   }, [fetchDashboard]);
 
-  // Live ticker / polling
   useEffect(() => {
     if (authState !== "ready") return;
 
@@ -208,7 +253,6 @@ export default function Home() {
     return () => clearInterval(i);
   }, [authState, isLive, fetchDashboard, activeProject]);
 
-  // Loading state
   if (authState === "loading") {
     return (
       <div className="loading-screen">
@@ -217,17 +261,14 @@ export default function Home() {
     );
   }
 
-  // Not logged in
   if (authState === "unauthenticated") {
     return <LoginScreen />;
   }
 
-  // Logged in but no projects
   if (authState === "no-projects") {
     return <OnboardingScreen />;
   }
 
-  // Dashboard
   return (
     <div className="simple-app">
       <Header

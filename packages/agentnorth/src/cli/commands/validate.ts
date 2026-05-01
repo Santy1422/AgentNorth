@@ -45,8 +45,8 @@ async function validate(rootDir: string): Promise<ValidationResult> {
   try {
     config = await loadConfig(rootDir);
     checks.push({ name: "config-valid", status: "pass", message: `${Object.keys(config.modules).length} modules defined` });
-  } catch (e: any) {
-    checks.push({ name: "config-valid", status: "fail", message: `Invalid config: ${e.message}` });
+  } catch (e: unknown) {
+    checks.push({ name: "config-valid", status: "fail", message: `Invalid config: ${e instanceof Error ? e.message : String(e)}` });
     return { ok: false, checks };
   }
 
@@ -80,6 +80,7 @@ async function validate(rootDir: string): Promise<ValidationResult> {
 
     const bundleStat = await stat(bundlePath);
     const mod = config.modules[name];
+    if (!mod) continue;
     let stale = false;
 
     for (const p of mod.paths) {

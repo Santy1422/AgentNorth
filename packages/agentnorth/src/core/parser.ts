@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { Lang, parse as astParse } from "@ast-grep/napi";
+import { Lang, parse as astParse, type SgNode } from "@ast-grep/napi";
 import type { ScannedFile } from "./scanner.js";
 
 export interface ParsedFile {
@@ -52,7 +52,7 @@ export async function parseFile(file: ScannedFile): Promise<ParsedFile> {
   return { path: file.path, imports, exports, functions, classes, loc };
 }
 
-function extractImports(root: any, lang: Lang): ImportInfo[] {
+function extractImports(root: SgNode, lang: Lang): ImportInfo[] {
   const imports: ImportInfo[] = [];
 
   if (lang === Lang.TypeScript || lang === Lang.Tsx || lang === Lang.JavaScript) {
@@ -91,7 +91,7 @@ function extractImports(root: any, lang: Lang): ImportInfo[] {
   return imports;
 }
 
-function extractExports(root: any, lang: Lang): string[] {
+function extractExports(root: SgNode, lang: Lang): string[] {
   const exports: string[] = [];
 
   if (lang === Lang.TypeScript || lang === Lang.Tsx || lang === Lang.JavaScript) {
@@ -144,7 +144,7 @@ function extractExports(root: any, lang: Lang): string[] {
   return exports;
 }
 
-function extractFunctions(root: any, lang: Lang): string[] {
+function extractFunctions(root: SgNode, lang: Lang): string[] {
   const functions: string[] = [];
 
   if (lang === Lang.TypeScript || lang === Lang.Tsx || lang === Lang.JavaScript) {
@@ -168,7 +168,7 @@ function extractFunctions(root: any, lang: Lang): string[] {
   return [...new Set(functions)];
 }
 
-function extractClasses(root: any, lang: Lang): string[] {
+function extractClasses(root: SgNode, lang: Lang): string[] {
   const classes: string[] = [];
 
   if (lang === Lang.TypeScript || lang === Lang.Tsx || lang === Lang.JavaScript) {

@@ -16,8 +16,8 @@ async function db() {
 /** GET /api/keys — Show current key prefixes (not full keys) */
 export async function GET() {
   const session = await getAuth();
-  const orgId = (session as any)?.orgId;
-  const devId = (session as any)?.devId;
+  const orgId = session?.orgId;
+  const devId = session?.devId;
   if (!orgId || !devId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
@@ -37,8 +37,8 @@ export async function GET() {
 /** POST /api/keys — Regenerate API keys for the current user */
 export async function POST() {
   const session = await getAuth();
-  const orgId = (session as any)?.orgId;
-  const devId = (session as any)?.devId;
+  const orgId = session?.orgId;
+  const devId = session?.devId;
   if (!orgId || !devId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
@@ -54,7 +54,6 @@ export async function POST() {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Regenerate both keys
   const newOrgKey = generateKey("an_org");
   const newDevKey = generateKey("an_dev");
 

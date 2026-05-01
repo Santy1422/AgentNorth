@@ -16,7 +16,7 @@ async function db() {
 /** GET /api/team — Get team members + invite code */
 export async function GET() {
   const session = await getAuth();
-  const orgId = (session as any)?.orgId;
+  const orgId = session?.orgId;
   if (!orgId) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }

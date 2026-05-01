@@ -31,8 +31,8 @@ export async function syncCommand(): Promise<void> {
         description: mod.description || "",
         paths: mod.paths,
         files_count: bundle.files?.length || 0,
-        loc: bundle.files?.reduce((sum: number, f: any) => sum + (f.loc || 0), 0) || 0,
-        exports_count: bundle.files?.reduce((sum: number, f: any) => sum + (f.exports?.length || 0), 0) || 0,
+        loc: bundle.files?.reduce((sum: number, f: { loc?: number }) => sum + (f.loc || 0), 0) || 0,
+        exports_count: bundle.files?.reduce((sum: number, f: { exports?: string[] }) => sum + (f.exports?.length || 0), 0) || 0,
         dependencies: bundle.dependencies || { internal: [], external: [] },
         schema: {
           tables: bundle.schema?.tables || [],
@@ -92,8 +92,8 @@ export async function syncCommand(): Promise<void> {
 
     const result = await response.json();
     console.error(`[agentnorth] Synced successfully. Project ID: ${result.project_id}`);
-  } catch (e: any) {
-    console.error(`[agentnorth] Sync error: ${e.message}`);
+  } catch (e: unknown) {
+    console.error(`[agentnorth] Sync error: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   }
 }

@@ -69,9 +69,9 @@ REGLAS:
         return {
           content: [{ type: "text" as const, text: JSON.stringify({ modules }, null, 2) }],
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         return {
-          content: [{ type: "text" as const, text: `Error: ${e.message}` }],
+          content: [{ type: "text" as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }],
           isError: true,
         };
       }
@@ -100,7 +100,7 @@ REGLAS:
         return {
           content: [{ type: "text" as const, text: raw }],
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         return {
           content: [
             {
@@ -152,9 +152,9 @@ REGLAS:
         return {
           content: [{ type: "text" as const, text: JSON.stringify({ decisions }, null, 2) }],
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         return {
-          content: [{ type: "text" as const, text: `Error: ${e.message}` }],
+          content: [{ type: "text" as const, text: `Error: ${e instanceof Error ? e.message : String(e)}` }],
           isError: true,
         };
       }
@@ -199,9 +199,9 @@ REGLAS:
             },
           ],
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         return {
-          content: [{ type: "text" as const, text: `Error writing decision: ${e.message}` }],
+          content: [{ type: "text" as const, text: `Error writing decision: ${e instanceof Error ? e.message : String(e)}` }],
           isError: true,
         };
       }
@@ -246,9 +246,9 @@ REGLAS:
             },
           ],
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         return {
-          content: [{ type: "text" as const, text: `Error logging change: ${e.message}` }],
+          content: [{ type: "text" as const, text: `Error logging change: ${e instanceof Error ? e.message : String(e)}` }],
           isError: true,
         };
       }

@@ -18,10 +18,17 @@ async function models() {
   return import("@/models");
 }
 
+interface ProjectLean {
+  _id: string;
+  name: string;
+  github_url?: string;
+  last_synced_at?: Date;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getAuth();
-    const orgId = (session as any)?.orgId;
+    const orgId = session?.orgId;
 
     if (!orgId) {
       return NextResponse.json({ authenticated: false, data: null });
@@ -30,13 +37,11 @@ export async function GET(req: NextRequest) {
     await db();
     const { Project, Decision, AgentChange, Session, UsageEvent } = await models();
 
-    // Get all projects for this org (for the switcher)
     const allProjects = await Project.find({ org_id: orgId })
       .sort({ last_synced_at: -1 })
       .select("_id name github_url last_synced_at")
-      .lean();
+      .lean<ProjectLean[]>();
 
-    // Which project to show? Check query param, fallback to most recent
     const projectId = req.nextUrl.searchParams.get("project");
     let project;
     if (projectId) {
@@ -49,7 +54,7 @@ export async function GET(req: NextRequest) {
     if (!project) {
       return NextResponse.json({
         authenticated: true,
-        projects: allProjects.map((p: any) => ({ id: p._id, name: p.name })),
+        projects: allProjects.map((p) => ({ id: p._id, name: p.name })),
         data: null,
       });
     }
@@ -81,7 +86,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       authenticated: true,
-      projects: allProjects.map((p: any) => ({ id: p._id, name: p.name })),
+      projects: allProjects.map((p) => ({ id: p._id, name: p.name })),
       data: {
         project: {
           id: project._id,
@@ -96,8 +101,9 @@ export async function GET(req: NextRequest) {
         total_events: stats[0]?.total_events || 0,
       },
     });
-  } catch (e: any) {
-    console.error("[dashboard API]", e.message);
-    return NextResponse.json({ authenticated: false, data: null, error: e.message }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[dashboard API]", message);
+    return NextResponse.json({ authenticated: false, data: null, error: message }, { status: 500 });
   }
 }
