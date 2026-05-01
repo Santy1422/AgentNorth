@@ -26,35 +26,15 @@ export interface IProject extends Document {
   last_synced_at: Date;
 }
 
-const ModuleEmbedSchema = new Schema<IModuleEmbed>(
-  {
-    name: { type: String, required: true },
-    description: { type: String, default: "" },
-    paths: [String],
-    files_count: { type: Number, default: 0 },
-    loc: { type: Number, default: 0 },
-    exports_count: { type: Number, default: 0 },
-    dependencies: {
-      internal: [String],
-      external: [String],
-    },
-    schema: {
-      tables: [Schema.Types.Mixed],
-      mermaid_erd: { type: String, default: "" },
-    },
-    last_indexed_at: { type: Date, default: Date.now },
-  },
-  { _id: false },
-);
-
-const ProjectSchema = new Schema<IProject>({
+// Use untyped Schema to avoid mongoose SubDocument scope errors in serverless
+const ProjectSchema = new Schema({
   org_id: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
   name: { type: String, required: true },
   github_url: { type: String, default: "" },
-  modules: [ModuleEmbedSchema],
+  modules: { type: [Schema.Types.Mixed], default: [] },
   last_synced_at: { type: Date, default: Date.now },
 });
 
 export const Project =
-  mongoose.models.Project ||
+  (mongoose.models.Project as mongoose.Model<IProject>) ||
   mongoose.model<IProject>("Project", ProjectSchema);

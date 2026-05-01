@@ -37,30 +37,39 @@ const authMiddleware = async (c: Context<AuthEnv>, next: Next) => {
   }
 
   try {
-    await db();
     const { compare } = await import("bcryptjs");
-    const { Organization, Developer } = await models();
+    const { MongoClient } = await import("mongodb");
 
-    // Inline key validation (avoids auth-keys.ts mongoose scope issues)
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      return c.json({ error: "Server misconfigured" }, 500);
+    }
+
+    const client = new MongoClient(uri);
+    await client.connect();
+    const mdb = client.db();
+
     const getPrefix = (key: string) => {
       const parts = key.split("_");
       return parts.length >= 3 ? `${parts[0]}_${parts[1]}_${parts[2].slice(0, 8)}` : key.slice(0, 20);
     };
 
-    const org = await Organization.findOne({ org_key_prefix: getPrefix(orgKey) }).lean() as
-      { _id: string; name: string; org_key_hash: string } | null;
-    if (!org || !(await compare(orgKey, org.org_key_hash))) {
+    const org = await mdb.collection("organizations").findOne({ org_key_prefix: getPrefix(orgKey) });
+    if (!org || !(await compare(orgKey, org.org_key_hash as string))) {
+      await client.close();
       return c.json({ error: "Invalid API keys" }, 401);
     }
 
-    const dev = await Developer.findOne({ dev_key_prefix: getPrefix(devKey), org_id: org._id }).lean() as
-      { _id: string; name: string; dev_key_hash: string } | null;
-    if (!dev || !(await compare(devKey, dev.dev_key_hash))) {
+    const dev = await mdb.collection("developers").findOne({ dev_key_prefix: getPrefix(devKey), org_id: org._id });
+    if (!dev || !(await compare(devKey, dev.dev_key_hash as string))) {
+      await client.close();
       return c.json({ error: "Invalid API keys" }, 401);
     }
 
-    c.set("org", org);
-    c.set("dev", dev);
+    await client.close();
+
+    c.set("org", { _id: org._id.toString(), name: org.name as string });
+    c.set("dev", { _id: dev._id.toString(), name: dev.name as string });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Auth failed";
     console.error("[api/v1] Auth error:", message);

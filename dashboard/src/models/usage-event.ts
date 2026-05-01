@@ -15,7 +15,7 @@ export interface IUsageEvent extends Document {
 const UsageEventSchema = new Schema<IUsageEvent>({
   org_id: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
   dev_id: { type: Schema.Types.ObjectId, ref: "Developer", required: true },
-  project_id: { type: Schema.Types.ObjectId, ref: "Project", required: true },
+  project_id: { type: Schema.Types.ObjectId, ref: "Project" },
   session_id: { type: String, default: "" },
   action: { type: String, required: true },
   module: { type: String, default: "" },
