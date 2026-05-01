@@ -9,11 +9,12 @@ import { CoverageView } from "@/components/CoverageView";
 import { RisksView } from "@/components/RisksView";
 import { ApisView } from "@/components/ApisView";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
+import { ModuleDetail } from "@/components/ModuleDetail";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { LoginScreen } from "@/components/LoginScreen";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 
-export type View = "main" | "map" | "deps" | "coverage" | "risks" | "apis" | "onboarding";
+export type View = "main" | "map" | "deps" | "coverage" | "risks" | "apis" | "onboarding" | "module-detail";
 
 export interface ProjectRef {
   id: string;
@@ -194,6 +195,7 @@ export default function Home() {
   const [projects, setProjects] = useState<ProjectRef[]>([]);
   const [activeProject, setActiveProject] = useState<ProjectRef | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
 
   const fetchDashboard = useCallback(async (projectId?: string) => {
     try {
@@ -280,10 +282,26 @@ export default function Home() {
         )}
         {view === "map" && <MapView modules={data?.project.modules || []} />}
         {view === "deps" && <DepsView deps={data?.project.deps || []} audit={data?.project.audit || []} />}
-        {view === "coverage" && <CoverageView modules={data?.project.modules || []} />}
+        {view === "coverage" && (
+          <CoverageView
+            modules={data?.project.modules || []}
+            onSelectModule={(name) => {
+              setSelectedModule(name);
+              setView("module-detail");
+            }}
+          />
+        )}
         {view === "risks" && <RisksView decisions={data?.decisions || []} changes={data?.changes || []} />}
         {view === "apis" && <ApisView modules={data?.project.modules || []} />}
         {view === "onboarding" && <OnboardingGuide data={data} />}
+        {view === "module-detail" && selectedModule && (
+          <ModuleDetail
+            moduleName={selectedModule}
+            data={data}
+            onBack={() => setView("coverage")}
+            onNavigateModule={(name) => setSelectedModule(name)}
+          />
+        )}
       </main>
     </div>
   );

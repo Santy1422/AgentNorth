@@ -20,7 +20,7 @@ function shortName(path: string): string {
   return path.split("/").pop() || path;
 }
 
-export function CoverageView({ modules }: { modules: ModuleData[] }) {
+export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[]; onSelectModule?: (name: string) => void }) {
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const [showDead, setShowDead] = useState(false);
 
@@ -231,6 +231,7 @@ export function CoverageView({ modules }: { modules: ModuleData[] }) {
                   <button
                     className={"cov-mod-row clickable" + (isExpanded ? " expanded" : "")}
                     onClick={() => setExpandedModule(isExpanded ? null : m.name)}
+                    onDoubleClick={() => onSelectModule?.(m.name)}
                   >
                     <div className="cov-mod-score" style={{ color: scoreColor }}>{score}</div>
                     <div className="cov-mod-name mono">{m.name}</div>
