@@ -3736,3 +3736,627 @@ html, body {
   color: var(--text-3);
   flex-shrink: 0;
 }
+
+/* ─── Health Scorecard ─── */
+.hs-content {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  padding: 16px 0 0;
+}
+
+.hs-score-ring {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.hs-ring-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hs-score-num {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.hs-score-label {
+  font-size: 12px;
+  color: var(--text-4);
+  position: relative;
+  z-index: 1;
+}
+
+.hs-checks {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hs-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+}
+
+.hs-check-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.hs-check.pass .hs-check-icon { color: var(--green); }
+.hs-check.warn .hs-check-icon { color: var(--yellow); }
+.hs-check.fail .hs-check-icon { color: var(--red); }
+
+.hs-check-name {
+  font-weight: 600;
+  min-width: 110px;
+}
+
+.hs-check-detail {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+/* ─── Impact Analysis ─── */
+.impact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.impact-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  position: relative;
+  overflow: hidden;
+}
+
+.impact-bar-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.impact-bar {
+  height: 100%;
+  opacity: 0.08;
+  border-radius: var(--radius-sm);
+}
+
+.impact-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  position: relative;
+}
+
+.impact-nums {
+  font-size: 11px;
+  color: var(--text-3);
+  position: relative;
+  white-space: nowrap;
+}
+
+.impact-direct {
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+/* ─── Onboarding Guide ─── */
+.onb-guide {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.onb-hero {
+  background: linear-gradient(135deg, var(--bg-3) 0%, var(--bg-2) 100%);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  margin-bottom: 16px;
+  border: 1px solid var(--bg-4);
+}
+
+.onb-hero-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.onb-hero-desc {
+  font-size: 14px;
+  color: var(--text-3);
+  margin-bottom: 16px;
+}
+
+.onb-hero-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.onb-stack-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.onb-stack-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-4);
+  min-width: 80px;
+  padding-top: 4px;
+}
+
+.onb-stack-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.onb-stack-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--bg-4);
+  border-radius: 99px;
+  color: var(--text-2);
+}
+
+/* Architecture summary */
+.onb-arch-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 0;
+  overflow-x: auto;
+}
+
+.onb-arch-layer {
+  flex: 1;
+  text-align: center;
+  padding: 12px 8px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  min-width: 80px;
+}
+
+.onb-arch-num {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.onb-arch-label {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.onb-arch-desc {
+  font-size: 10px;
+  color: var(--text-4);
+  margin-top: 2px;
+}
+
+.onb-arch-arrow {
+  font-size: 18px;
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+
+/* Entry points */
+.onb-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.onb-entry {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent);
+}
+
+.onb-entry-rank {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 28px;
+  text-align: center;
+}
+
+.onb-entry-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.onb-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.onb-entry-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.onb-entry-loc {
+  font-size: 11px;
+  color: var(--text-4);
+  font-family: var(--mono);
+}
+
+.onb-entry-path {
+  font-size: 11px;
+  color: var(--text-4);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onb-entry-reason {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.onb-entry-summary {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: var(--bg-3);
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+}
+
+/* Module guide */
+.onb-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.onb-mod {
+  padding: 12px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+}
+
+.onb-mod-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.onb-mod-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.onb-mod-stats {
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.onb-mod-desc {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.onb-mod-deps {
+  margin-bottom: 6px;
+}
+
+.onb-mod-dep-tag {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 2px 8px;
+  background: var(--bg-3);
+  border-radius: 99px;
+}
+
+.onb-mod-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.onb-mod-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 2px 6px;
+  background: var(--bg-3);
+  border-radius: var(--radius-sm);
+}
+
+.onb-mod-file-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Coupling matrix */
+.onb-coupling {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.onb-coupling-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.onb-coupling-from {
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 100px;
+}
+
+.onb-coupling-arrow {
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+
+.onb-coupling-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.onb-coupling-target {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--bg-4);
+  border-radius: 99px;
+  color: var(--text-2);
+}
+
+/* Conventions */
+.onb-conventions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.onb-conv {
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--violet);
+}
+
+.onb-conv-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.onb-conv-detail {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+/* Security status */
+.onb-security {
+  padding: 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onb-sec-badge {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.onb-sec-badge.ok {
+  background: rgba(74, 222, 128, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.onb-sec-badge.warn {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.onb-sec-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-3);
+  justify-content: center;
+}
+
+/* ─── Map Search ─── */
+.map-search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.map-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 16px;
+  background: var(--bg-2);
+  border-radius: var(--radius);
+  padding: 4px;
+  border: 1px solid var(--bg-4);
+}
+
+.map-search-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  width: 100%;
+}
+
+.map-search-result:hover {
+  background: var(--bg-3);
+}
+
+/* ─── Deps source distribution ─── */
+.deps-source-bar {
+  background: var(--bg-2);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+}
+
+.deps-source-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.deps-source-name {
+  min-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-3);
+}
+
+.deps-source-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-4);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.deps-source-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.deps-source-count {
+  font-weight: 600;
+  min-width: 30px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* ─── Exports Cross-Reference ─── */
+.fd-exports-xref {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fd-export-item {
+  padding: 8px 10px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.fd-export-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--accent);
+  min-width: 100px;
+  padding-top: 2px;
+}
+
+.fd-export-users {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fd-export-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--bg-3);
+  border: 1px solid var(--bg-4);
+  border-radius: 99px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.fd-export-user:hover {
+  background: var(--bg-4);
+  color: var(--text);
+}
+
+.fd-export-unused {
+  font-size: 11px;
+  color: var(--text-4);
+  font-style: italic;
+  padding-top: 3px;
+}

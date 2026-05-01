@@ -300,6 +300,84 @@ export function CoverageView({ modules }: { modules: ModuleData[] }) {
         </div>
       </div>
 
+      {/* Change Impact Analysis */}
+      <div className="card-simple" style={{ marginBottom: 16 }}>
+        <div className="card-simple-head">
+          <h2>Analisis de impacto</h2>
+          <span className="meta">archivos que si cambian afectan mas</span>
+        </div>
+        <div className="impact-list">
+          {(() => {
+            // Calculate blast radius for each file
+            const impacts = allFiles.map((f) => {
+              const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
+              // Direct dependents
+              const directUsers = allFiles.filter(
+                (other) =>
+                  other.path !== f.path &&
+                  other.imports?.some(
+                    (imp) => imp.source.endsWith(name) || imp.source.endsWith("/" + name)
+                  )
+              );
+              // Second-level: who uses the direct users?
+              const secondLevel = new Set<string>();
+              for (const user of directUsers) {
+                const userName = shortName(user.path).replace(/\.(tsx?|jsx?)$/, "");
+                for (const other of allFiles) {
+                  if (
+                    other.path !== user.path &&
+                    other.path !== f.path &&
+                    !directUsers.some((d) => d.path === other.path) &&
+                    other.imports?.some(
+                      (imp) => imp.source.endsWith(userName) || imp.source.endsWith("/" + userName)
+                    )
+                  ) {
+                    secondLevel.add(other.path);
+                  }
+                }
+              }
+              return {
+                file: f,
+                directCount: directUsers.length,
+                totalBlast: directUsers.length + secondLevel.size,
+                directUsers,
+              };
+            });
+
+            return impacts
+              .filter((x) => x.totalBlast > 0)
+              .sort((a, b) => b.totalBlast - a.totalBlast)
+              .slice(0, 8)
+              .map((x) => (
+                <div key={x.file.path} className="impact-row">
+                  <div className="impact-bar-wrap">
+                    <div
+                      className="impact-bar"
+                      style={{
+                        width: `${Math.min(100, (x.totalBlast / allFiles.length) * 300)}%`,
+                        background: x.totalBlast > 5 ? "var(--red)" : x.totalBlast > 2 ? "var(--yellow)" : "var(--green)",
+                      }}
+                    ></div>
+                  </div>
+                  <span
+                    className="cov-file-kind"
+                    style={{ background: KIND_COLORS[x.file.kind] || KIND_COLORS.unknown }}
+                  >
+                    {x.file.kind}
+                  </span>
+                  <span className="impact-name mono">{shortName(x.file.path)}</span>
+                  <span className="impact-nums">
+                    <span className="impact-direct">{x.directCount} directos</span>
+                    {x.totalBlast > x.directCount && (
+                      <span className="impact-total"> · {x.totalBlast} total</span>
+                    )}
+                  </span>
+                </div>
+              ));
+          })()}
+        </div>
+      </div>
+
       {/* Dead files panel */}
       {deadFiles.length > 0 && (
         <div className="card-simple">

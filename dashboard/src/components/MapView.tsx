@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { ModuleData, FileData } from "@/app/page";
 
 const KIND_COLORS: Record<string, string> = {
@@ -84,6 +84,7 @@ function getUsedBy(file: FileData, allFiles: FileData[]): FileData[] {
 export function MapView({ modules }: { modules: ModuleData[] }) {
   const [selectedScreen, setSelectedScreen] = useState<FileData | null>(null);
   const [selectedNode, setSelectedNode] = useState<FileData | null>(null);
+  const [mapSearch, setMapSearch] = useState("");
 
   const allFiles = useMemo(() => modules.flatMap((m) => m.files || []), [modules]);
   // Deduplicate by path
@@ -173,7 +174,61 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
         </span>
       </div>
 
+      {/* Search bar for map */}
       {!selectedScreen && !selectedNode && (
+        <div className="map-search-bar">
+          <div className="map-search" style={{ flex: 1 }}>
+            <span className="search-icon">&#x2315;</span>
+            <input
+              type="text"
+              placeholder="Buscar archivo, componente, hook..."
+              value={mapSearch}
+              onChange={(e) => setMapSearch(e.target.value)}
+            />
+            {mapSearch && (
+              <button className="search-clear" onClick={() => setMapSearch("")}>x</button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Search results */}
+      {!selectedScreen && !selectedNode && mapSearch.trim() && (
+        <div className="map-search-results">
+          {uniqueFiles
+            .filter((f) => {
+              const q = mapSearch.toLowerCase();
+              return (
+                f.path.toLowerCase().includes(q) ||
+                f.exports.some((e) => e.toLowerCase().includes(q)) ||
+                shortName(f.path).toLowerCase().includes(q)
+              );
+            })
+            .slice(0, 12)
+            .map((f) => (
+              <button
+                key={f.path}
+                className="map-search-result"
+                onClick={() => {
+                  if (f.kind === "page") {
+                    setSelectedScreen(f);
+                  } else {
+                    setSelectedNode(f);
+                  }
+                  setMapSearch("");
+                }}
+              >
+                <span className="cov-file-kind" style={{ background: KIND_COLORS[f.kind] || KIND_COLORS.unknown }}>
+                  {f.kind}
+                </span>
+                <span className="mono" style={{ flex: 1 }}>{shortName(f.path)}</span>
+                <span style={{ fontSize: 11, color: "var(--text-4)" }}>{f.loc} LOC</span>
+              </button>
+            ))}
+        </div>
+      )}
+
+      {!selectedScreen && !selectedNode && !mapSearch.trim() && (
         <ArchitectureOverview
           screens={screens}
           routes={routes}
@@ -672,11 +727,39 @@ function NodeDetail({
 
         {file.exports.length > 0 && (
           <div className="fd-section">
-            <div className="fd-section-title">Exports</div>
-            <div className="fd-chips">
-              {file.exports.map((e) => (
-                <span key={e} className="fd-chip mono">{e}</span>
-              ))}
+            <div className="fd-section-title">Exports ({file.exports.length})</div>
+            <div className="fd-exports-xref">
+              {file.exports.map((exp) => {
+                // Find who imports this specific export
+                const importers = allFiles.filter(
+                  (f) =>
+                    f.path !== file.path &&
+                    f.imports?.some(
+                      (imp) => imp.specifiers?.includes(exp) || imp.specifiers?.includes("default") && exp === "default"
+                    )
+                );
+                return (
+                  <div key={exp} className="fd-export-item">
+                    <div className="fd-export-name mono">{exp}</div>
+                    {importers.length > 0 ? (
+                      <div className="fd-export-users">
+                        {importers.map((u) => (
+                          <button
+                            key={u.path}
+                            className="fd-export-user"
+                            onClick={() => onNavigate(u)}
+                          >
+                            <span className="mc-kind-dot" style={{ background: KIND_COLORS[u.kind] }}></span>
+                            <span className="mono">{shortName(u.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="fd-export-unused">sin uso detectado</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

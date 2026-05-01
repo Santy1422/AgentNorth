@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { FeedRow, DashboardData, FileData } from "@/app/page";
 
 const KIND_COLORS: Record<string, string> = {
@@ -54,6 +54,83 @@ export function MainView({
   const depsCount = data?.project.deps?.length || 0;
   const vulnCount = data?.project.audit?.length || 0;
   const routeCount = kindCounts["route"] || 0;
+
+  // Health scorecard (Backstage-inspired)
+  const healthScore = useMemo(() => {
+    if (!data) return null;
+    const modules = data.project.modules || [];
+    let score = 100;
+    const checks: { name: string; status: "pass" | "warn" | "fail"; detail: string }[] = [];
+
+    // Check: has tests
+    const hasTests = allFiles.some((f) => f.kind === "test");
+    if (hasTests) {
+      checks.push({ name: "Tests", status: "pass", detail: "Archivos de test detectados" });
+    } else {
+      score -= 15;
+      checks.push({ name: "Tests", status: "fail", detail: "Sin archivos de test" });
+    }
+
+    // Check: no vulnerabilities
+    if (vulnCount === 0) {
+      checks.push({ name: "Seguridad", status: "pass", detail: "Sin vulnerabilidades" });
+    } else {
+      score -= Math.min(25, vulnCount * 5);
+      checks.push({ name: "Seguridad", status: "fail", detail: `${vulnCount} vulnerabilidades` });
+    }
+
+    // Check: no giant files
+    const giantFiles = allFiles.filter((f) => f.loc > 500);
+    if (giantFiles.length === 0) {
+      checks.push({ name: "Complejidad", status: "pass", detail: "Sin archivos >500 LOC" });
+    } else {
+      score -= Math.min(15, giantFiles.length * 3);
+      checks.push({ name: "Complejidad", status: "warn", detail: `${giantFiles.length} archivos >500 LOC` });
+    }
+
+    // Check: documentation (decisions)
+    const decCount = data.decisions?.length || 0;
+    if (decCount >= 3) {
+      checks.push({ name: "Documentacion", status: "pass", detail: `${decCount} decisiones documentadas` });
+    } else if (decCount > 0) {
+      score -= 5;
+      checks.push({ name: "Documentacion", status: "warn", detail: `Solo ${decCount} decisiones` });
+    } else {
+      score -= 10;
+      checks.push({ name: "Documentacion", status: "fail", detail: "Sin decisiones documentadas" });
+    }
+
+    // Check: dead files
+    const deadCount = allFiles.filter((f) => {
+      if (["page", "route", "test", "config"].includes(f.kind)) return false;
+      const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
+      if (shortName(f.path).startsWith("index.")) return false;
+      return !allFiles.some(
+        (other) =>
+          other.path !== f.path &&
+          other.imports?.some(
+            (imp) => imp.source.endsWith(name) || imp.source.endsWith("/" + name)
+          )
+      );
+    }).length;
+    if (deadCount === 0) {
+      checks.push({ name: "Codigo muerto", status: "pass", detail: "Sin archivos huerfanos" });
+    } else {
+      score -= Math.min(10, deadCount * 2);
+      checks.push({ name: "Codigo muerto", status: "warn", detail: `${deadCount} posibles archivos muertos` });
+    }
+
+    // Check: modularization
+    if (modules.length >= 2) {
+      checks.push({ name: "Modularizacion", status: "pass", detail: `${modules.length} modulos definidos` });
+    } else {
+      score -= 10;
+      checks.push({ name: "Modularizacion", status: "warn", detail: "Poca modularizacion" });
+    }
+
+    score = Math.max(0, Math.min(100, score));
+    return { score, checks };
+  }, [data, allFiles, vulnCount]);
 
   return (
     <>
@@ -131,6 +208,44 @@ export function MainView({
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {/* Health Scorecard */}
+      {healthScore && (
+        <section className="card-simple health-scorecard" style={{ marginBottom: 16 }}>
+          <div className="card-simple-head">
+            <h2>Salud del proyecto</h2>
+            <span className="meta">scorecard automatico</span>
+          </div>
+          <div className="hs-content">
+            <div className="hs-score-ring">
+              <svg viewBox="0 0 100 100" className="hs-ring-svg">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg-3)" strokeWidth="8" />
+                <circle
+                  cx="50" cy="50" r="42" fill="none"
+                  stroke={healthScore.score >= 80 ? "var(--green)" : healthScore.score >= 50 ? "var(--yellow)" : "var(--red)"}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(healthScore.score / 100) * 264} 264`}
+                  transform="rotate(-90 50 50)"
+                />
+              </svg>
+              <div className="hs-score-num">{healthScore.score}</div>
+              <div className="hs-score-label">/ 100</div>
+            </div>
+            <div className="hs-checks">
+              {healthScore.checks.map((c) => (
+                <div key={c.name} className={"hs-check " + c.status}>
+                  <span className="hs-check-icon">
+                    {c.status === "pass" ? "\u2713" : c.status === "warn" ? "\u26A0" : "\u2717"}
+                  </span>
+                  <span className="hs-check-name">{c.name}</span>
+                  <span className="hs-check-detail">{c.detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
       )}
 

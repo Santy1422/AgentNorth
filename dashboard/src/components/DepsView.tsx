@@ -6,6 +6,7 @@ import type { DepData, AuditVuln } from "@/app/page";
 export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] }) {
   const [filter, setFilter] = useState<"all" | "prod" | "dev" | "vuln">("all");
   const [search, setSearch] = useState("");
+  const [showLicenseView, setShowLicenseView] = useState(false);
 
   const vulnMap = useMemo(() => {
     const map = new Map<string, AuditVuln>();
@@ -118,6 +119,28 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
           {search && <button className="search-clear" onClick={() => setSearch("")}>x</button>}
         </div>
       </div>
+
+      {/* Dep distribution by source */}
+      {sources.length > 1 && (
+        <div className="deps-source-bar" style={{ marginBottom: 12 }}>
+          <div className="card-simple-head" style={{ marginBottom: 8 }}>
+            <h2 style={{ fontSize: 13 }}>Por package.json</h2>
+          </div>
+          {sources.map((src) => {
+            const count = deps.filter((d) => d.source === src).length;
+            const pct = (count / deps.length) * 100;
+            return (
+              <div key={src} className="deps-source-row">
+                <span className="deps-source-name mono">{src}</span>
+                <div className="deps-source-bar-wrap">
+                  <div className="deps-source-fill" style={{ width: pct + "%" }}></div>
+                </div>
+                <span className="deps-source-count">{count}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="deps-list">
         <div className="deps-header">

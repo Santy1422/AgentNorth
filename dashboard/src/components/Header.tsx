@@ -10,6 +10,7 @@ const NAV_ITEMS: { view: View; label: string }[] = [
   { view: "coverage", label: "Cobertura" },
   { view: "risks", label: "Decisiones" },
   { view: "apis", label: "APIs" },
+  { view: "onboarding", label: "Guia" },
 ];
 
 function formatTime(d: Date): string {
