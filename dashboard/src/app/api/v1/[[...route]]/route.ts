@@ -248,9 +248,10 @@ app.post("/sync", authMiddleware, async (c) => {
     });
   }
 
-  if (body.modules || body.deps) {
+  if (body.modules || body.deps || body.audit) {
     if (body.modules) project.modules = body.modules;
     if (body.deps) project.deps = body.deps;
+    if (body.audit) project.audit = body.audit;
     project.last_synced_at = new Date();
     await project.save();
   }

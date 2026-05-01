@@ -65,14 +65,16 @@ export async function syncCommand(): Promise<void> {
     githubUrl = stdout.trim();
   } catch {}
 
-  // Scan package.json files for dependencies
+  // Scan package.json files for dependencies + audit
   const deps = await scanDependencies(rootDir);
+  const audit = await runAudit(rootDir);
 
   const payload = {
     project: config.project.name,
     github_url: githubUrl,
     modules,
     deps,
+    audit,
     decisions: decisions.map((d) => ({
       module: d.module,
       title: d.title,
@@ -109,6 +111,40 @@ export async function syncCommand(): Promise<void> {
     console.error(`[agentnorth] Sync error: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   }
+}
+
+interface AuditVuln {
+  name: string;
+  severity: string;
+  title: string;
+  url: string;
+  range: string;
+}
+
+async function runAudit(rootDir: string): Promise<AuditVuln[]> {
+  const vulns: AuditVuln[] = [];
+  try {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const exec = promisify(execFile);
+
+    // Try npm audit first
+    const { stdout } = await exec("npm", ["audit", "--json"], { cwd: rootDir }).catch(() => ({ stdout: "{}" }));
+    const data = JSON.parse(stdout);
+    const vulnerabilities = data.vulnerabilities || {};
+
+    for (const [name, info] of Object.entries(vulnerabilities) as [string, { severity?: string; via?: { title?: string; url?: string }[]; range?: string }][]) {
+      const via = Array.isArray(info.via) ? info.via[0] : null;
+      vulns.push({
+        name,
+        severity: info.severity || "unknown",
+        title: (via && typeof via === "object" ? via.title : "") || "",
+        url: (via && typeof via === "object" ? via.url : "") || "",
+        range: info.range || "",
+      });
+    }
+  } catch {}
+  return vulns;
 }
 
 interface DepInfo {

@@ -25,12 +25,21 @@ export interface IDepEmbed {
   source: string;
 }
 
+export interface IAuditVuln {
+  name: string;
+  severity: string;
+  title: string;
+  url: string;
+  range: string;
+}
+
 export interface IProject extends Document {
   org_id: Types.ObjectId;
   name: string;
   github_url: string;
   modules: IModuleEmbed[];
   deps: IDepEmbed[];
+  audit: IAuditVuln[];
   last_synced_at: Date;
 }
 
@@ -41,6 +50,7 @@ const ProjectSchema = new Schema({
   github_url: { type: String, default: "" },
   modules: { type: [Schema.Types.Mixed], default: [] },
   deps: { type: [Schema.Types.Mixed], default: [] },
+  audit: { type: [Schema.Types.Mixed], default: [] },
   last_synced_at: { type: Date, default: Date.now },
 });
 

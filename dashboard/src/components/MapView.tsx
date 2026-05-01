@@ -3,26 +3,6 @@
 import { useState, useMemo } from "react";
 import type { ModuleData, FileData } from "@/app/page";
 
-const W = 960, H = 580;
-
-interface GraphNode {
-  id: string;
-  label: string;
-  kind: string;
-  module: string;
-  loc: number;
-  exports: string[];
-  imports: { source: string; specifiers: string[] }[];
-  x: number;
-  y: number;
-}
-
-interface GraphEdge {
-  from: string;
-  to: string;
-  specifiers: string[];
-}
-
 const KIND_COLORS: Record<string, string> = {
   page: "#f97316",
   component: "#a78bfa",
@@ -37,185 +17,14 @@ const KIND_COLORS: Record<string, string> = {
 };
 
 function shortName(path: string): string {
-  const parts = path.split("/");
-  return parts[parts.length - 1] || path;
-}
-
-function buildGraph(modules: ModuleData[]): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const nodes: GraphNode[] = [];
-  const nodeMap = new Map<string, GraphNode>();
-
-  // Collect all files from all modules
-  for (const mod of modules) {
-    const files = mod.files || [];
-    for (const f of files) {
-      if (nodeMap.has(f.path)) continue;
-      const node: GraphNode = {
-        id: f.path,
-        label: shortName(f.path),
-        kind: f.kind || "unknown",
-        module: mod.name,
-        loc: f.loc,
-        exports: f.exports || [],
-        imports: f.imports || [],
-        x: 0,
-        y: 0,
-      };
-      nodes.push(node);
-      nodeMap.set(f.path, node);
-    }
-  }
-
-  // Build edges from imports
-  const edges: GraphEdge[] = [];
-  const pathIndex = new Map<string, string>();
-
-  // Build index: filename -> full path
-  for (const n of nodes) {
-    const name = shortName(n.id);
-    const noExt = name.replace(/\.(tsx?|jsx?|mjs|cjs)$/, "");
-    pathIndex.set(n.id, n.id);
-    pathIndex.set(name, n.id);
-    pathIndex.set(noExt, n.id);
-    // Also index by @/ alias
-    if (n.id.startsWith("dashboard/src/")) {
-      const alias = "@/" + n.id.replace("dashboard/src/", "").replace(/\.(tsx?|jsx?)$/, "");
-      pathIndex.set(alias, n.id);
-    }
-    if (n.id.startsWith("packages/agentnorth/src/")) {
-      const relative = n.id.replace("packages/agentnorth/src/", "").replace(/\.(tsx?|jsx?)$/, "");
-      pathIndex.set(relative, n.id);
-    }
-  }
-
-  for (const node of nodes) {
-    for (const imp of node.imports) {
-      let resolved: string | undefined;
-      // Try direct match
-      resolved = pathIndex.get(imp.source);
-      // Try resolving relative path
-      if (!resolved && imp.source.startsWith(".")) {
-        const dir = node.id.split("/").slice(0, -1).join("/");
-        const candidate = normalizePath(dir + "/" + imp.source).replace(/\.(tsx?|jsx?|js)$/, "");
-        for (const [key, val] of pathIndex) {
-          if (key.replace(/\.(tsx?|jsx?|js)$/, "") === candidate ||
-              val.replace(/\.(tsx?|jsx?|js)$/, "") === candidate + "/index") {
-            resolved = val;
-            break;
-          }
-        }
-      }
-      // Try @/ alias
-      if (!resolved && imp.source.startsWith("@/")) {
-        resolved = pathIndex.get(imp.source);
-        if (!resolved) {
-          // Try with index
-          resolved = pathIndex.get(imp.source + "/index");
-        }
-      }
-      if (resolved && resolved !== node.id && nodeMap.has(resolved)) {
-        edges.push({ from: node.id, to: resolved, specifiers: imp.specifiers });
-      }
-    }
-  }
-
-  // Layout: group by module, then by kind
-  layoutNodes(nodes, modules);
-
-  return { nodes, edges };
-}
-
-function normalizePath(p: string): string {
-  const parts = p.split("/");
-  const out: string[] = [];
-  for (const part of parts) {
-    if (part === "..") out.pop();
-    else if (part !== ".") out.push(part);
-  }
-  return out.join("/");
-}
-
-function layoutNodes(nodes: GraphNode[], modules: ModuleData[]): void {
-  const moduleNames = modules.map((m) => m.name);
-  const cols = Math.ceil(Math.sqrt(moduleNames.length));
-
-  // Group nodes by module
-  const groups = new Map<string, GraphNode[]>();
-  for (const n of nodes) {
-    const list = groups.get(n.module) || [];
-    list.push(n);
-    groups.set(n.module, list);
-  }
-
-  let modIdx = 0;
-  for (const modName of moduleNames) {
-    const modNodes = groups.get(modName) || [];
-    if (modNodes.length === 0) continue;
-
-    const col = modIdx % cols;
-    const row = Math.floor(modIdx / cols);
-    const rows = Math.ceil(moduleNames.length / cols);
-
-    const xBase = ((col + 0.5) / cols) * 100;
-    const yBase = ((row + 0.5) / rows) * 100;
-    const spread = Math.min(40 / cols, 35 / rows);
-
-    // Sort by kind priority, then name
-    const kindOrder = ["page", "route", "component", "hook", "lib", "model", "schema", "test", "config", "unknown"];
-    modNodes.sort((a, b) => kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind) || a.label.localeCompare(b.label));
-
-    const nodeCount = modNodes.length;
-    const nodeRows = Math.ceil(Math.sqrt(nodeCount));
-    const nodeCols = Math.ceil(nodeCount / nodeRows);
-
-    modNodes.forEach((n, i) => {
-      const nc = i % nodeCols;
-      const nr = Math.floor(i / nodeCols);
-      n.x = xBase + ((nc - (nodeCols - 1) / 2) / Math.max(nodeCols, 1)) * spread;
-      n.y = yBase + ((nr - (nodeRows - 1) / 2) / Math.max(nodeRows, 1)) * spread;
-      // Clamp
-      n.x = Math.max(6, Math.min(94, n.x));
-      n.y = Math.max(6, Math.min(94, n.y));
-    });
-
-    modIdx++;
-  }
+  return path.split("/").pop() || path;
 }
 
 export function MapView({ modules }: { modules: ModuleData[] }) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const [drillModule, setDrillModule] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
 
-  const allFiles = useMemo(() => modules.flatMap((m) => (m.files || []).length), [modules]);
-  const hasFiles = allFiles.some((n) => n > 0);
-
-  const { nodes, edges } = useMemo(() => {
-    if (!hasFiles) return { nodes: [], edges: [] };
-    if (drillModule) {
-      const mod = modules.find((m) => m.name === drillModule);
-      return mod ? buildGraph([mod]) : { nodes: [], edges: [] };
-    }
-    return buildGraph(modules);
-  }, [modules, hasFiles, drillModule]);
-
-  const selectedNode = selected ? nodes.find((n) => n.id === selected) : null;
-  const connectedIds = useMemo(() => {
-    if (!selected) return new Set<string>();
-    const ids = new Set<string>();
-    for (const e of edges) {
-      if (e.from === selected) ids.add(e.to);
-      if (e.to === selected) ids.add(e.from);
-    }
-    return ids;
-  }, [selected, edges]);
-
-  const moduleNames = useMemo(() => [...new Set(nodes.map((n) => n.module))], [nodes]);
-  const kindCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const n of nodes) counts[n.kind] = (counts[n.kind] || 0) + 1;
-    return counts;
-  }, [nodes]);
+  const hasFiles = modules.some((m) => (m.files || []).length > 0);
 
   if (modules.length === 0 || !hasFiles) {
     return (
@@ -227,192 +36,311 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
           <div className="empty-icon">&#x1F5FA;</div>
           <div className="empty-title">Sin archivos indexados</div>
           <div className="empty-desc">
-            Ejecuta <code>npx agentnorth index</code> y luego <code>npx agentnorth sync</code> para mapear el codebase completo
+            Ejecuta <code>npx agentnorth index</code> y luego <code>npx agentnorth sync</code>
           </div>
         </div>
       </section>
     );
   }
 
-  const xy = (n: { x: number; y: number }) => ({
-    x: (n.x / 100) * W,
-    y: (n.y / 100) * H,
-  });
+  const drilledModule = drillModule ? modules.find((m) => m.name === drillModule) : null;
 
   return (
     <section className="map-simple">
-      <div className="map-head-row">
-        <div className="card-simple-head" style={{ padding: "0", flex: 1 }}>
-          <h2 className="breadcrumb">
-            <button
-              className={"crumb" + (!drillModule ? " current" : "")}
-              onClick={() => { setDrillModule(null); setSelected(null); }}
-            >
-              Mapa
-            </button>
-            {drillModule && (
-              <>
-                <span className="crumb-sep">/</span>
-                <span className="crumb current mono">{drillModule}</span>
-              </>
-            )}
-          </h2>
-          <span className="meta">
-            {nodes.length} archivos · {edges.length} conexiones
-            {drillModule ? " · click en Mapa para volver" : " · click en un nodo para ver detalle"}
-          </span>
-        </div>
+      <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
+        <h2 className="breadcrumb">
+          <button className={"crumb" + (!drillModule ? " current" : "")}
+            onClick={() => { setDrillModule(null); setSelectedFile(null); }}>
+            Mapa
+          </button>
+          {drillModule && (
+            <>
+              <span className="crumb-sep">/</span>
+              <button className={"crumb" + (!selectedFile ? " current" : "")}
+                onClick={() => setSelectedFile(null)}>
+                <span className="mono">{drillModule}</span>
+              </button>
+            </>
+          )}
+          {selectedFile && (
+            <>
+              <span className="crumb-sep">/</span>
+              <span className="crumb current mono">{shortName(selectedFile.path)}</span>
+            </>
+          )}
+        </h2>
+        <span className="meta">
+          {!drillModule && `${modules.length} modulos · click en uno para explorar`}
+          {drillModule && !selectedFile && `${drilledModule?.files?.length || 0} archivos · click en uno para ver detalle`}
+          {selectedFile && `${selectedFile.exports.length} exports · ${selectedFile.imports.length} imports`}
+        </span>
       </div>
 
-      <div className="map-layout">
-        <div className="map-canvas">
-          <svg className="map-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
-            {edges.map((e, i) => {
-              const na = nodes.find((n) => n.id === e.from);
-              const nb = nodes.find((n) => n.id === e.to);
-              if (!na || !nb) return null;
-              const pa = xy(na), pb = xy(nb);
-              const isActive = selected && (e.from === selected || e.to === selected);
-              const isModuleHover = hoveredModule && (na.module === hoveredModule || nb.module === hoveredModule);
-              const dim = selected && !isActive;
-              return (
-                <line key={i} x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y}
-                  stroke={isActive ? "var(--accent)" : isModuleHover ? "rgba(167,139,250,0.4)" : "rgba(80,80,95,0.25)"}
-                  strokeWidth={isActive ? 1.8 : 0.7}
-                  opacity={dim ? 0.1 : 1} />
-              );
-            })}
-          </svg>
-          {nodes.map((n) => {
-            const p = xy(n);
-            const isSelected = selected === n.id;
-            const isConnected = connectedIds.has(n.id);
-            const isDim = selected && !isSelected && !isConnected;
-            const isModHover = hoveredModule === n.module;
-            return (
-              <div key={n.id}
-                className={"file-node " + n.kind + (isSelected ? " active" : "") + (isModHover ? " mod-hover" : "")}
-                style={{
-                  left: p.x,
-                  top: p.y,
-                  opacity: isDim ? 0.2 : 1,
-                  zIndex: isSelected ? 10 : isConnected ? 5 : 1,
-                }}
-                onClick={() => setSelected(isSelected ? null : n.id)}
-              >
-                <span className={"fn-kind " + n.kind} style={{ background: KIND_COLORS[n.kind] }}>{n.kind}</span>
-                <span className="fn-name mono">{n.label}</span>
-              </div>
-            );
-          })}
-        </div>
+      {!drillModule && <ModuleGrid modules={modules} onDrill={setDrillModule} />}
+      {drillModule && !selectedFile && drilledModule && (
+        <FileGrid module={drilledModule} allModules={modules} onSelect={setSelectedFile} />
+      )}
+      {selectedFile && drilledModule && (
+        <FileDetail file={selectedFile} module={drilledModule} allModules={modules}
+          onNavigate={(f) => setSelectedFile(f)}
+          onBack={() => setSelectedFile(null)} />
+      )}
+    </section>
+  );
+}
 
-        <aside className="map-aside">
-          {!selectedNode ? (
-            <div className="aside-card">
-              <div className="aside-title">{drillModule || "Todo el proyecto"}</div>
-              <div className="aside-stats">
-                <div className="ast-row"><span>archivos</span><b>{nodes.length}</b></div>
-                <div className="ast-row"><span>conexiones</span><b>{edges.length}</b></div>
-                <div className="ast-row"><span>LOC total</span><b>{nodes.reduce((s, n) => s + n.loc, 0).toLocaleString("es")}</b></div>
-              </div>
+function ModuleGrid({ modules, onDrill }: { modules: ModuleData[]; onDrill: (name: string) => void }) {
+  const totalLoc = modules.reduce((s, m) => s + (m.loc || 0), 0);
+  const totalFiles = modules.reduce((s, m) => s + (m.files_count || 0), 0);
 
-              <div className="aside-section">
-                <div className="ast-section-title">Por tipo</div>
+  return (
+    <>
+      <div className="map-stats-bar">
+        <span>{totalFiles} archivos</span>
+        <span>·</span>
+        <span>{totalLoc.toLocaleString("es")} LOC</span>
+        <span>·</span>
+        <span>{modules.length} modulos</span>
+      </div>
+      <div className="module-grid">
+        {modules.map((m) => {
+          const files = m.files || [];
+          const kindCounts: Record<string, number> = {};
+          for (const f of files) kindCounts[f.kind] = (kindCounts[f.kind] || 0) + 1;
+          const pct = totalLoc > 0 ? Math.round((m.loc / totalLoc) * 100) : 0;
+
+          return (
+            <button key={m.name} className="module-card" onClick={() => onDrill(m.name)}>
+              <div className="mc-head">
+                <span className="mc-name mono">{m.name}</span>
+                <span className="mc-arrow">&rarr;</span>
+              </div>
+              {m.description && <div className="mc-desc">{m.description}</div>}
+              <div className="mc-bar">
+                <div className="mc-bar-fill" style={{ width: pct + "%" }}></div>
+              </div>
+              <div className="mc-stats">
+                <span>{m.files_count} archivos</span>
+                <span>{(m.loc || 0).toLocaleString("es")} LOC</span>
+                <span>{pct}% del total</span>
+              </div>
+              <div className="mc-kinds">
                 {Object.entries(kindCounts).sort((a, b) => b[1] - a[1]).map(([kind, count]) => (
-                  <div key={kind} className="ast-hot-row">
-                    <span className="fn-kind-dot" style={{ background: KIND_COLORS[kind] }}></span>
-                    <span>{kind}</span>
-                    <span className="muted" style={{ marginLeft: "auto" }}>{count}</span>
-                  </div>
+                  <span key={kind} className="mc-kind">
+                    <span className="mc-kind-dot" style={{ background: KIND_COLORS[kind] }}></span>
+                    {count} {kind}
+                  </span>
                 ))}
               </div>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
 
-              {!drillModule && (
-                <div className="aside-section">
-                  <div className="ast-section-title">Modulos</div>
-                  {moduleNames.map((m) => (
-                    <button key={m}
-                      className="ast-file-link has-detail"
-                      onClick={() => { setDrillModule(m); setSelected(null); }}
-                      onMouseEnter={() => setHoveredModule(m)}
-                      onMouseLeave={() => setHoveredModule(null)}
-                    >
-                      <span className="mono">{m}</span>
-                      <span className="muted">{nodes.filter((n) => n.module === m).length} files</span>
-                      <span className="ast-arrow">&rarr;</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="aside-card">
-              <div className="aside-title">
-                <span className="fn-kind" style={{ background: KIND_COLORS[selectedNode.kind], marginRight: 8 }}>{selectedNode.kind}</span>
-                <span className="mono">{selectedNode.label}</span>
-              </div>
-              <div className="aside-path mono">{selectedNode.id}</div>
-              <div className="aside-stats">
-                <div className="ast-row"><span>lineas</span><b>{selectedNode.loc}</b></div>
-                <div className="ast-row"><span>modulo</span><b>{selectedNode.module}</b></div>
-                <div className="ast-row"><span>exports</span><b>{selectedNode.exports.length}</b></div>
-                <div className="ast-row"><span>imports</span><b>{selectedNode.imports.length}</b></div>
-              </div>
+function FileGrid({ module, allModules, onSelect }: {
+  module: ModuleData;
+  allModules: ModuleData[];
+  onSelect: (f: FileData) => void;
+}) {
+  const files = module.files || [];
+  const [filterKind, setFilterKind] = useState<string>("all");
 
-              {selectedNode.exports.length > 0 && (
-                <div className="aside-section">
-                  <div className="ast-section-title">Exports</div>
-                  {selectedNode.exports.map((e) => (
-                    <div key={e} className="ast-hot-row">
-                      <span className="mono" style={{ fontSize: 12 }}>{e}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+  const kindCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const f of files) counts[f.kind] = (counts[f.kind] || 0) + 1;
+    return counts;
+  }, [files]);
 
-              {connectedIds.size > 0 && (
-                <div className="aside-section">
-                  <div className="ast-section-title">Conexiones ({connectedIds.size})</div>
-                  {[...connectedIds].map((id) => {
-                    const target = nodes.find((n) => n.id === id);
-                    if (!target) return null;
-                    const edge = edges.find((e) =>
-                      (e.from === selected && e.to === id) || (e.to === selected && e.from === id)
-                    );
-                    const direction = edges.some((e) => e.from === selected && e.to === id) ? "importa" : "importado por";
-                    return (
-                      <button key={id} className="ast-file-link has-detail" onClick={() => setSelected(id)}>
-                        <span className="fn-kind-dot" style={{ background: KIND_COLORS[target.kind] }}></span>
-                        <div style={{ flex: 1 }}>
-                          <span className="mono" style={{ fontSize: 12 }}>{target.label}</span>
-                          <div className="muted" style={{ fontSize: 10 }}>
-                            {direction}
-                            {edge?.specifiers.length ? ": " + edge.specifiers.slice(0, 3).join(", ") : ""}
-                          </div>
-                        </div>
-                        <span className="ast-arrow">&rarr;</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+  const filtered = filterKind === "all" ? files : files.filter((f) => f.kind === filterKind);
+  const sorted = [...filtered].sort((a, b) => b.loc - a.loc);
 
-              <button className="btn-simple sm" style={{ marginTop: 12 }} onClick={() => setSelected(null)}>
-                &larr; Deseleccionar
-              </button>
-            </div>
-          )}
-        </aside>
+  // Find connections between files
+  const allFiles = allModules.flatMap((m) => m.files || []);
+
+  return (
+    <>
+      <div className="map-stats-bar">
+        <span>{files.length} archivos</span>
+        <span>·</span>
+        <span>{(module.loc || 0).toLocaleString("es")} LOC</span>
+        {module.dependencies?.internal && module.dependencies.internal.length > 0 && (
+          <>
+            <span>·</span>
+            <span>depende de: {module.dependencies.internal.join(", ")}</span>
+          </>
+        )}
       </div>
 
-      <div className="map-legend">
-        {Object.entries(KIND_COLORS).filter(([k]) => kindCounts[k]).map(([kind, color]) => (
-          <span key={kind} className="lg-item">
-            <span className="lg-dot" style={{ background: color }}></span>{kind}
-          </span>
+      <div className="cov-filters" style={{ marginBottom: 16 }}>
+        <button className={"cov-filter" + (filterKind === "all" ? " active" : "")} onClick={() => setFilterKind("all")}>
+          Todos ({files.length})
+        </button>
+        {Object.entries(kindCounts).sort((a, b) => b[1] - a[1]).map(([kind, count]) => (
+          <button key={kind} className={"cov-filter" + (filterKind === kind ? " active" : "")} onClick={() => setFilterKind(kind)}>
+            <span className="mc-kind-dot" style={{ background: KIND_COLORS[kind] }}></span>
+            {kind} ({count})
+          </button>
         ))}
       </div>
-    </section>
+
+      <div className="file-grid">
+        {sorted.map((f) => {
+          const incomingCount = allFiles.filter((other) =>
+            other.path !== f.path && other.imports?.some((imp) => {
+              const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
+              return imp.source.endsWith(name) || imp.source.endsWith("/" + name);
+            })
+          ).length;
+
+          return (
+            <button key={f.path} className="file-card" onClick={() => onSelect(f)}>
+              <div className="fc-head">
+                <span className="fc-kind" style={{ background: KIND_COLORS[f.kind] }}>{f.kind}</span>
+                <span className="fc-name mono">{shortName(f.path)}</span>
+              </div>
+              <div className="fc-stats">
+                <span>{f.loc} LOC</span>
+                {f.exports.length > 0 && <span>{f.exports.length} exports</span>}
+                {f.imports.length > 0 && <span>{f.imports.length} imports</span>}
+                {incomingCount > 0 && <span style={{ color: "var(--accent)" }}>{incomingCount} usan este</span>}
+              </div>
+              {f.exports.length > 0 && (
+                <div className="fc-exports">
+                  {f.exports.slice(0, 4).map((e) => (
+                    <span key={e} className="fc-export mono">{e}</span>
+                  ))}
+                  {f.exports.length > 4 && <span className="fc-export muted">+{f.exports.length - 4}</span>}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function FileDetail({ file, module, allModules, onNavigate, onBack }: {
+  file: FileData;
+  module: ModuleData;
+  allModules: ModuleData[];
+  onNavigate: (f: FileData) => void;
+  onBack: () => void;
+}) {
+  const allFiles = allModules.flatMap((m) => m.files || []);
+
+  // Files this file imports
+  const importTargets = useMemo(() => {
+    const targets: { file: FileData; specifiers: string[] }[] = [];
+    for (const imp of file.imports) {
+      const match = allFiles.find((f) => {
+        const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
+        return imp.source.endsWith(name) || imp.source.endsWith("/" + name) || f.path.includes(imp.source.replace("@/", ""));
+      });
+      if (match && match.path !== file.path) {
+        targets.push({ file: match, specifiers: imp.specifiers });
+      }
+    }
+    return targets;
+  }, [file, allFiles]);
+
+  // Files that import this file
+  const importedBy = useMemo(() => {
+    const name = shortName(file.path).replace(/\.(tsx?|jsx?)$/, "");
+    return allFiles.filter((f) =>
+      f.path !== file.path &&
+      f.imports?.some((imp) => imp.source.endsWith(name) || imp.source.endsWith("/" + name))
+    );
+  }, [file, allFiles]);
+
+  // External deps
+  const externalImports = file.imports.filter((imp) =>
+    !imp.source.startsWith(".") && !imp.source.startsWith("@/") && !imp.source.startsWith("~")
+  );
+
+  return (
+    <div className="file-detail">
+      <div className="fd-header">
+        <span className="fc-kind lg" style={{ background: KIND_COLORS[file.kind] }}>{file.kind}</span>
+        <div>
+          <div className="fd-name mono">{shortName(file.path)}</div>
+          <div className="fd-path mono">{file.path}</div>
+        </div>
+      </div>
+
+      <div className="fd-stats-row">
+        <div className="fd-stat"><span className="fd-stat-num">{file.loc}</span><span>LOC</span></div>
+        <div className="fd-stat"><span className="fd-stat-num">{file.exports.length}</span><span>exports</span></div>
+        <div className="fd-stat"><span className="fd-stat-num">{importTargets.length}</span><span>importa</span></div>
+        <div className="fd-stat"><span className="fd-stat-num">{importedBy.length}</span><span>lo usan</span></div>
+      </div>
+
+      <div className="fd-sections">
+        {file.exports.length > 0 && (
+          <div className="fd-section">
+            <div className="fd-section-title">Exports</div>
+            <div className="fd-chips">
+              {file.exports.map((e) => (
+                <span key={e} className="fd-chip mono">{e}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {importTargets.length > 0 && (
+          <div className="fd-section">
+            <div className="fd-section-title">Importa de ({importTargets.length})</div>
+            {importTargets.map(({ file: target, specifiers }) => (
+              <button key={target.path} className="fd-link" onClick={() => onNavigate(target)}>
+                <span className="mc-kind-dot" style={{ background: KIND_COLORS[target.kind] }}></span>
+                <span className="mono">{shortName(target.path)}</span>
+                {specifiers.length > 0 && (
+                  <span className="fd-link-specs muted">{specifiers.slice(0, 3).join(", ")}</span>
+                )}
+                <span className="ast-arrow">&rarr;</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {importedBy.length > 0 && (
+          <div className="fd-section">
+            <div className="fd-section-title">Usado por ({importedBy.length})</div>
+            {importedBy.map((f) => (
+              <button key={f.path} className="fd-link" onClick={() => onNavigate(f)}>
+                <span className="mc-kind-dot" style={{ background: KIND_COLORS[f.kind] }}></span>
+                <span className="mono">{shortName(f.path)}</span>
+                <span className="ast-arrow">&rarr;</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {externalImports.length > 0 && (
+          <div className="fd-section">
+            <div className="fd-section-title">Dependencias externas ({externalImports.length})</div>
+            <div className="fd-chips">
+              {externalImports.map((imp) => (
+                <span key={imp.source} className="fd-chip ext mono">{imp.source}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {importTargets.length === 0 && importedBy.length === 0 && (
+          <div className="fd-section">
+            <div className="fd-orphan">
+              &#x26A0; Este archivo no tiene conexiones con otros archivos del proyecto.
+              Podria ser un archivo muerto.
+            </div>
+          </div>
+        )}
+      </div>
+
+      <button className="btn-simple" style={{ marginTop: 16 }} onClick={onBack}>&larr; Volver a {module.name}</button>
+    </div>
   );
 }

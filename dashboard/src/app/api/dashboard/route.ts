@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
           name: project.name,
           modules: project.modules || [],
           deps: project.deps || [],
+          audit: project.audit || [],
         },
         decisions,
         changes,

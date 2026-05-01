@@ -1,27 +1,43 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { DepData } from "@/app/page";
+import type { DepData, AuditVuln } from "@/app/page";
 
-export function DepsView({ deps }: { deps: DepData[] }) {
-  const [filter, setFilter] = useState<"all" | "prod" | "dev">("all");
+export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] }) {
+  const [filter, setFilter] = useState<"all" | "prod" | "dev" | "vuln">("all");
   const [search, setSearch] = useState("");
+
+  const vulnMap = useMemo(() => {
+    const map = new Map<string, AuditVuln>();
+    for (const v of audit) map.set(v.name, v);
+    return map;
+  }, [audit]);
 
   const prodDeps = useMemo(() => deps.filter((d) => d.kind === "prod"), [deps]);
   const devDeps = useMemo(() => deps.filter((d) => d.kind === "dev"), [deps]);
+  const vulnDeps = useMemo(() => deps.filter((d) => vulnMap.has(d.name)), [deps, vulnMap]);
 
   const filtered = useMemo(() => {
     let list = deps;
     if (filter === "prod") list = prodDeps;
     if (filter === "dev") list = devDeps;
+    if (filter === "vuln") list = vulnDeps;
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((d) => d.name.toLowerCase().includes(q));
     }
-    return list.sort((a, b) => a.name.localeCompare(b.name));
-  }, [deps, prodDeps, devDeps, filter, search]);
+    return list.sort((a, b) => {
+      // Vulnerable first
+      const aVuln = vulnMap.has(a.name) ? 0 : 1;
+      const bVuln = vulnMap.has(b.name) ? 0 : 1;
+      if (aVuln !== bVuln) return aVuln - bVuln;
+      return a.name.localeCompare(b.name);
+    });
+  }, [deps, prodDeps, devDeps, vulnDeps, filter, search, vulnMap]);
 
   const sources = useMemo(() => [...new Set(deps.map((d) => d.source))], [deps]);
+  const criticalCount = audit.filter((v) => v.severity === "critical").length;
+  const highCount = audit.filter((v) => v.severity === "high").length;
 
   if (deps.length === 0) {
     return (
@@ -45,7 +61,7 @@ export function DepsView({ deps }: { deps: DepData[] }) {
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
         <h2>Dependencias</h2>
         <span className="meta">
-          {deps.length} paquetes · {sources.length} package.json · auto-scan en cada sync
+          {deps.length} paquetes · {sources.length} package.json · npm audit integrado
         </span>
       </div>
 
@@ -62,10 +78,21 @@ export function DepsView({ deps }: { deps: DepData[] }) {
           <div className="rs-num">{devDeps.length}</div>
           <div className="rs-label">desarrollo</div>
         </div>
-        <div className="rs-card high">
-          <div className="rs-num">{sources.length}</div>
-          <div className="rs-label">package.json</div>
-        </div>
+        {audit.length > 0 ? (
+          <div className="rs-card high">
+            <div className="rs-num">{audit.length}</div>
+            <div className="rs-label">
+              vulnerabilidades
+              {criticalCount > 0 && <span> · {criticalCount} criticas</span>}
+              {highCount > 0 && <span> · {highCount} altas</span>}
+            </div>
+          </div>
+        ) : (
+          <div className="rs-card" style={{ borderLeft: "3px solid var(--green)" }}>
+            <div className="rs-num" style={{ color: "var(--green)" }}>0</div>
+            <div className="rs-label">vulnerabilidades</div>
+          </div>
+        )}
       </div>
 
       <div className="risks-toolbar">
@@ -79,18 +106,16 @@ export function DepsView({ deps }: { deps: DepData[] }) {
           <button className={"cov-filter" + (filter === "dev" ? " active" : "")} onClick={() => setFilter("dev")}>
             Dev ({devDeps.length})
           </button>
+          {audit.length > 0 && (
+            <button className={"cov-filter high" + (filter === "vuln" ? " active" : "")} onClick={() => setFilter("vuln")}>
+              Vulnerables ({vulnDeps.length})
+            </button>
+          )}
         </div>
         <div className="map-search" style={{ marginLeft: "auto" }}>
           <span className="search-icon">&#x2315;</span>
-          <input
-            type="text"
-            placeholder="buscar paquete..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className="search-clear" onClick={() => setSearch("")}>x</button>
-          )}
+          <input type="text" placeholder="buscar paquete..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          {search && <button className="search-clear" onClick={() => setSearch("")}>x</button>}
         </div>
       </div>
 
@@ -99,18 +124,31 @@ export function DepsView({ deps }: { deps: DepData[] }) {
           <span className="deps-col-name">Paquete</span>
           <span className="deps-col-ver">Version</span>
           <span className="deps-col-kind">Tipo</span>
+          <span className="deps-col-status">Estado</span>
           <span className="deps-col-src">Origen</span>
         </div>
-        {filtered.map((d) => (
-          <div key={`${d.name}-${d.kind}-${d.source}`} className="deps-row">
-            <span className="deps-col-name mono">{d.name}</span>
-            <span className="deps-col-ver mono">{d.version}</span>
-            <span className="deps-col-kind">
-              <span className={"dep-pill " + d.kind}>{d.kind}</span>
-            </span>
-            <span className="deps-col-src mono">{d.source}</span>
-          </div>
-        ))}
+        {filtered.map((d) => {
+          const vuln = vulnMap.get(d.name);
+          return (
+            <div key={`${d.name}-${d.kind}-${d.source}`} className={"deps-row" + (vuln ? " vuln" : "")}>
+              <span className="deps-col-name mono">{d.name}</span>
+              <span className="deps-col-ver mono">{d.version}</span>
+              <span className="deps-col-kind">
+                <span className={"dep-pill " + d.kind}>{d.kind}</span>
+              </span>
+              <span className="deps-col-status">
+                {vuln ? (
+                  <span className={"dep-vuln-pill " + vuln.severity} title={vuln.title}>
+                    {vuln.severity}
+                  </span>
+                ) : (
+                  <span className="dep-safe-pill">ok</span>
+                )}
+              </span>
+              <span className="deps-col-src mono">{d.source}</span>
+            </div>
+          );
+        })}
         {filtered.length === 0 && (
           <div className="risks-empty"><span>Sin resultados</span></div>
         )}

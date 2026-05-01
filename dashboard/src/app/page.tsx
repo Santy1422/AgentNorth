@@ -85,8 +85,16 @@ export interface DepData {
   source: string;
 }
 
+export interface AuditVuln {
+  name: string;
+  severity: string;
+  title: string;
+  url: string;
+  range: string;
+}
+
 export interface DashboardData {
-  project: { id: string; name: string; modules: ModuleData[]; deps: DepData[] };
+  project: { id: string; name: string; modules: ModuleData[]; deps: DepData[]; audit: AuditVuln[] };
   decisions: DecisionData[];
   changes: ChangeData[];
   sessions: SessionData[];
@@ -263,7 +271,7 @@ export default function Home() {
           <MainView feedRows={feedRows} savedTokens={savedTokens} data={data} />
         )}
         {view === "map" && <MapView modules={data?.project.modules || []} />}
-        {view === "deps" && <DepsView deps={data?.project.deps || []} />}
+        {view === "deps" && <DepsView deps={data?.project.deps || []} audit={data?.project.audit || []} />}
         {view === "coverage" && <CoverageView modules={data?.project.modules || []} />}
         {view === "risks" && <RisksView decisions={data?.decisions || []} changes={data?.changes || []} />}
       </main>
