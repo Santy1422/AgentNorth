@@ -147,6 +147,43 @@ export function CoverageView({ modules }: { modules: ModuleData[] }) {
         </div>
       </div>
 
+      {/* Documentation coverage treemap */}
+      <div className="card-simple" style={{ marginBottom: 16 }}>
+        <div className="card-simple-head">
+          <h2>Cobertura de documentacion</h2>
+          <span className="meta">tamano = LOC, color = tiene summary</span>
+        </div>
+        <div className="treemap-grid">
+          {modules
+            .sort((a, b) => b.loc - a.loc)
+            .map((m) => {
+              const files = m.files || [];
+              const documented = files.filter((f) => f.summary && f.summary.trim().length > 0).length;
+              const total = files.length;
+              const pct = total > 0 ? Math.round((documented / total) * 100) : 0;
+              const sizePct = stats.totalLoc > 0 ? Math.max(8, (m.loc / stats.totalLoc) * 100) : 20;
+              const color = pct >= 80 ? "var(--green)" : pct >= 40 ? "var(--yellow)" : "var(--red)";
+
+              return (
+                <div
+                  key={m.name}
+                  className="treemap-cell"
+                  style={{
+                    flexBasis: `${sizePct}%`,
+                    flexGrow: sizePct,
+                    borderColor: color,
+                  }}
+                  title={`${m.name}: ${pct}% documentado (${documented}/${total} archivos)`}
+                >
+                  <div className="treemap-name mono">{m.name}</div>
+                  <div className="treemap-pct" style={{ color }}>{pct}%</div>
+                  <div className="treemap-detail">{documented}/{total} archivos</div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
       {/* File type distribution */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">

@@ -10,7 +10,7 @@ export function RisksView({
   decisions: DecisionData[];
   changes: ChangeData[];
 }) {
-  const [tab, setTab] = useState<"decisions" | "changes">("decisions");
+  const [tab, setTab] = useState<"timeline" | "decisions" | "changes">("timeline");
   const [search, setSearch] = useState("");
   const breakingChanges = changes.filter((c) => c.breaking);
 
@@ -86,6 +86,12 @@ export function RisksView({
       <div className="risks-toolbar">
         <div className="cov-filters">
           <button
+            className={"cov-filter" + (tab === "timeline" ? " active" : "")}
+            onClick={() => setTab("timeline")}
+          >
+            Timeline
+          </button>
+          <button
             className={"cov-filter" + (tab === "decisions" ? " active" : "")}
             onClick={() => setTab("decisions")}
           >
@@ -113,6 +119,69 @@ export function RisksView({
           )}
         </div>
       </div>
+
+      {/* Activity heatmap */}
+      {tab === "timeline" && <ActivityHeatmap decisions={decisions} changes={changes} />}
+
+      {/* Timeline view */}
+      {tab === "timeline" && (
+        <div className="timeline-view">
+          {(() => {
+            // Merge decisions and changes into a single timeline
+            const items: { type: "decision" | "change"; date: string; data: DecisionData | ChangeData }[] = [];
+            for (const d of decisions) items.push({ type: "decision", date: d.created_at, data: d });
+            for (const c of changes) items.push({ type: "change", date: c.created_at, data: c });
+            items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            if (items.length === 0) {
+              return <div className="risks-empty"><span>Sin actividad</span></div>;
+            }
+
+            return items.slice(0, 20).map((item, i) => {
+              const isDecision = item.type === "decision";
+              const d = isDecision ? (item.data as DecisionData) : null;
+              const c = !isDecision ? (item.data as ChangeData) : null;
+              return (
+                <div key={`${item.type}-${i}`} className="tl-item">
+                  <div className="tl-line">
+                    <div className={"tl-dot " + (isDecision ? "decision" : c?.breaking ? "breaking" : "change")}></div>
+                    {i < Math.min(items.length, 20) - 1 && <div className="tl-connector"></div>}
+                  </div>
+                  <div className="tl-content">
+                    <div className="tl-header">
+                      <span className={"tl-type " + item.type}>
+                        {isDecision ? "decision" : c?.breaking ? "breaking" : "cambio"}
+                      </span>
+                      {(d?.module || c?.module) && (
+                        <span className="tl-module mono">{d?.module || c?.module}</span>
+                      )}
+                      <span className="tl-date">{timeAgo(item.date)}</span>
+                    </div>
+                    <div className="tl-title">{d?.title || c?.summary}</div>
+                    {d?.decision && <div className="tl-detail">{d.decision}</div>}
+                    {c?.files_changed && c.files_changed.length > 0 && (
+                      <div className="tl-files">
+                        {c.files_changed.slice(0, 3).map((f) => (
+                          <span key={f} className="tl-file mono">{f.split("/").pop()}</span>
+                        ))}
+                        {c.files_changed.length > 3 && (
+                          <span className="tl-file muted">+{c.files_changed.length - 3}</span>
+                        )}
+                      </div>
+                    )}
+                    {d && (
+                      <div className="tl-footer">
+                        <span className={"tl-status " + d.status}>{d.status}</span>
+                        <span className="tl-author">por {d.author_name}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      )}
 
       <div className="risks-list">
         {tab === "decisions" &&
@@ -201,6 +270,72 @@ function ChangeRow({ change }: { change: ChangeData }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ActivityHeatmap({
+  decisions,
+  changes,
+}: {
+  decisions: DecisionData[];
+  changes: ChangeData[];
+}) {
+  // Build 12-week heatmap
+  const weeks = useMemo(() => {
+    const now = new Date();
+    const dayMs = 86400000;
+    const dayCounts: Record<string, number> = {};
+
+    for (const d of decisions) {
+      const key = new Date(d.created_at).toISOString().slice(0, 10);
+      dayCounts[key] = (dayCounts[key] || 0) + 1;
+    }
+    for (const c of changes) {
+      const key = new Date(c.created_at).toISOString().slice(0, 10);
+      dayCounts[key] = (dayCounts[key] || 0) + 1;
+    }
+
+    const weeks: { date: string; count: number }[][] = [];
+    // Go back 12 weeks
+    const startDay = new Date(now.getTime() - 84 * dayMs);
+    // Align to Sunday
+    startDay.setDate(startDay.getDate() - startDay.getDay());
+
+    for (let w = 0; w < 12; w++) {
+      const week: { date: string; count: number }[] = [];
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(startDay.getTime() + (w * 7 + d) * dayMs);
+        const key = date.toISOString().slice(0, 10);
+        week.push({ date: key, count: dayCounts[key] || 0 });
+      }
+      weeks.push(week);
+    }
+    return weeks;
+  }, [decisions, changes]);
+
+  const maxCount = Math.max(1, ...weeks.flat().map((d) => d.count));
+
+  return (
+    <div className="heatmap-card">
+      <div className="heatmap-label">Actividad (12 semanas)</div>
+      <div className="heatmap-grid">
+        {weeks.map((week, wi) => (
+          <div key={wi} className="heatmap-col">
+            {week.map((day) => (
+              <div
+                key={day.date}
+                className="heatmap-cell"
+                title={`${day.date}: ${day.count} eventos`}
+                style={{
+                  opacity: day.count === 0 ? 0.1 : 0.2 + (day.count / maxCount) * 0.8,
+                  background: day.count === 0 ? "var(--bg-4)" : "var(--green)",
+                }}
+              ></div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
