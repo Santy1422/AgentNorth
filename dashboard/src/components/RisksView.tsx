@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { DecisionData, ChangeData } from "@/app/page";
 
 export function RisksView({
@@ -11,7 +11,31 @@ export function RisksView({
   changes: ChangeData[];
 }) {
   const [tab, setTab] = useState<"decisions" | "changes">("decisions");
+  const [search, setSearch] = useState("");
   const breakingChanges = changes.filter((c) => c.breaking);
+
+  const filteredDecisions = useMemo(() => {
+    if (!search.trim()) return decisions;
+    const q = search.toLowerCase();
+    return decisions.filter(
+      (d) =>
+        d.title.toLowerCase().includes(q) ||
+        d.module?.toLowerCase().includes(q) ||
+        d.decision?.toLowerCase().includes(q) ||
+        d.author_name?.toLowerCase().includes(q)
+    );
+  }, [decisions, search]);
+
+  const filteredChanges = useMemo(() => {
+    if (!search.trim()) return changes;
+    const q = search.toLowerCase();
+    return changes.filter(
+      (c) =>
+        c.summary.toLowerCase().includes(q) ||
+        c.module?.toLowerCase().includes(q) ||
+        c.files_changed?.some((f) => f.toLowerCase().includes(q))
+    );
+  }, [changes, search]);
 
   if (decisions.length === 0 && changes.length === 0) {
     return (
@@ -74,20 +98,36 @@ export function RisksView({
             Cambios ({changes.length})
           </button>
         </div>
+        <div className="map-search" style={{ marginLeft: "auto" }}>
+          <span className="search-icon">&#x2315;</span>
+          <input
+            type="text"
+            placeholder="buscar..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="search-clear" onClick={() => setSearch("")}>
+              x
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="risks-list">
-        {tab === "decisions" && decisions.map((d) => (
-          <DecisionRow key={d._id} decision={d} />
-        ))}
-        {tab === "changes" && changes.map((c) => (
-          <ChangeRow key={c._id} change={c} />
-        ))}
-        {tab === "decisions" && decisions.length === 0 && (
-          <div className="risks-empty"><span>Sin decisiones</span></div>
+        {tab === "decisions" &&
+          filteredDecisions.map((d) => <DecisionRow key={d._id} decision={d} />)}
+        {tab === "changes" &&
+          filteredChanges.map((c) => <ChangeRow key={c._id} change={c} />)}
+        {tab === "decisions" && filteredDecisions.length === 0 && (
+          <div className="risks-empty">
+            <span>{search ? "Sin resultados" : "Sin decisiones"}</span>
+          </div>
         )}
-        {tab === "changes" && changes.length === 0 && (
-          <div className="risks-empty"><span>Sin cambios</span></div>
+        {tab === "changes" && filteredChanges.length === 0 && (
+          <div className="risks-empty">
+            <span>{search ? "Sin resultados" : "Sin cambios"}</span>
+          </div>
         )}
       </div>
     </section>
@@ -96,6 +136,12 @@ export function RisksView({
 
 function DecisionRow({ decision }: { decision: DecisionData }) {
   const [open, setOpen] = useState(false);
+  const statusColor =
+    decision.status === "active"
+      ? "var(--green)"
+      : decision.status === "deprecated"
+        ? "var(--red)"
+        : "var(--text-4)";
 
   return (
     <div className={"risk-row" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
@@ -103,7 +149,9 @@ function DecisionRow({ decision }: { decision: DecisionData }) {
         <span className="risk-pill med">decision</span>
         {decision.module && <span className="risk-kind mono">{decision.module}</span>}
         <div className="risk-title">{decision.title}</div>
-        <span className="risk-loc mono">{decision.status}</span>
+        <span className="risk-status" style={{ color: statusColor }}>
+          {decision.status}
+        </span>
         <span className="risk-caret">{open ? "-" : "+"}</span>
       </div>
       {open && (
@@ -143,7 +191,9 @@ function ChangeRow({ change }: { change: ChangeData }) {
         <div className="risk-row-body" onClick={(e) => e.stopPropagation()}>
           <div className="risk-detail">
             {change.files_changed.map((f) => (
-              <div key={f} className="mono" style={{ fontSize: 12, padding: "2px 0" }}>{f}</div>
+              <div key={f} className="mono" style={{ fontSize: 12, padding: "2px 0" }}>
+                {f}
+              </div>
             ))}
           </div>
           <div className="risk-foot">

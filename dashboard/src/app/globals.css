@@ -3270,3 +3270,40 @@ html, body {
 /* ─── Deps View: Missing column classes ─── */
 .deps-col-kind { text-align: center; }
 .deps-col-status { text-align: center; }
+
+/* ─── Header: Refresh & Status ─── */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.refresh-btn {
+  background: none;
+  border: 1px solid var(--bg-4);
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
+  font-size: 16px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  line-height: 1;
+}
+
+.refresh-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.last-refresh {
+  font-size: 10px;
+  color: var(--text-4);
+}
+
+/* ─── Risks View: Status ─── */
+.risk-status {
+  font-size: 11px;
+  font-family: var(--mono);
+  text-transform: uppercase;
+}

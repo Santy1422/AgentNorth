@@ -11,6 +11,12 @@ const NAV_ITEMS: { view: View; label: string }[] = [
   { view: "risks", label: "Decisiones" },
 ];
 
+function formatTime(d: Date): string {
+  const h = d.getHours().toString().padStart(2, "0");
+  const m = d.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
 export function Header({
   view,
   setView,
@@ -18,6 +24,8 @@ export function Header({
   activeProject,
   onSwitchProject,
   isLive,
+  lastRefresh,
+  onRefresh,
 }: {
   view: View;
   setView: (v: View) => void;
@@ -25,6 +33,8 @@ export function Header({
   activeProject: ProjectRef | null;
   onSwitchProject: (p: ProjectRef) => void;
   isLive?: boolean;
+  lastRefresh?: Date | null;
+  onRefresh?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -90,9 +100,21 @@ export function Header({
         ))}
       </nav>
 
-      <div className="status-pill">
-        <span className={"dot" + (isLive ? " live" : "")}></span>
-        {isLive ? "Conectado" : "Demo mode"}
+      <div className="header-right">
+        {onRefresh && (
+          <button className="refresh-btn" onClick={onRefresh} title="Actualizar ahora">
+            {"\u21BB"}
+          </button>
+        )}
+        <div className="status-pill">
+          <span className={"dot" + (isLive ? " live" : "")}></span>
+          {isLive ? "Conectado" : "Demo mode"}
+          {lastRefresh && (
+            <span className="last-refresh">
+              · {formatTime(lastRefresh)}
+            </span>
+          )}
+        </div>
       </div>
     </header>
   );

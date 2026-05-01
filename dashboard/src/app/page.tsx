@@ -190,6 +190,7 @@ export default function Home() {
   const [savedTokens, setSavedTokens] = useState(0);
   const [projects, setProjects] = useState<ProjectRef[]>([]);
   const [activeProject, setActiveProject] = useState<ProjectRef | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const fetchDashboard = useCallback(async (projectId?: string) => {
     try {
@@ -218,6 +219,7 @@ export default function Home() {
       setActiveProject({ id: d.project.id, name: d.project.name });
       setSavedTokens(d.tokens_saved || 0);
       setFeedRows(buildFeed(d));
+      setLastRefresh(new Date());
       setAuthState("ready");
     } catch {
       setAuthState("unauthenticated");
@@ -265,6 +267,8 @@ export default function Home() {
         activeProject={activeProject}
         onSwitchProject={switchProject}
         isLive={true}
+        lastRefresh={lastRefresh}
+        onRefresh={() => fetchDashboard(activeProject?.id)}
       />
       <main className="simple-main">
         {view === "main" && (
