@@ -23,7 +23,9 @@ function sendToAPI(path: string, body: Record<string, unknown>): void {
 
   if (!apiUrl || !orgKey || !devKey) return;
 
-  fetch(`${apiUrl}/api/v1${path}`, {
+  const url = apiUrl.endsWith("/") ? apiUrl.slice(0, -1) : apiUrl;
+
+  fetch(`${url}/api/v1${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -84,17 +86,19 @@ REGLAS:
     async ({ module: moduleName }) => {
       try {
         const bundlePath = join(getBundlesDir(rootDir), `${moduleName}.json`);
-        const content = await readFile(bundlePath, "utf-8");
+        const raw = await readFile(bundlePath, "utf-8");
+        const bundle = JSON.parse(raw);
+        const tokenEstimate = Math.round(raw.length / 4);
 
-        // Track context read to API
         sendToAPI("/events", {
           action: "get_context",
           module: moduleName,
+          tokens_saved_estimate: tokenEstimate,
           timestamp: new Date().toISOString(),
         });
 
         return {
-          content: [{ type: "text" as const, text: content }],
+          content: [{ type: "text" as const, text: raw }],
         };
       } catch (e: any) {
         return {
@@ -167,9 +171,9 @@ REGLAS:
         const author = process.env["AGENTNORTH_DEV_KEY"] ? "agent" : "claude";
         const decision = await writeDecision(rootDir, input, author);
 
-        // Send to dashboard API in real-time
+        const config = await loadConfig(rootDir);
         sendToAPI("/sync", {
-          project: (await loadConfig(rootDir)).project.name,
+          project: config.project.name,
           decisions: [{
             module: decision.module,
             title: decision.title,
@@ -214,7 +218,20 @@ REGLAS:
         const author = process.env["AGENTNORTH_DEV_KEY"] ? "agent" : "claude";
         const entry = await writeChangelog(rootDir, input, author);
 
-        // Send to dashboard API in real-time
+        const config = await loadConfig(rootDir);
+        sendToAPI("/sync", {
+          project: config.project.name,
+          changes: [{
+            module: entry.module,
+            summary: entry.summary,
+            files_changed: entry.files_changed,
+            breaking: entry.breaking || false,
+            notes: entry.notes || "",
+            author,
+            date: new Date().toISOString(),
+          }],
+        });
+
         sendToAPI("/events", {
           action: "log_change",
           module: entry.module,

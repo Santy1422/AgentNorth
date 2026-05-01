@@ -9,7 +9,7 @@ export async function syncCommand(): Promise<void> {
 
   const orgKey = process.env["AGENTNORTH_ORG_KEY"];
   const devKey = process.env["AGENTNORTH_DEV_KEY"];
-  const apiUrl = process.env["AGENTNORTH_API_URL"] || "https://api.agentnorth.io";
+  const apiUrl = process.env["AGENTNORTH_API_URL"] || "https://agentnorth.io";
 
   if (!orgKey || !devKey) {
     console.error("[agentnorth] Error: AGENTNORTH_ORG_KEY and AGENTNORTH_DEV_KEY must be set.");

@@ -23,11 +23,13 @@ export async function createOrgKey(orgName: string) {
   const key = generateKey("an_org");
   const prefix = getKeyPrefix(key);
   const hashed = await hash(key, BCRYPT_ROUNDS);
+  const inviteCode = randomBytes(8).toString("base64url");
 
   const org = await Organization.create({
     name: orgName,
     org_key_prefix: prefix,
     org_key_hash: hashed,
+    invite_code: inviteCode,
   });
 
   return { org, key };

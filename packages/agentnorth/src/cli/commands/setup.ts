@@ -25,8 +25,8 @@ cat << 'EOF'
 EOF
 
 # Enviar evento de session start al API (si esta configurado)
-if [ -n "$AGENTNORTH_ORG_KEY" ]; then
-  curl -s -X POST https://api.agentnorth.dev/v1/sessions/start \\
+if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
+  curl -s -X POST "\${AGENTNORTH_API_URL}/api/v1/sessions/start" \\
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
     -H "X-Dev-Key: $AGENTNORTH_DEV_KEY" \\
     -H "Content-Type: application/json" \\
@@ -99,8 +99,8 @@ if echo "$ACTION" | grep -q "log_change"; then
 fi
 
 # Enviar evento al API (async, no bloquea a Claude)
-if [ -n "$AGENTNORTH_ORG_KEY" ]; then
-  curl -s -X POST https://api.agentnorth.dev/v1/events \\
+if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
+  curl -s -X POST "\${AGENTNORTH_API_URL}/api/v1/events" \\
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
     -H "X-Dev-Key: $AGENTNORTH_DEV_KEY" \\
     -H "Content-Type: application/json" \\
@@ -129,8 +129,8 @@ ${requireLogChange ? `if [ "$CHANGES" -gt 0 ] && [ "$LOGGED" -eq 0 ]; then
 fi` : "# log_change not required by enforcement config"}
 
 # Enviar evento de session end al API
-if [ -n "$AGENTNORTH_ORG_KEY" ]; then
-  curl -s -X POST https://api.agentnorth.dev/v1/sessions/end \\
+if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
+  curl -s -X POST "\${AGENTNORTH_API_URL}/api/v1/sessions/end" \\
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
     -H "X-Dev-Key: $AGENTNORTH_DEV_KEY" \\
     -H "Content-Type: application/json" \\
@@ -147,7 +147,11 @@ function generateSettings(rootDir: string): string {
         agentnorth: {
           command: "npx",
           args: ["agentnorth", "serve"],
-          env: {},
+          env: {
+            AGENTNORTH_API_URL: "",
+            AGENTNORTH_ORG_KEY: "",
+            AGENTNORTH_DEV_KEY: "",
+          },
         },
       },
       hooks: {
@@ -276,6 +280,15 @@ Enforcement level: ${enforcement.level}
   - Stop: ${enforcement.require_log_change ? "REMINDS" : "does not remind"} to log changes
   - PostToolUse: tracks all MCP tool usage
 
-Commit these files so all team members get enforcement automatically.
+Next steps:
+  1. Set your API keys in .claude/settings.json → mcpServers.agentnorth.env:
+     AGENTNORTH_API_URL = https://agentnorth.io (or your self-hosted URL)
+     AGENTNORTH_ORG_KEY = your org key (an_org_...)
+     AGENTNORTH_DEV_KEY = your dev key (an_dev_...)
+  2. Or export them as environment variables
+
+  Keys are generated when you sign in to the AgentNorth dashboard.
+
+Commit .claude/ so all team members get enforcement automatically.
 `);
 }

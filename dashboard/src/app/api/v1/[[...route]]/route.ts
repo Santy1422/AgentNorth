@@ -109,6 +109,7 @@ app.post("/events", authMiddleware, async (c: any) => {
     project_id: project?._id,
     action: body.action,
     module: body.module || "",
+    tokens_saved_estimate: body.tokens_saved_estimate || 0,
     timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
   });
 
@@ -201,9 +202,10 @@ app.get("/orgs/:orgId/stats", async (c) => {
 // --- Sync endpoint: receive bundle data from MCP server ---
 app.post("/sync", authMiddleware, async (c: any) => {
   await db();
-  const { Project, Decision } = await models();
+  const { Project, Decision, AgentChange } = await models();
   const body = await c.req.json();
   const org = c.get("org");
+  const dev = c.get("dev");
 
   let project = await Project.findOne({ org_id: org._id, name: body.project });
   if (!project) {
@@ -237,6 +239,23 @@ app.post("/sync", authMiddleware, async (c: any) => {
         },
         { upsert: true, new: true },
       );
+    }
+  }
+
+  if (body.changes) {
+    for (const ch of body.changes) {
+      await AgentChange.create({
+        org_id: org._id,
+        project_id: project._id,
+        module: ch.module,
+        summary: ch.summary,
+        files_changed: ch.files_changed || [],
+        breaking: ch.breaking || false,
+        notes: ch.notes || "",
+        author_dev_id: dev._id,
+        author_name: ch.author || "agent",
+        created_at: ch.date ? new Date(ch.date) : new Date(),
+      });
     }
   }
 

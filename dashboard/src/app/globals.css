@@ -1,4 +1,4 @@
-/* TokenDoc Dashboard — Design System */
+/* AgentNorth Dashboard — Design System */
 /* Dark theme inspired by Linear/Vercel aesthetic */
 
 :root {
@@ -62,6 +62,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
 }
 
 .brand-mark {
@@ -78,15 +79,96 @@ html, body {
   text-transform: lowercase;
 }
 
+.brand-info.switchable {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+.brand-info.switchable:hover {
+  background: var(--bg-3);
+}
+
 .brand-name {
   font-weight: 600;
   font-size: 14px;
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.brand-caret {
+  font-size: 10px;
+  color: var(--text-3);
 }
 
 .brand-sub {
   font-size: 11px;
   color: var(--text-3);
+}
+
+/* Project switcher dropdown */
+.project-switcher {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  background: var(--bg-3);
+  border: 1px solid var(--bg-4);
+  border-radius: var(--radius);
+  padding: 6px;
+  z-index: 100;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+
+.ps-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-4);
+  padding: 6px 8px 4px;
+  letter-spacing: 0.06em;
+}
+
+.ps-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: none;
+  color: var(--text-2);
+  font-family: var(--font);
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.ps-item:hover {
+  background: var(--bg-4);
+  color: var(--text);
+}
+.ps-item.active {
+  color: var(--accent);
+}
+
+.ps-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-4);
+  flex-shrink: 0;
+}
+.ps-item.active .ps-dot {
+  background: var(--accent);
+}
+
+.ps-check {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 12px;
 }
 
 .simple-nav {
@@ -1408,4 +1490,339 @@ html, body {
 
 .spacer {
   flex: 1;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-4);
+  font-size: 13px;
+}
+
+/* ─── Loading screen ─── */
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+/* ─── Login screen ─── */
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-card {
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+}
+
+.login-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.login-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  font-size: 15px;
+  color: var(--text-3);
+  margin-bottom: 40px;
+}
+
+.login-features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 40px;
+  text-align: left;
+}
+
+.login-feature {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: var(--radius);
+}
+
+.lf-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+
+.lf-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.lf-desc {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.login-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 28px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.login-btn:hover {
+  opacity: 0.9;
+}
+
+.login-note {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-4);
+}
+
+/* ─── Onboarding screen ─── */
+.onboard-screen {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 48px 24px;
+}
+
+.onboard-card {
+  max-width: 640px;
+  width: 100%;
+}
+
+.onboard-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.onboard-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.onboard-sub {
+  font-size: 14px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+.onboard-step {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--bg-3);
+}
+
+.onboard-step:last-of-type {
+  border-bottom: none;
+}
+
+.os-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.os-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.os-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.os-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+
+.os-code code {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  flex: 1;
+}
+
+.os-copy {
+  background: none;
+  border: 1px solid var(--bg-4);
+  color: var(--text-3);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.os-copy:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.os-desc {
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+.os-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--bg-3);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.os-key-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.os-key-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-4);
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.os-key-value {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.os-key-warn {
+  font-size: 12px;
+  color: var(--yellow);
+  font-weight: 500;
+  padding-top: 8px;
+  border-top: 1px solid var(--bg-3);
+  margin-top: 4px;
+}
+
+.onboard-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.onboard-btn:hover {
+  opacity: 0.9;
+}
+
+.onboard-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.onboard-btn.secondary {
+  background: var(--bg-3);
+  color: var(--text);
+  border: 1px solid var(--bg-4);
+}
+
+.onboard-btn.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.os-team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.os-team-member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.os-team-name {
+  font-weight: 500;
+}
+
+.os-team-role {
+  font-size: 10px;
+  color: var(--text-4);
+  text-transform: uppercase;
+}
+
+.onboard-footer {
+  padding-top: 20px;
+  text-align: center;
 }

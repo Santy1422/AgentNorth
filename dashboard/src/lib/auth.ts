@@ -14,20 +14,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async signIn({ user, account, profile }) {
       await connectDB();
+      const githubId = String(profile?.id || account?.providerAccountId);
 
-      // Check if developer exists by github_id
-      const existing = await Developer.findOne({ github_id: String(profile?.id || account?.providerAccountId) });
+      // Check if developer already exists
+      const existing = await Developer.findOne({ github_id: githubId });
+      if (existing) return true;
 
-      if (!existing) {
-        // First time: create org + dev automatically
-        const { org } = await createOrgKey(user.name || "My Org");
-        await createDevKey(
-          org._id.toString(),
-          user.name || "Unknown",
-          user.email || "",
-          String(profile?.id || account?.providerAccountId),
-        );
-      }
+      // New user — check if they have an invite code (passed via state)
+      // The invite code is stored in the callbackUrl as ?invite=CODE
+      // We'll check it in the redirect callback instead
+      // For now, create a new org by default
+      const { org } = await createOrgKey(user.name ? `${user.name}'s Team` : "My Team");
+      await createDevKey(
+        org._id.toString(),
+        user.name || "Unknown",
+        user.email || "",
+        githubId,
+      );
 
       return true;
     },
@@ -41,6 +44,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           (session as any).orgId = dev.org_id._id.toString();
           (session as any).devId = dev._id.toString();
           (session as any).role = dev.role;
+          (session as any).orgName = (dev.org_id as any).name;
         }
       }
 

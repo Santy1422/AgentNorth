@@ -1,33 +1,39 @@
 "use client";
 
-import { SESSIONS, personById, type FeedRow } from "@/data/mock";
+import { personById, type FeedRow, type Session } from "@/data/mock";
 import { Avatar, ClaudeAvatar } from "./Avatar";
 
 export function MainView({
   feedRows,
   savedTokens,
+  sessions,
+  isLive,
 }: {
   feedRows: FeedRow[];
   savedTokens: number;
+  sessions: Session[];
+  isLive?: boolean;
 }) {
   const dollars = (savedTokens / 100000).toFixed(2);
 
   return (
     <>
       <section className="hero">
-        <div className="hero-label">Tokens ahorrados hoy con TeamContext</div>
+        <div className="hero-label">
+          {isLive ? "Tokens ahorrados con AgentNorth" : "Tokens ahorrados hoy con AgentNorth"}
+        </div>
         <div className="hero-num">{savedTokens.toLocaleString("es")}</div>
         <div className="hero-sub">
-          ≈ <span className="hero-money">${dollars}</span> en API · 92% menos
-          exploracion por sesion
+          ≈ <span className="hero-money">${dollars}</span> en API
+          {!isLive && " · 92% menos exploracion por sesion"}
         </div>
         <div className="hero-bar">
           <div className="hero-bar-track">
             <div className="hero-bar-fill" style={{ width: "78%" }}></div>
           </div>
           <div className="hero-bar-labels">
-            <span>Sin TeamContext</span>
-            <span>Con TeamContext</span>
+            <span>Sin AgentNorth</span>
+            <span>Con AgentNorth</span>
           </div>
         </div>
       </section>
@@ -35,18 +41,21 @@ export function MainView({
       <section className="two-col">
         <div className="card-simple">
           <div className="card-simple-head">
-            <h2>Sesiones de Claude</h2>
-            <span className="meta">en este momento</span>
+            <h2>Sesiones de agentes</h2>
+            <span className="meta">{isLive ? "en vivo" : "demo"}</span>
           </div>
-          {SESSIONS.slice(0, 4).map((s) => (
-            <SessionRow key={s.id} s={s} />
+          {sessions.slice(0, 4).map((s) => (
+            <SessionRow key={s.id} s={s} isLive={isLive} />
           ))}
+          {sessions.length === 0 && (
+            <div className="empty-state">Sin sesiones aun</div>
+          )}
         </div>
 
         <div className="card-simple">
           <div className="card-simple-head">
             <h2>Que esta pasando</h2>
-            <span className="meta">en vivo</span>
+            <span className="meta">{isLive ? "en vivo" : "demo"}</span>
           </div>
           <div className="simple-feed">
             {feedRows.map((r, i) => (
@@ -63,7 +72,7 @@ export function MainView({
   );
 }
 
-function SessionRow({ s }: { s: (typeof SESSIONS)[0] }) {
+function SessionRow({ s, isLive }: { s: Session; isLive?: boolean }) {
   const p = personById(s.who);
   const dotColor =
     s.status === "live"
@@ -74,18 +83,26 @@ function SessionRow({ s }: { s: (typeof SESSIONS)[0] }) {
 
   return (
     <div className="simple-session">
-      <Avatar p={p} />
+      {p ? <Avatar p={p} /> : <ClaudeAvatar />}
       <div className="ss-body">
         <div className="ss-task">{s.task}</div>
         <div className="ss-meta">
           <span className="ss-dot" style={{ background: dotColor }}></span>
-          <span>{p?.name}</span>
-          <span>·</span>
-          <span className="mono">{s.bundle}</span>
-          <span>·</span>
-          <span style={{ color: "var(--accent)" }}>
-            -{(s.saved / 1000).toFixed(1)}k tokens
-          </span>
+          <span>{p?.name || s.who}</span>
+          {s.bundle && (
+            <>
+              <span>·</span>
+              <span className="mono">{s.bundle}</span>
+            </>
+          )}
+          {s.saved > 0 && (
+            <>
+              <span>·</span>
+              <span style={{ color: "var(--accent)" }}>
+                -{(s.saved / 1000).toFixed(1)}k tokens
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -101,7 +118,7 @@ function FeedRowComponent({ row, isNew }: { row: FeedRow; isNew: boolean }) {
     <div className={"simple-feed-row" + (isNew ? " new" : "")}>
       {isClaude ? <ClaudeAvatar size="sm" /> : <Avatar p={p} size="sm" />}
       <div className="sfr-body">
-        <span className="sfr-who">{isClaude ? "Claude" : p?.name}</span>
+        <span className="sfr-who">{isClaude ? "Claude" : p?.name || row.who}</span>
         <span className="sfr-verb"> {row.verb} </span>
         <span className="sfr-obj">{row.obj}</span>
       </div>

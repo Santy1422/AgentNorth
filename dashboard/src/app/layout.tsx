@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TeamContext — TokenDoc",
+  title: "AgentNorth — Dashboard",
   description: "Shared Context Layer for teams with AI coding agents",
 };
 
