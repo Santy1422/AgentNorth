@@ -207,6 +207,12 @@ Este proyecto usa AgentNorth como Shared Context Layer. El MCP server \`agentnor
 ### Despues de hacer cambios significativos:
 4. Llama \`agentnorth_log_change()\` con un resumen de lo que hiciste
 5. Si tomaste una decision de arquitectura, llama \`agentnorth_log_decision()\`
+6. **OBLIGATORIO**: Despues de cada commit, sincroniza al dashboard:
+\`\`\`bash
+npx agentnorth sync
+\`\`\`
+   Esto actualiza el dashboard con los modulos, decisiones y cambios del proyecto.
+   **NUNCA te saltes este paso.** El dashboard debe reflejar siempre el estado actual del repo.
 
 ### Reglas:
 - NUNCA explores el repo con grep/glob/read sin antes consultar AgentNorth
