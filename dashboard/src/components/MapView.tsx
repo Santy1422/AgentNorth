@@ -16,17 +16,100 @@ const KIND_COLORS: Record<string, string> = {
   unknown: "#71717a",
 };
 
+const KIND_LABELS: Record<string, string> = {
+  page: "Pantalla",
+  component: "Componente",
+  hook: "Hook",
+  lib: "Libreria",
+  model: "Modelo",
+  route: "API Route",
+  schema: "Schema",
+  test: "Test",
+  config: "Config",
+  unknown: "Otro",
+};
+
 function shortName(path: string): string {
   return path.split("/").pop() || path;
 }
 
+function screenLabel(f: FileData): string {
+  // Make human-readable screen names from paths
+  const p = f.path;
+  if (p.includes("app/page.")) return "Home / Dashboard";
+  if (p.includes("join/")) return "Join Team";
+  if (p.includes("login")) return "Login";
+  // fallback
+  const parts = p.split("/");
+  const folder = parts[parts.length - 2] || "";
+  const file = shortName(p).replace(/\.(tsx?|jsx?)$/, "");
+  if (file === "page") return folder || "Home";
+  return file;
+}
+
+function resolveImport(imp: { source: string; specifiers: string[] }, allFiles: FileData[]): FileData | null {
+  const src = imp.source;
+  for (const f of allFiles) {
+    const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
+    if (src.endsWith(name) || src.endsWith("/" + name)) return f;
+    // @/ alias
+    if (src.startsWith("@/") && f.path.includes(src.replace("@/", ""))) return f;
+  }
+  return null;
+}
+
+function getDirectDeps(file: FileData, allFiles: FileData[]): FileData[] {
+  const deps: FileData[] = [];
+  const seen = new Set<string>();
+  for (const imp of file.imports) {
+    const resolved = resolveImport(imp, allFiles);
+    if (resolved && resolved.path !== file.path && !seen.has(resolved.path)) {
+      seen.add(resolved.path);
+      deps.push(resolved);
+    }
+  }
+  return deps;
+}
+
+function getUsedBy(file: FileData, allFiles: FileData[]): FileData[] {
+  const name = shortName(file.path).replace(/\.(tsx?|jsx?)$/, "");
+  return allFiles.filter(
+    (f) =>
+      f.path !== file.path &&
+      f.imports?.some((imp) => imp.source.endsWith(name) || imp.source.endsWith("/" + name))
+  );
+}
+
+// ─── Main Component ───
 export function MapView({ modules }: { modules: ModuleData[] }) {
-  const [drillModule, setDrillModule] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
+  const [selectedScreen, setSelectedScreen] = useState<FileData | null>(null);
+  const [selectedNode, setSelectedNode] = useState<FileData | null>(null);
 
-  const hasFiles = modules.some((m) => (m.files || []).length > 0);
+  const allFiles = useMemo(() => modules.flatMap((m) => m.files || []), [modules]);
+  // Deduplicate by path
+  const uniqueFiles = useMemo(() => {
+    const seen = new Set<string>();
+    return allFiles.filter((f) => {
+      if (seen.has(f.path)) return false;
+      seen.add(f.path);
+      return true;
+    });
+  }, [allFiles]);
 
-  if (modules.length === 0 || !hasFiles) {
+  const screens = useMemo(() => uniqueFiles.filter((f) => f.kind === "page"), [uniqueFiles]);
+  const routes = useMemo(() => uniqueFiles.filter((f) => f.kind === "route"), [uniqueFiles]);
+  const components = useMemo(() => uniqueFiles.filter((f) => f.kind === "component"), [uniqueFiles]);
+  const hooks = useMemo(() => uniqueFiles.filter((f) => f.kind === "hook"), [uniqueFiles]);
+  const libs = useMemo(() => uniqueFiles.filter((f) => f.kind === "lib"), [uniqueFiles]);
+  const models = useMemo(() => uniqueFiles.filter((f) => f.kind === "model"), [uniqueFiles]);
+  const others = useMemo(
+    () => uniqueFiles.filter((f) => !["page", "route", "component", "hook", "lib", "model"].includes(f.kind)),
+    [uniqueFiles]
+  );
+
+  const hasFiles = uniqueFiles.length > 0;
+
+  if (!hasFiles) {
     return (
       <section className="map-simple">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
@@ -43,228 +126,513 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
     );
   }
 
-  const drilledModule = drillModule ? modules.find((m) => m.name === drillModule) : null;
+  // Back handler
+  const handleBack = () => {
+    if (selectedNode) {
+      setSelectedNode(null);
+    } else {
+      setSelectedScreen(null);
+    }
+  };
 
   return (
     <section className="map-simple">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
         <h2 className="breadcrumb">
-          <button className={"crumb" + (!drillModule ? " current" : "")}
-            onClick={() => { setDrillModule(null); setSelectedFile(null); }}>
-            Mapa
+          <button
+            className={"crumb" + (!selectedScreen ? " current" : "")}
+            onClick={() => {
+              setSelectedScreen(null);
+              setSelectedNode(null);
+            }}
+          >
+            Arquitectura
           </button>
-          {drillModule && (
+          {selectedScreen && (
             <>
               <span className="crumb-sep">/</span>
-              <button className={"crumb" + (!selectedFile ? " current" : "")}
-                onClick={() => setSelectedFile(null)}>
-                <span className="mono">{drillModule}</span>
+              <button
+                className={"crumb" + (!selectedNode ? " current" : "")}
+                onClick={() => setSelectedNode(null)}
+              >
+                <span className="mono">{screenLabel(selectedScreen)}</span>
               </button>
             </>
           )}
-          {selectedFile && (
+          {selectedNode && (
             <>
               <span className="crumb-sep">/</span>
-              <span className="crumb current mono">{shortName(selectedFile.path)}</span>
+              <span className="crumb current mono">{shortName(selectedNode.path)}</span>
             </>
           )}
         </h2>
         <span className="meta">
-          {!drillModule && `${modules.length} modulos · click en uno para explorar`}
-          {drillModule && !selectedFile && `${drilledModule?.files?.length || 0} archivos · click en uno para ver detalle`}
-          {selectedFile && `${selectedFile.exports.length} exports · ${selectedFile.imports.length} imports`}
+          {!selectedScreen && `${screens.length} pantallas · ${routes.length} APIs · ${uniqueFiles.length} archivos`}
+          {selectedScreen && !selectedNode && "Flujo de dependencias de esta pantalla"}
+          {selectedNode && `${selectedNode.exports.length} exports · ${selectedNode.imports.length} imports`}
         </span>
       </div>
 
-      {!drillModule && <ModuleGrid modules={modules} onDrill={setDrillModule} />}
-      {drillModule && !selectedFile && drilledModule && (
-        <FileGrid module={drilledModule} allModules={modules} onSelect={setSelectedFile} />
+      {!selectedScreen && !selectedNode && (
+        <ArchitectureOverview
+          screens={screens}
+          routes={routes}
+          components={components}
+          hooks={hooks}
+          libs={libs}
+          models={models}
+          others={others}
+          allFiles={uniqueFiles}
+          onSelectScreen={setSelectedScreen}
+          onSelectFile={setSelectedNode}
+        />
       )}
-      {selectedFile && drilledModule && (
-        <FileDetail file={selectedFile} module={drilledModule} allModules={modules}
-          onNavigate={(f) => setSelectedFile(f)}
-          onBack={() => setSelectedFile(null)} />
+
+      {selectedScreen && !selectedNode && (
+        <ScreenFlow
+          screen={selectedScreen}
+          allFiles={uniqueFiles}
+          onSelectFile={setSelectedNode}
+          onBack={handleBack}
+        />
+      )}
+
+      {selectedNode && (
+        <NodeDetail
+          file={selectedNode}
+          allFiles={uniqueFiles}
+          onNavigate={setSelectedNode}
+          onBack={handleBack}
+        />
       )}
     </section>
   );
 }
 
-function ModuleGrid({ modules, onDrill }: { modules: ModuleData[]; onDrill: (name: string) => void }) {
-  const totalLoc = modules.reduce((s, m) => s + (m.loc || 0), 0);
-  const totalFiles = modules.reduce((s, m) => s + (m.files_count || 0), 0);
-
+// ─── Level 1: Architecture Overview ───
+function ArchitectureOverview({
+  screens,
+  routes,
+  components,
+  hooks,
+  libs,
+  models,
+  others,
+  allFiles,
+  onSelectScreen,
+  onSelectFile,
+}: {
+  screens: FileData[];
+  routes: FileData[];
+  components: FileData[];
+  hooks: FileData[];
+  libs: FileData[];
+  models: FileData[];
+  others: FileData[];
+  allFiles: FileData[];
+  onSelectScreen: (f: FileData) => void;
+  onSelectFile: (f: FileData) => void;
+}) {
   return (
-    <>
-      <div className="map-stats-bar">
-        <span>{totalFiles} archivos</span>
-        <span>·</span>
-        <span>{totalLoc.toLocaleString("es")} LOC</span>
-        <span>·</span>
-        <span>{modules.length} modulos</span>
+    <div className="arch-overview">
+      {/* Screens - the main entry point */}
+      <div className="arch-layer">
+        <div className="arch-layer-label">
+          <span className="arch-dot" style={{ background: KIND_COLORS.page }}></span>
+          Pantallas
+        </div>
+        <div className="arch-cards">
+          {screens.map((s) => {
+            const deps = getDirectDeps(s, allFiles);
+            const compCount = deps.filter((d) => d.kind === "component").length;
+            return (
+              <button key={s.path} className="arch-screen-card" onClick={() => onSelectScreen(s)}>
+                <div className="asc-icon">&#x1F4F1;</div>
+                <div className="asc-info">
+                  <div className="asc-name">{screenLabel(s)}</div>
+                  <div className="asc-path mono">{s.path}</div>
+                  <div className="asc-meta">
+                    {s.loc} LOC
+                    {compCount > 0 && <span> · {compCount} componentes</span>}
+                    {deps.length > compCount && (
+                      <span> · {deps.length - compCount} otros</span>
+                    )}
+                  </div>
+                </div>
+                <div className="asc-arrow">&rarr;</div>
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div className="module-grid">
-        {modules.map((m) => {
-          const files = m.files || [];
-          const kindCounts: Record<string, number> = {};
-          for (const f of files) kindCounts[f.kind] = (kindCounts[f.kind] || 0) + 1;
-          const pct = totalLoc > 0 ? Math.round((m.loc / totalLoc) * 100) : 0;
 
-          return (
-            <button key={m.name} className="module-card" onClick={() => onDrill(m.name)}>
-              <div className="mc-head">
-                <span className="mc-name mono">{m.name}</span>
-                <span className="mc-arrow">&rarr;</span>
+      {/* Connector */}
+      <div className="arch-connector">
+        <div className="arch-connector-line"></div>
+        <span className="arch-connector-label">usan</span>
+        <div className="arch-connector-line"></div>
+      </div>
+
+      {/* Components */}
+      {components.length > 0 && (
+        <div className="arch-layer">
+          <div className="arch-layer-label">
+            <span className="arch-dot" style={{ background: KIND_COLORS.component }}></span>
+            Componentes ({components.length})
+          </div>
+          <div className="arch-chips-grid">
+            {components.map((c) => {
+              const usedBy = getUsedBy(c, allFiles);
+              return (
+                <button key={c.path} className="arch-chip" onClick={() => onSelectFile(c)}>
+                  <span className="arch-chip-dot" style={{ background: KIND_COLORS.component }}></span>
+                  <span className="arch-chip-name mono">{shortName(c.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
+                  {usedBy.length > 0 && (
+                    <span className="arch-chip-badge">{usedBy.length}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Connector */}
+      {(hooks.length > 0 || libs.length > 0) && (
+        <div className="arch-connector">
+          <div className="arch-connector-line"></div>
+          <span className="arch-connector-label">importan</span>
+          <div className="arch-connector-line"></div>
+        </div>
+      )}
+
+      {/* Hooks & Libs side by side */}
+      {(hooks.length > 0 || libs.length > 0) && (
+        <div className="arch-split">
+          {hooks.length > 0 && (
+            <div className="arch-layer">
+              <div className="arch-layer-label">
+                <span className="arch-dot" style={{ background: KIND_COLORS.hook }}></span>
+                Hooks ({hooks.length})
               </div>
-              {m.description && <div className="mc-desc">{m.description}</div>}
-              <div className="mc-bar">
-                <div className="mc-bar-fill" style={{ width: pct + "%" }}></div>
-              </div>
-              <div className="mc-stats">
-                <span>{m.files_count} archivos</span>
-                <span>{(m.loc || 0).toLocaleString("es")} LOC</span>
-                <span>{pct}% del total</span>
-              </div>
-              <div className="mc-kinds">
-                {Object.entries(kindCounts).sort((a, b) => b[1] - a[1]).map(([kind, count]) => (
-                  <span key={kind} className="mc-kind">
-                    <span className="mc-kind-dot" style={{ background: KIND_COLORS[kind] }}></span>
-                    {count} {kind}
-                  </span>
+              <div className="arch-chips-grid">
+                {hooks.map((h) => (
+                  <button key={h.path} className="arch-chip" onClick={() => onSelectFile(h)}>
+                    <span className="arch-chip-dot" style={{ background: KIND_COLORS.hook }}></span>
+                    <span className="arch-chip-name mono">{shortName(h.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
+                  </button>
                 ))}
               </div>
-            </button>
-          );
-        })}
-      </div>
-    </>
+            </div>
+          )}
+          {libs.length > 0 && (
+            <div className="arch-layer">
+              <div className="arch-layer-label">
+                <span className="arch-dot" style={{ background: KIND_COLORS.lib }}></span>
+                Librerias ({libs.length})
+              </div>
+              <div className="arch-chips-grid">
+                {libs.map((l) => (
+                  <button key={l.path} className="arch-chip" onClick={() => onSelectFile(l)}>
+                    <span className="arch-chip-dot" style={{ background: KIND_COLORS.lib }}></span>
+                    <span className="arch-chip-name mono">{shortName(l.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Connector */}
+      {models.length > 0 && (
+        <div className="arch-connector">
+          <div className="arch-connector-line"></div>
+          <span className="arch-connector-label">acceden a</span>
+          <div className="arch-connector-line"></div>
+        </div>
+      )}
+
+      {/* Models / Data layer */}
+      {models.length > 0 && (
+        <div className="arch-layer">
+          <div className="arch-layer-label">
+            <span className="arch-dot" style={{ background: KIND_COLORS.model }}></span>
+            Modelos / Data ({models.length})
+          </div>
+          <div className="arch-chips-grid">
+            {models.map((m) => (
+              <button key={m.path} className="arch-chip" onClick={() => onSelectFile(m)}>
+                <span className="arch-chip-dot" style={{ background: KIND_COLORS.model }}></span>
+                <span className="arch-chip-name mono">{shortName(m.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* API Routes */}
+      {routes.length > 0 && (
+        <>
+          <div className="arch-separator"></div>
+          <div className="arch-layer">
+            <div className="arch-layer-label">
+              <span className="arch-dot" style={{ background: KIND_COLORS.route }}></span>
+              API Routes ({routes.length})
+            </div>
+            <div className="arch-chips-grid">
+              {routes.map((r) => {
+                const pathLabel = r.path
+                  .replace(/.*\/app\/api\//, "/api/")
+                  .replace(/\/route\.(ts|tsx)$/, "")
+                  .replace(/\[\[\.\.\.route\]\]/, "*");
+                return (
+                  <button key={r.path} className="arch-chip route" onClick={() => onSelectFile(r)}>
+                    <span className="arch-chip-dot" style={{ background: KIND_COLORS.route }}></span>
+                    <span className="arch-chip-name mono">{pathLabel}</span>
+                    <span className="arch-chip-method">GET/POST</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Others */}
+      {others.length > 0 && (
+        <div className="arch-layer" style={{ marginTop: 8 }}>
+          <div className="arch-layer-label">
+            <span className="arch-dot" style={{ background: KIND_COLORS.unknown }}></span>
+            Otros ({others.length})
+          </div>
+          <div className="arch-chips-grid">
+            {others.map((o) => (
+              <button key={o.path} className="arch-chip" onClick={() => onSelectFile(o)}>
+                <span className="arch-chip-dot" style={{ background: KIND_COLORS[o.kind] || KIND_COLORS.unknown }}></span>
+                <span className="arch-chip-name mono">{shortName(o.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-function FileGrid({ module, allModules, onSelect }: {
-  module: ModuleData;
-  allModules: ModuleData[];
-  onSelect: (f: FileData) => void;
+// ─── Level 2: Screen Flow ───
+function ScreenFlow({
+  screen,
+  allFiles,
+  onSelectFile,
+  onBack,
+}: {
+  screen: FileData;
+  allFiles: FileData[];
+  onSelectFile: (f: FileData) => void;
+  onBack: () => void;
 }) {
-  const files = module.files || [];
-  const [filterKind, setFilterKind] = useState<string>("all");
+  // Build dependency tree
+  const directDeps = getDirectDeps(screen, allFiles);
 
-  const kindCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const f of files) counts[f.kind] = (counts[f.kind] || 0) + 1;
-    return counts;
-  }, [files]);
+  // Group direct deps by kind
+  const depsByKind = useMemo(() => {
+    const groups: Record<string, FileData[]> = {};
+    for (const d of directDeps) {
+      const k = d.kind;
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(d);
+    }
+    return groups;
+  }, [directDeps]);
 
-  const filtered = filterKind === "all" ? files : files.filter((f) => f.kind === filterKind);
-  const sorted = [...filtered].sort((a, b) => b.loc - a.loc);
+  // Second level: what do those components import?
+  const secondLevel = useMemo(() => {
+    const seen = new Set([screen.path, ...directDeps.map((d) => d.path)]);
+    const items: FileData[] = [];
+    for (const dep of directDeps) {
+      for (const sub of getDirectDeps(dep, allFiles)) {
+        if (!seen.has(sub.path)) {
+          seen.add(sub.path);
+          items.push(sub);
+        }
+      }
+    }
+    return items;
+  }, [screen, directDeps, allFiles]);
 
-  // Find connections between files
-  const allFiles = allModules.flatMap((m) => m.files || []);
+  const secondByKind = useMemo(() => {
+    const groups: Record<string, FileData[]> = {};
+    for (const d of secondLevel) {
+      const k = d.kind;
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(d);
+    }
+    return groups;
+  }, [secondLevel]);
+
+  // External deps
+  const externalImports = screen.imports.filter(
+    (imp) => !imp.source.startsWith(".") && !imp.source.startsWith("@/") && !imp.source.startsWith("~")
+  );
 
   return (
-    <>
-      <div className="map-stats-bar">
-        <span>{files.length} archivos</span>
-        <span>·</span>
-        <span>{(module.loc || 0).toLocaleString("es")} LOC</span>
-        {module.dependencies?.internal && module.dependencies.internal.length > 0 && (
-          <>
-            <span>·</span>
-            <span>depende de: {module.dependencies.internal.join(", ")}</span>
-          </>
-        )}
+    <div className="screen-flow">
+      {/* The screen itself */}
+      <div className="sf-root">
+        <div className="sf-root-icon">&#x1F4F1;</div>
+        <div className="sf-root-info">
+          <div className="sf-root-name">{screenLabel(screen)}</div>
+          <div className="sf-root-path mono">{screen.path}</div>
+          <div className="sf-root-stats">
+            <span>{screen.loc} LOC</span>
+            <span>{screen.exports.length} exports</span>
+            <span>{directDeps.length} dependencias directas</span>
+          </div>
+        </div>
       </div>
 
-      <div className="cov-filters" style={{ marginBottom: 16 }}>
-        <button className={"cov-filter" + (filterKind === "all" ? " active" : "")} onClick={() => setFilterKind("all")}>
-          Todos ({files.length})
-        </button>
-        {Object.entries(kindCounts).sort((a, b) => b[1] - a[1]).map(([kind, count]) => (
-          <button key={kind} className={"cov-filter" + (filterKind === kind ? " active" : "")} onClick={() => setFilterKind(kind)}>
-            <span className="mc-kind-dot" style={{ background: KIND_COLORS[kind] }}></span>
-            {kind} ({count})
-          </button>
+      {directDeps.length > 0 && (
+        <div className="sf-connector-v">
+          <div className="sf-line-v"></div>
+          <span className="sf-connector-label">importa directamente</span>
+        </div>
+      )}
+
+      {/* Direct dependencies grouped by kind */}
+      {Object.entries(depsByKind)
+        .sort(([a], [b]) => {
+          const order = ["component", "hook", "lib", "model", "route", "schema", "config", "unknown"];
+          return order.indexOf(a) - order.indexOf(b);
+        })
+        .map(([kind, files]) => (
+          <div key={kind} className="sf-dep-group">
+            <div className="sf-dep-group-label">
+              <span className="arch-dot" style={{ background: KIND_COLORS[kind] }}></span>
+              {KIND_LABELS[kind] || kind} ({files.length})
+            </div>
+            <div className="sf-dep-cards">
+              {files.map((f) => {
+                const subDeps = getDirectDeps(f, allFiles).filter(
+                  (sd) => sd.path !== screen.path
+                );
+                return (
+                  <button key={f.path} className="sf-dep-card" onClick={() => onSelectFile(f)}>
+                    <div className="sf-dc-head">
+                      <span className="fc-kind" style={{ background: KIND_COLORS[f.kind] }}>
+                        {f.kind}
+                      </span>
+                      <span className="sf-dc-name mono">
+                        {shortName(f.path).replace(/\.(tsx?|jsx?)$/, "")}
+                      </span>
+                      <span className="asc-arrow">&rarr;</span>
+                    </div>
+                    <div className="sf-dc-stats">
+                      <span>{f.loc} LOC</span>
+                      {f.exports.length > 0 && <span>{f.exports.length} exp</span>}
+                      {subDeps.length > 0 && (
+                        <span style={{ color: "var(--text-3)" }}>
+                          usa {subDeps.length} mas
+                        </span>
+                      )}
+                    </div>
+                    {f.exports.length > 0 && (
+                      <div className="sf-dc-exports">
+                        {f.exports.slice(0, 3).map((e) => (
+                          <span key={e} className="fc-export mono">{e}</span>
+                        ))}
+                        {f.exports.length > 3 && (
+                          <span className="fc-export muted">+{f.exports.length - 3}</span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         ))}
-      </div>
 
-      <div className="file-grid">
-        {sorted.map((f) => {
-          const incomingCount = allFiles.filter((other) =>
-            other.path !== f.path && other.imports?.some((imp) => {
-              const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
-              return imp.source.endsWith(name) || imp.source.endsWith("/" + name);
+      {/* Second-level deps */}
+      {secondLevel.length > 0 && (
+        <>
+          <div className="sf-connector-v">
+            <div className="sf-line-v"></div>
+            <span className="sf-connector-label">esos a su vez usan</span>
+          </div>
+
+          {Object.entries(secondByKind)
+            .sort(([a], [b]) => {
+              const order = ["component", "hook", "lib", "model", "route", "schema", "config", "unknown"];
+              return order.indexOf(a) - order.indexOf(b);
             })
-          ).length;
-
-          return (
-            <button key={f.path} className="file-card" onClick={() => onSelect(f)}>
-              <div className="fc-head">
-                <span className="fc-kind" style={{ background: KIND_COLORS[f.kind] }}>{f.kind}</span>
-                <span className="fc-name mono">{shortName(f.path)}</span>
-              </div>
-              <div className="fc-stats">
-                <span>{f.loc} LOC</span>
-                {f.exports.length > 0 && <span>{f.exports.length} exports</span>}
-                {f.imports.length > 0 && <span>{f.imports.length} imports</span>}
-                {incomingCount > 0 && <span style={{ color: "var(--accent)" }}>{incomingCount} usan este</span>}
-              </div>
-              {f.exports.length > 0 && (
-                <div className="fc-exports">
-                  {f.exports.slice(0, 4).map((e) => (
-                    <span key={e} className="fc-export mono">{e}</span>
-                  ))}
-                  {f.exports.length > 4 && <span className="fc-export muted">+{f.exports.length - 4}</span>}
+            .map(([kind, files]) => (
+              <div key={kind} className="sf-dep-group secondary">
+                <div className="sf-dep-group-label">
+                  <span className="arch-dot" style={{ background: KIND_COLORS[kind] }}></span>
+                  {KIND_LABELS[kind] || kind} ({files.length})
                 </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </>
+                <div className="sf-dep-chips">
+                  {files.map((f) => (
+                    <button key={f.path} className="arch-chip" onClick={() => onSelectFile(f)}>
+                      <span className="arch-chip-dot" style={{ background: KIND_COLORS[f.kind] }}></span>
+                      <span className="arch-chip-name mono">
+                        {shortName(f.path).replace(/\.(tsx?|jsx?)$/, "")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+        </>
+      )}
+
+      {/* External deps */}
+      {externalImports.length > 0 && (
+        <div className="sf-dep-group" style={{ marginTop: 8 }}>
+          <div className="sf-dep-group-label">
+            <span className="arch-dot" style={{ background: "#60a5fa" }}></span>
+            Paquetes externos ({externalImports.length})
+          </div>
+          <div className="sf-dep-chips">
+            {externalImports.map((imp) => (
+              <span key={imp.source} className="fd-chip ext mono">{imp.source}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button className="btn-simple" style={{ marginTop: 20 }} onClick={onBack}>
+        &larr; Volver a Arquitectura
+      </button>
+    </div>
   );
 }
 
-function FileDetail({ file, module, allModules, onNavigate, onBack }: {
+// ─── Level 3: Node Detail ───
+function NodeDetail({
+  file,
+  allFiles,
+  onNavigate,
+  onBack,
+}: {
   file: FileData;
-  module: ModuleData;
-  allModules: ModuleData[];
+  allFiles: FileData[];
   onNavigate: (f: FileData) => void;
   onBack: () => void;
 }) {
-  const allFiles = allModules.flatMap((m) => m.files || []);
-
-  // Files this file imports
-  const importTargets = useMemo(() => {
-    const targets: { file: FileData; specifiers: string[] }[] = [];
-    for (const imp of file.imports) {
-      const match = allFiles.find((f) => {
-        const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
-        return imp.source.endsWith(name) || imp.source.endsWith("/" + name) || f.path.includes(imp.source.replace("@/", ""));
-      });
-      if (match && match.path !== file.path) {
-        targets.push({ file: match, specifiers: imp.specifiers });
-      }
-    }
-    return targets;
-  }, [file, allFiles]);
-
-  // Files that import this file
-  const importedBy = useMemo(() => {
-    const name = shortName(file.path).replace(/\.(tsx?|jsx?)$/, "");
-    return allFiles.filter((f) =>
-      f.path !== file.path &&
-      f.imports?.some((imp) => imp.source.endsWith(name) || imp.source.endsWith("/" + name))
-    );
-  }, [file, allFiles]);
-
-  // External deps
-  const externalImports = file.imports.filter((imp) =>
-    !imp.source.startsWith(".") && !imp.source.startsWith("@/") && !imp.source.startsWith("~")
+  const deps = getDirectDeps(file, allFiles);
+  const usedBy = getUsedBy(file, allFiles);
+  const externalImports = file.imports.filter(
+    (imp) => !imp.source.startsWith(".") && !imp.source.startsWith("@/") && !imp.source.startsWith("~")
   );
 
   return (
     <div className="file-detail">
       <div className="fd-header">
-        <span className="fc-kind lg" style={{ background: KIND_COLORS[file.kind] }}>{file.kind}</span>
+        <span className="fc-kind lg" style={{ background: KIND_COLORS[file.kind] }}>
+          {file.kind}
+        </span>
         <div>
           <div className="fd-name mono">{shortName(file.path)}</div>
           <div className="fd-path mono">{file.path}</div>
@@ -272,10 +640,22 @@ function FileDetail({ file, module, allModules, onNavigate, onBack }: {
       </div>
 
       <div className="fd-stats-row">
-        <div className="fd-stat"><span className="fd-stat-num">{file.loc}</span><span>LOC</span></div>
-        <div className="fd-stat"><span className="fd-stat-num">{file.exports.length}</span><span>exports</span></div>
-        <div className="fd-stat"><span className="fd-stat-num">{importTargets.length}</span><span>importa</span></div>
-        <div className="fd-stat"><span className="fd-stat-num">{importedBy.length}</span><span>lo usan</span></div>
+        <div className="fd-stat">
+          <span className="fd-stat-num">{file.loc}</span>
+          <span>LOC</span>
+        </div>
+        <div className="fd-stat">
+          <span className="fd-stat-num">{file.exports.length}</span>
+          <span>exports</span>
+        </div>
+        <div className="fd-stat">
+          <span className="fd-stat-num">{deps.length}</span>
+          <span>importa</span>
+        </div>
+        <div className="fd-stat">
+          <span className="fd-stat-num">{usedBy.length}</span>
+          <span>lo usan</span>
+        </div>
       </div>
 
       <div className="fd-sections">
@@ -290,30 +670,29 @@ function FileDetail({ file, module, allModules, onNavigate, onBack }: {
           </div>
         )}
 
-        {importTargets.length > 0 && (
+        {deps.length > 0 && (
           <div className="fd-section">
-            <div className="fd-section-title">Importa de ({importTargets.length})</div>
-            {importTargets.map(({ file: target, specifiers }) => (
+            <div className="fd-section-title">Importa de ({deps.length})</div>
+            {deps.map((target) => (
               <button key={target.path} className="fd-link" onClick={() => onNavigate(target)}>
                 <span className="mc-kind-dot" style={{ background: KIND_COLORS[target.kind] }}></span>
                 <span className="mono">{shortName(target.path)}</span>
-                {specifiers.length > 0 && (
-                  <span className="fd-link-specs muted">{specifiers.slice(0, 3).join(", ")}</span>
-                )}
-                <span className="ast-arrow">&rarr;</span>
+                <span className="fd-link-kind">{target.kind}</span>
+                <span className="asc-arrow">&rarr;</span>
               </button>
             ))}
           </div>
         )}
 
-        {importedBy.length > 0 && (
+        {usedBy.length > 0 && (
           <div className="fd-section">
-            <div className="fd-section-title">Usado por ({importedBy.length})</div>
-            {importedBy.map((f) => (
+            <div className="fd-section-title">Usado por ({usedBy.length})</div>
+            {usedBy.map((f) => (
               <button key={f.path} className="fd-link" onClick={() => onNavigate(f)}>
                 <span className="mc-kind-dot" style={{ background: KIND_COLORS[f.kind] }}></span>
                 <span className="mono">{shortName(f.path)}</span>
-                <span className="ast-arrow">&rarr;</span>
+                <span className="fd-link-kind">{f.kind}</span>
+                <span className="asc-arrow">&rarr;</span>
               </button>
             ))}
           </div>
@@ -321,7 +700,7 @@ function FileDetail({ file, module, allModules, onNavigate, onBack }: {
 
         {externalImports.length > 0 && (
           <div className="fd-section">
-            <div className="fd-section-title">Dependencias externas ({externalImports.length})</div>
+            <div className="fd-section-title">Paquetes externos ({externalImports.length})</div>
             <div className="fd-chips">
               {externalImports.map((imp) => (
                 <span key={imp.source} className="fd-chip ext mono">{imp.source}</span>
@@ -330,17 +709,18 @@ function FileDetail({ file, module, allModules, onNavigate, onBack }: {
           </div>
         )}
 
-        {importTargets.length === 0 && importedBy.length === 0 && (
+        {deps.length === 0 && usedBy.length === 0 && (
           <div className="fd-section">
             <div className="fd-orphan">
-              &#x26A0; Este archivo no tiene conexiones con otros archivos del proyecto.
-              Podria ser un archivo muerto.
+              &#x26A0; Este archivo no tiene conexiones internas. Posible archivo muerto.
             </div>
           </div>
         )}
       </div>
 
-      <button className="btn-simple" style={{ marginTop: 16 }} onClick={onBack}>&larr; Volver a {module.name}</button>
+      <button className="btn-simple" style={{ marginTop: 16 }} onClick={onBack}>
+        &larr; Volver
+      </button>
     </div>
   );
 }
