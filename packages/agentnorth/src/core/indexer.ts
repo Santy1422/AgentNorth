@@ -105,11 +105,13 @@ function classifyFile(parsed: ParsedFile): FileRef["kind"] {
 
   if (name.includes(".test.") || name.includes(".spec.") || p.includes("/tests/") || p.includes("/__tests__/")) return "test";
   if (name === "page.tsx" || name === "page.ts" || p.includes("/pages/")) return "page";
+  if (name === "layout.tsx" || name === "layout.ts") return "page";
   if (p.includes("/api/") && (name === "route.ts" || name === "route.tsx")) return "route";
   if (p.includes("/hooks/") || name.startsWith("use")) return "hook";
   if (p.includes("/models/") || p.includes("/schemas/") || name.endsWith(".schema.ts")) return "model";
   if (p.includes("/components/") || (name.endsWith(".tsx") && parsed.exports.some((e) => /^[A-Z]/.test(e)))) return "component";
   if (p.includes("/lib/") || p.includes("/utils/") || p.includes("/helpers/")) return "lib";
+  if (p.includes("/core/") || p.includes("/cli/") || p.includes("/server/")) return "lib";
   if (name.endsWith(".config.ts") || name.endsWith(".config.js") || name === "config.yaml") return "config";
   if (name.endsWith(".sql") || name.endsWith(".prisma")) return "schema";
 
