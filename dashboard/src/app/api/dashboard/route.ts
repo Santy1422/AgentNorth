@@ -28,7 +28,35 @@ interface ProjectLean {
 export async function GET(req: NextRequest) {
   try {
     const session = await getAuth();
-    const orgId = session?.orgId;
+    let orgId = session?.orgId;
+
+    // User is signed in with GitHub but Developer record doesn't exist yet
+    // (can happen if DB was down during first sign-in)
+    if (!orgId && session?.user?.email) {
+      try {
+        await db();
+        const { Developer } = await models();
+        const { createOrgKey, createDevKey } = await import("@/lib/auth-keys");
+
+        const existing = await Developer.findOne({ email: session.user.email });
+        if (existing) {
+          orgId = existing.org_id.toString();
+        } else {
+          const { org } = await createOrgKey(
+            session.user.name ? `${session.user.name}'s Team` : "My Team",
+          );
+          const { dev } = await createDevKey(
+            org._id.toString(),
+            session.user.name || "Unknown",
+            session.user.email,
+            "",
+          );
+          orgId = org._id.toString();
+        }
+      } catch (err) {
+        console.error("[dashboard] Failed to create developer:", err);
+      }
+    }
 
     if (!orgId) {
       return NextResponse.json({ authenticated: false, data: null });
