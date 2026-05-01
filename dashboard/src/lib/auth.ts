@@ -1,8 +1,5 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
-import { connectDB } from "./db";
-import { Developer, Organization } from "../models";
-import { createOrgKey, createDevKey } from "./auth-keys";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -13,17 +10,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
+      const { connectDB } = await import("./db");
+      const { Developer } = await import("../models");
+      const { createOrgKey, createDevKey } = await import("./auth-keys");
+
       await connectDB();
       const githubId = String(profile?.id || account?.providerAccountId);
 
-      // Check if developer already exists
       const existing = await Developer.findOne({ github_id: githubId });
       if (existing) return true;
 
-      // New user — check if they have an invite code (passed via state)
-      // The invite code is stored in the callbackUrl as ?invite=CODE
-      // We'll check it in the redirect callback instead
-      // For now, create a new org by default
+      // New user — create org + dev
       const { org } = await createOrgKey(user.name ? `${user.name}'s Team` : "My Team");
       await createDevKey(
         org._id.toString(),
@@ -36,6 +33,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     async session({ session }) {
+      const { connectDB } = await import("./db");
+      const { Developer } = await import("../models");
+
       await connectDB();
 
       if (session.user?.email) {

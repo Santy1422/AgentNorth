@@ -49,7 +49,7 @@ export default function JoinPage() {
             </button>
             <p className="login-note" style={{ marginTop: 12 }}>
               You need to be signed in with GitHub first.{" "}
-              <a href="/api/auth/signin/github" style={{ color: "var(--accent)" }}>Sign in</a>
+              <a href="/api/auth/signin" style={{ color: "var(--accent)" }}>Sign in</a>
             </p>
           </>
         )}
@@ -71,7 +71,7 @@ export default function JoinPage() {
             <p className="login-subtitle" style={{ color: "var(--red)" }}>
               Invalid invite code, or you're not signed in.
             </p>
-            <button className="login-btn" onClick={() => window.location.href = "/api/auth/signin/github"}>
+            <button className="login-btn" onClick={() => window.location.href = "/api/auth/signin"}>
               Sign in with GitHub first
             </button>
           </>
