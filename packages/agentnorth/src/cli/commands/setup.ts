@@ -222,6 +222,28 @@ npx agentnorth sync
 `;
 }
 
+function generateGitPostCommitHook(): string {
+  return `#!/bin/bash
+# AgentNorth — Auto-sync on every commit
+# Runs index + sync in the background so it doesn't block your workflow
+
+# Load env from .agentnorth/.env if it exists
+if [ -f ".agentnorth/.env" ]; then
+  set -a
+  source .agentnorth/.env
+  set +a
+fi
+
+# Only sync if keys are configured
+if [ -n "$AGENTNORTH_ORG_KEY" ] && [ -n "$AGENTNORTH_DEV_KEY" ]; then
+  (
+    npx agentnorth index 2>/dev/null
+    npx agentnorth sync 2>/dev/null
+  ) &
+fi
+`;
+}
+
 export async function setupCommand(): Promise<void> {
   const rootDir = process.cwd();
 
@@ -238,6 +260,30 @@ export async function setupCommand(): Promise<void> {
   const claudeDir = join(rootDir, ".claude");
   const hooksDir = join(claudeDir, "hooks");
   await mkdir(hooksDir, { recursive: true });
+
+  // Install git post-commit hook for auto-sync
+  const gitHooksDir = join(rootDir, ".git", "hooks");
+  if (existsSync(join(rootDir, ".git"))) {
+    await mkdir(gitHooksDir, { recursive: true });
+    const postCommitPath = join(gitHooksDir, "post-commit");
+    const hookContent = generateGitPostCommitHook();
+
+    if (existsSync(postCommitPath)) {
+      const existing = await readFile(postCommitPath, "utf-8");
+      if (!existing.includes("agentnorth")) {
+        // Append to existing hook
+        await writeFile(postCommitPath, existing + "\n" + hookContent, "utf-8");
+        await chmod(postCommitPath, 0o755);
+        console.log("  Appended AgentNorth auto-sync to existing post-commit hook");
+      } else {
+        console.log("  post-commit hook already has AgentNorth (skipped)");
+      }
+    } else {
+      await writeFile(postCommitPath, hookContent, "utf-8");
+      await chmod(postCommitPath, 0o755);
+      console.log("  Created git post-commit hook for auto-sync");
+    }
+  }
 
   // Generate hook files
   const hooks = [
@@ -280,18 +326,25 @@ AgentNorth enforcement setup complete!
 
   .claude/settings.json          — MCP server + hooks config
   .claude/hooks/                 — 4 lifecycle hooks
+  .git/hooks/post-commit         — Auto-sync on every commit
   ${existsSync(claudeMdPath) ? "" : "CLAUDE.md                      — Agent instructions\n"}
 Enforcement level: ${enforcement.level}
   - PreToolUse: ${enforcement.level === "strict" ? "BLOCKS" : enforcement.level === "soft" ? "WARNS" : "audits"} exploration without context
   - Stop: ${enforcement.require_log_change ? "REMINDS" : "does not remind"} to log changes
   - PostToolUse: tracks all MCP tool usage
 
+Auto-sync:
+  Every git commit automatically runs index + sync in the background.
+  No manual sync needed — the dashboard stays up to date automatically.
+  API keys are loaded from .agentnorth/.env
+
 Next steps:
-  1. Set your API keys in .claude/settings.json → mcpServers.agentnorth.env:
-     AGENTNORTH_API_URL = https://agentnorth.io (or your self-hosted URL)
-     AGENTNORTH_ORG_KEY = your org key (an_org_...)
-     AGENTNORTH_DEV_KEY = your dev key (an_dev_...)
-  2. Or export them as environment variables
+  1. Create .agentnorth/.env with your keys:
+     AGENTNORTH_ORG_KEY=an_org_...
+     AGENTNORTH_DEV_KEY=an_dev_...
+     AGENTNORTH_API_URL=https://agentnorth.io
+  2. Or set them in .claude/settings.json → mcpServers.agentnorth.env
+  3. Or export as environment variables
 
   Keys are generated when you sign in to the AgentNorth dashboard.
 
