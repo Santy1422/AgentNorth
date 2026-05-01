@@ -3683,3 +3683,56 @@ html, body {
   font-size: 11px;
   flex-shrink: 0;
 }
+
+/* ─── Hotspots ─── */
+.cov-hotspots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.hotspot-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hotspot-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.hotspot-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.hotspot-rank {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-4);
+  min-width: 16px;
+  text-align: center;
+  font-family: var(--mono);
+}
+
+.hotspot-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.hotspot-metric {
+  font-size: 11px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}

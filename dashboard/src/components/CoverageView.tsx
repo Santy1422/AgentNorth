@@ -255,6 +255,51 @@ export function CoverageView({ modules }: { modules: ModuleData[] }) {
         </div>
       </div>
 
+      {/* Complexity hotspots */}
+      <div className="card-simple" style={{ marginBottom: 16 }}>
+        <div className="card-simple-head">
+          <h2>Hotspots</h2>
+          <span className="meta">archivos que necesitan atencion</span>
+        </div>
+        <div className="cov-hotspots">
+          <HotspotSection
+            title="Archivos mas grandes"
+            files={[...allFiles].sort((a, b) => b.loc - a.loc).slice(0, 5)}
+            metric={(f) => `${f.loc} LOC`}
+          />
+          <HotspotSection
+            title="Mas importados"
+            files={(() => {
+              const importCounts = allFiles.map((f) => {
+                const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
+                const count = allFiles.filter(
+                  (other) =>
+                    other.path !== f.path &&
+                    other.imports?.some(
+                      (imp) => imp.source.endsWith(name) || imp.source.endsWith("/" + name)
+                    )
+                ).length;
+                return { file: f, count };
+              });
+              return importCounts
+                .filter((x) => x.count > 0)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5)
+                .map((x) => ({ ...x.file, _metricValue: `${x.count} dependientes` }));
+            })()}
+            metric={(f) => (f as FileData & { _metricValue?: string })._metricValue || ""}
+          />
+          <HotspotSection
+            title="Mas dependencias"
+            files={[...allFiles]
+              .filter((f) => f.imports.length > 0)
+              .sort((a, b) => b.imports.length - a.imports.length)
+              .slice(0, 5)}
+            metric={(f) => `${f.imports.length} imports`}
+          />
+        </div>
+      </div>
+
       {/* Dead files panel */}
       {deadFiles.length > 0 && (
         <div className="card-simple">
@@ -293,5 +338,38 @@ export function CoverageView({ modules }: { modules: ModuleData[] }) {
         </div>
       )}
     </section>
+  );
+}
+
+function HotspotSection({
+  title,
+  files,
+  metric,
+}: {
+  title: string;
+  files: FileData[];
+  metric: (f: FileData) => string;
+}) {
+  if (files.length === 0) return null;
+  return (
+    <div className="hotspot-section">
+      <div className="hotspot-title">{title}</div>
+      {files.map((f, i) => (
+        <div key={f.path} className="hotspot-row">
+          <span className="hotspot-rank">{i + 1}</span>
+          <span
+            className="cov-file-kind"
+            style={{
+              background:
+                KIND_COLORS[f.kind] || KIND_COLORS.unknown,
+            }}
+          >
+            {f.kind}
+          </span>
+          <span className="hotspot-name mono">{shortName(f.path)}</span>
+          <span className="hotspot-metric mono">{metric(f)}</span>
+        </div>
+      ))}
+    </div>
   );
 }
