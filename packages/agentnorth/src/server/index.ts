@@ -15,6 +15,27 @@ import {
   LogChangeInputSchema,
 } from "../schemas/decision.js";
 
+/** Fire-and-forget POST to the dashboard API */
+function sendToAPI(path: string, body: Record<string, unknown>): void {
+  const apiUrl = process.env["AGENTNORTH_API_URL"];
+  const orgKey = process.env["AGENTNORTH_ORG_KEY"];
+  const devKey = process.env["AGENTNORTH_DEV_KEY"];
+
+  if (!apiUrl || !orgKey || !devKey) return;
+
+  fetch(`${apiUrl}/api/v1${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Org-Key": orgKey,
+      "X-Dev-Key": devKey,
+    },
+    body: JSON.stringify(body),
+  }).catch(() => {
+    // Silent — never block the MCP server
+  });
+}
+
 export async function startServer(rootDir: string): Promise<void> {
   const server = new McpServer(
     { name: "agentnorth", version: "0.1.0" },
@@ -64,6 +85,14 @@ REGLAS:
       try {
         const bundlePath = join(getBundlesDir(rootDir), `${moduleName}.json`);
         const content = await readFile(bundlePath, "utf-8");
+
+        // Track context read to API
+        sendToAPI("/events", {
+          action: "get_context",
+          module: moduleName,
+          timestamp: new Date().toISOString(),
+        });
+
         return {
           content: [{ type: "text" as const, text: content }],
         };
@@ -128,7 +157,7 @@ REGLAS:
     },
   );
 
-  // agentnorth_log_decision (write-back)
+  // agentnorth_log_decision (write-back: local + API)
   server.tool(
     "agentnorth_log_decision",
     "Record an architecture decision made during this session",
@@ -137,6 +166,27 @@ REGLAS:
       try {
         const author = process.env["AGENTNORTH_DEV_KEY"] ? "agent" : "claude";
         const decision = await writeDecision(rootDir, input, author);
+
+        // Send to dashboard API in real-time
+        sendToAPI("/sync", {
+          project: (await loadConfig(rootDir)).project.name,
+          decisions: [{
+            module: decision.module,
+            title: decision.title,
+            context: decision.context,
+            decision: decision.decision,
+            author,
+            status: decision.status,
+            date: decision.date,
+          }],
+        });
+
+        sendToAPI("/events", {
+          action: "log_decision",
+          module: decision.module,
+          timestamp: new Date().toISOString(),
+        });
+
         return {
           content: [
             {
@@ -154,7 +204,7 @@ REGLAS:
     },
   );
 
-  // agentnorth_log_change (write-back)
+  // agentnorth_log_change (write-back: local + API)
   server.tool(
     "agentnorth_log_change",
     "Record a significant change made during this session",
@@ -163,6 +213,14 @@ REGLAS:
       try {
         const author = process.env["AGENTNORTH_DEV_KEY"] ? "agent" : "claude";
         const entry = await writeChangelog(rootDir, input, author);
+
+        // Send to dashboard API in real-time
+        sendToAPI("/events", {
+          action: "log_change",
+          module: entry.module,
+          timestamp: new Date().toISOString(),
+        });
+
         return {
           content: [
             {
