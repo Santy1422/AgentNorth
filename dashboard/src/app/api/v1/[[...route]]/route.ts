@@ -53,7 +53,7 @@ const authMiddleware = async (c: Context<AuthEnv>, next: Next) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.stack || err.message : "Auth failed";
     console.error("[api/v1] Auth error:", message);
-    return c.json({ error: "Authentication failed", detail: err instanceof Error ? err.message : String(err) }, 500);
+    return c.json({ error: "Authentication failed" }, 500);
   }
 
   await next();

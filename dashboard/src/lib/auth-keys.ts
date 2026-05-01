@@ -1,7 +1,5 @@
 import { compare, hash } from "bcryptjs";
 import { randomBytes } from "node:crypto";
-import { connectDB } from "./db";
-import { Organization, Developer } from "../models";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -11,7 +9,6 @@ export function generateKey(prefix: string): string {
 }
 
 export function getKeyPrefix(key: string): string {
-  // Keep prefix + first 8 chars of random part for lookup
   const parts = key.split("_");
   return parts.length >= 3
     ? `${parts[0]}_${parts[1]}_${parts[2].slice(0, 8)}`
@@ -19,6 +16,9 @@ export function getKeyPrefix(key: string): string {
 }
 
 export async function createOrgKey(orgName: string) {
+  const { connectDB } = await import("./db");
+  const { Organization } = await import("../models");
+
   await connectDB();
   const key = generateKey("an_org");
   const prefix = getKeyPrefix(key);
@@ -36,6 +36,9 @@ export async function createOrgKey(orgName: string) {
 }
 
 export async function createDevKey(orgId: string, name: string, email: string, githubId: string) {
+  const { connectDB } = await import("./db");
+  const { Developer } = await import("../models");
+
   await connectDB();
   const key = generateKey("an_dev");
   const prefix = getKeyPrefix(key);
@@ -55,6 +58,9 @@ export async function createDevKey(orgId: string, name: string, email: string, g
 }
 
 export async function authenticateKeys(orgKey: string, devKey: string) {
+  const { connectDB } = await import("./db");
+  const { Organization, Developer } = await import("../models");
+
   await connectDB();
 
   const orgPrefix = getKeyPrefix(orgKey);
@@ -71,7 +77,6 @@ export async function authenticateKeys(orgKey: string, devKey: string) {
   const devValid = await compare(devKey, dev.dev_key_hash);
   if (!devValid) return null;
 
-  // Update last active
   dev.last_active_at = new Date();
   await dev.save();
 
