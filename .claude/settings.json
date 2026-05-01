@@ -1,0 +1,53 @@
+{
+  "mcpServers": {
+    "agentnorth": {
+      "command": "node",
+      "args": ["packages/agentnorth/dist/bin/agentnorth.js", "serve"],
+      "env": {}
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/agentnorth-session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/agentnorth-enforce-context.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__agentnorth__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/agentnorth-track-usage.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/agentnorth-session-end.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

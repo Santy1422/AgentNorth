@@ -1,0 +1,30 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# AgentNorth generated (keep bundles, ignore temp)
+.agentnorth/bundles/
+.agentnorth/changelog/
+
+# Next.js
+.next/
+out/
+
+# Turbo
+.turbo/
+
+# Coverage
+coverage/

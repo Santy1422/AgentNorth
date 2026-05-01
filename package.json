@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "name": "tokendoc-monorepo",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint"
+  },
+  "packageManager": "pnpm@10.12.1"
+}

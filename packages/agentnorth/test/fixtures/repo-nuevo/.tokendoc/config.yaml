@@ -1,0 +1,15 @@
+version: 1
+project:
+  name: test-project
+modules:
+  auth:
+    paths:
+      - src/auth/
+    description: Authentication
+  billing:
+    paths:
+      - src/billing/
+    description: Billing and payments
+ignore:
+  - node_modules/
+  - dist/

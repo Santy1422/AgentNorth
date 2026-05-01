@@ -1,0 +1,58 @@
+{
+  "name": "agentnorth",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Shared Context Layer for teams with AI coding agents",
+  "license": "Apache-2.0",
+  "bin": {
+    "agentnorth": "./dist/bin/agentnorth.js"
+  },
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Santy1422/AgentNorth.git",
+    "directory": "packages/agentnorth"
+  },
+  "homepage": "https://agentnorth.io",
+  "keywords": [
+    "mcp",
+    "context",
+    "ai",
+    "coding-agent",
+    "claude",
+    "ast",
+    "documentation",
+    "developer-tools",
+    "agentnorth"
+  ],
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "scripts": {
+    "build": "tsup && node -e \"const fs=require('fs');const f='dist/bin/agentnorth.js';const c=fs.readFileSync(f,'utf8');fs.writeFileSync(f,'#!/usr/bin/env node\\n'+c);fs.chmodSync(f,0o755)\"",
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "lint": "biome check .",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@ast-grep/napi": "^0.36.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^13.1.0",
+    "yaml": "^2.7.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/node": "^22.15.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}
