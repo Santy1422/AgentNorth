@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { FeedRow, DashboardData, FileData } from "@/app/page";
+import type { FeedRow, DashboardData, FileData, HealthSnapshotData } from "@/app/page";
 
 const KIND_COLORS: Record<string, string> = {
   page: "#f97316",
@@ -339,6 +339,64 @@ export function MainView({
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Health Score History */}
+      {data?.health_history && data.health_history.length > 1 && (
+        <section className="card-simple" style={{ marginBottom: 16 }}>
+          <div className="card-simple-head">
+            <h2>Historial de salud</h2>
+            <span className="meta">ultimos {data.health_history.length} snapshots</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 80, padding: "8px 0" }}>
+            {data.health_history.slice().reverse().map((snap, i) => {
+              const color = snap.score >= 80 ? "var(--green)" : snap.score >= 50 ? "var(--yellow)" : "var(--red)";
+              return (
+                <div
+                  key={snap.created_at + i}
+                  title={`${snap.created_at.slice(0, 10)}: ${snap.score}/100 · ${snap.modules_count} mods · ${snap.files_count} files · ${snap.loc} LOC`}
+                  style={{
+                    flex: 1,
+                    height: `${Math.max(4, snap.score)}%`,
+                    background: color,
+                    borderRadius: "2px 2px 0 0",
+                    minWidth: 6,
+                    transition: "height 0.3s ease",
+                  }}
+                />
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--text-4)" }}>
+            <span>{data.health_history[data.health_history.length - 1]?.created_at.slice(0, 10)}</span>
+            <span>{data.health_history[0]?.created_at.slice(0, 10)}</span>
+          </div>
+        </section>
+      )}
+
+      {/* Embeddable Badges */}
+      {data?.project.id && (
+        <section className="card-simple" style={{ marginBottom: 16 }}>
+          <div className="card-simple-head">
+            <h2>Badges embebibles</h2>
+            <span className="meta">para README, Notion, Slack</span>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "8px 0" }}>
+            {["health", "modules", "coverage", "deps"].map((type) => (
+              <img
+                key={type}
+                src={`/api/badge/${type}?project=${data.project.id}`}
+                alt={`${type} badge`}
+                style={{ height: 20 }}
+              />
+            ))}
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-4)", marginTop: 4 }}>
+            <code style={{ fontSize: 10, background: "var(--bg-3)", padding: "2px 6px", borderRadius: 4 }}>
+              {`![health](${typeof window !== "undefined" ? window.location.origin : ""}/api/badge/health?project=${data.project.id})`}
+            </code>
           </div>
         </section>
       )}

@@ -340,6 +340,64 @@ app.post("/sync", authMiddleware, async (c) => {
     }
   } catch {}
 
+  // ── Health snapshot (one per day per project) ──
+  try {
+    const { HealthSnapshot } = await models();
+    const mods = body.modules || project.modules || [];
+    const audit = body.audit || project.audit || [];
+
+    // Calculate health checks
+    const checks: { name: string; status: "pass" | "warn" | "fail"; detail: string }[] = [];
+    const modulesCount = mods.length;
+    const filesCount = mods.reduce((sum: number, m: Record<string, unknown>) => sum + ((m.files as string[])?.length || 0), 0);
+    const loc = mods.reduce((sum: number, m: Record<string, unknown>) => sum + ((m.loc as number) || 0), 0);
+    const deadFiles = mods.reduce((sum: number, m: Record<string, unknown>) => sum + ((m.dead_files as number) || 0), 0);
+    const vulnCount = audit.length;
+
+    // Check: modules indexed
+    if (modulesCount >= 3) checks.push({ name: "Modules indexed", status: "pass", detail: `${modulesCount} modules` });
+    else if (modulesCount >= 1) checks.push({ name: "Modules indexed", status: "warn", detail: `Only ${modulesCount} module(s)` });
+    else checks.push({ name: "Modules indexed", status: "fail", detail: "No modules indexed" });
+
+    // Check: dead files
+    if (deadFiles === 0) checks.push({ name: "Dead files", status: "pass", detail: "No dead files" });
+    else if (deadFiles <= 5) checks.push({ name: "Dead files", status: "warn", detail: `${deadFiles} dead file(s)` });
+    else checks.push({ name: "Dead files", status: "fail", detail: `${deadFiles} dead files` });
+
+    // Check: vulnerabilities
+    if (vulnCount === 0) checks.push({ name: "Vulnerabilities", status: "pass", detail: "No vulnerabilities" });
+    else if (vulnCount <= 3) checks.push({ name: "Vulnerabilities", status: "warn", detail: `${vulnCount} vulnerability(ies)` });
+    else checks.push({ name: "Vulnerabilities", status: "fail", detail: `${vulnCount} vulnerabilities` });
+
+    // Score: each check pass=100, warn=50, fail=0 → average
+    const scoreMap = { pass: 100, warn: 50, fail: 0 };
+    const score = checks.length > 0
+      ? Math.round(checks.reduce((s, ch) => s + scoreMap[ch.status], 0) / checks.length)
+      : 0;
+
+    // Only create if no snapshot exists today for this project
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const existing = await HealthSnapshot.findOne({
+      project_id: project._id,
+      created_at: { $gte: startOfDay },
+    });
+
+    if (!existing) {
+      await HealthSnapshot.create({
+        org_id: org._id,
+        project_id: project._id,
+        score,
+        checks,
+        modules_count: modulesCount,
+        files_count: filesCount,
+        loc,
+        dead_files: deadFiles,
+        vuln_count: vulnCount,
+      });
+    }
+  } catch { /* health snapshot is non-critical */ }
+
   // Notify SSE listeners of the update
   try {
     const notify = (globalThis as Record<string, unknown>).__anStreamNotify as

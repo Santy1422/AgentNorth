@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
     const { orgId } = resolved;
 
     await db();
-    const { Project, Decision, AgentChange, Session, UsageEvent } = await models();
+    const { Project, Decision, AgentChange, Session, UsageEvent, HealthSnapshot } = await models();
 
     const allProjects = await Project.find({ org_id: orgId })
       .sort({ last_synced_at: -1 })
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const [decisions, changes, sessions, events, stats] = await Promise.all([
+    const [decisions, changes, sessions, events, stats, healthHistory] = await Promise.all([
       Decision.find({ project_id: project._id }).sort({ created_at: -1 }).limit(20).lean(),
       AgentChange.find({ project_id: project._id }).sort({ created_at: -1 }).limit(20).lean(),
       Session.find({ project_id: project._id })
@@ -142,6 +142,10 @@ export async function GET(req: NextRequest) {
           },
         },
       ]),
+      HealthSnapshot.find({ project_id: project._id })
+        .sort({ created_at: -1 })
+        .limit(30)
+        .lean(),
     ]);
 
     return NextResponse.json({
@@ -161,6 +165,7 @@ export async function GET(req: NextRequest) {
         events,
         tokens_saved: stats[0]?.tokens_saved || 0,
         total_events: stats[0]?.total_events || 0,
+        health_history: healthHistory,
       },
     });
   } catch (err: unknown) {

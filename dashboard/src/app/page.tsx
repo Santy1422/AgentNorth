@@ -13,8 +13,9 @@ import { ModuleDetail } from "@/components/ModuleDetail";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { LoginScreen } from "@/components/LoginScreen";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
+import { DependencyGraph } from "@/components/DependencyGraph";
 
-export type View = "main" | "map" | "deps" | "coverage" | "risks" | "apis" | "onboarding" | "module-detail";
+export type View = "main" | "map" | "deps" | "coverage" | "risks" | "apis" | "onboarding" | "module-detail" | "graph";
 
 export interface ProjectRef {
   id: string;
@@ -97,6 +98,16 @@ export interface AuditVuln {
   range: string;
 }
 
+export interface HealthSnapshotData {
+  score: number;
+  modules_count: number;
+  files_count: number;
+  loc: number;
+  dead_files: number;
+  vuln_count: number;
+  created_at: string;
+}
+
 export interface DashboardData {
   project: { id: string; name: string; modules: ModuleData[]; deps: DepData[]; audit: AuditVuln[] };
   decisions: DecisionData[];
@@ -105,6 +116,7 @@ export interface DashboardData {
   events: EventData[];
   tokens_saved: number;
   total_events: number;
+  health_history?: HealthSnapshotData[];
 }
 
 export interface FeedRow {
@@ -337,6 +349,7 @@ export default function Home() {
           />
         )}
         {view === "apis" && <ApisView modules={data?.project.modules || []} />}
+        {view === "graph" && <DependencyGraph modules={data?.project.modules || []} />}
         {view === "onboarding" && <OnboardingGuide data={data} />}
         {view === "module-detail" && selectedModule && (
           <ModuleDetail

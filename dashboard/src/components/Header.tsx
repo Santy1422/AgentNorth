@@ -6,11 +6,12 @@ import type { View, ProjectRef } from "@/app/page";
 const NAV_ITEMS: { view: View; label: string; shortcut: string }[] = [
   { view: "main", label: "Inicio", shortcut: "1" },
   { view: "map", label: "Mapa", shortcut: "2" },
-  { view: "deps", label: "Deps", shortcut: "3" },
-  { view: "coverage", label: "Cobertura", shortcut: "4" },
-  { view: "risks", label: "Decisiones", shortcut: "5" },
-  { view: "apis", label: "APIs", shortcut: "6" },
-  { view: "onboarding", label: "Guia", shortcut: "7" },
+  { view: "graph", label: "Grafo", shortcut: "3" },
+  { view: "deps", label: "Deps", shortcut: "4" },
+  { view: "coverage", label: "Cobertura", shortcut: "5" },
+  { view: "risks", label: "Decisiones", shortcut: "6" },
+  { view: "apis", label: "APIs", shortcut: "7" },
+  { view: "onboarding", label: "Guia", shortcut: "8" },
 ];
 
 function formatTime(d: Date): string {
