@@ -187,6 +187,12 @@ export function MainView({
 
   return (
     <>
+      {/* Free version banner */}
+      <div className="free-banner">
+        <span className="free-banner-badge">Free</span>
+        <span>AgentNorth is currently free for all users. No limits, no credit card.</span>
+      </div>
+
       <section className="hero">
         <div className="hero-label">Tokens ahorrados con AgentNorth</div>
         <div className="hero-num">{savedTokens.toLocaleString("es")}</div>

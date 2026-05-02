@@ -2,91 +2,145 @@
 
 # AgentNorth
 
-**Shared Context Layer for AI coding agents**
+**Shared Context Layer for AI Coding Agents**
 
 Your agents share one source of truth — pre-indexed context, architecture decisions, and live coordination.
+Stop wasting tokens. Start shipping faster.
 
 [![npm](https://img.shields.io/npm/v/agentnorth)](https://www.npmjs.com/package/agentnorth)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![Dashboard](https://img.shields.io/badge/dashboard-agentnorth.io-black)](https://agentnorth.io)
+[![Dashboard](https://img.shields.io/badge/dashboard-agentnorth.io-black)](https://www.agentnorth.io)
+
+[Get Started](#quick-start) · [Dashboard](https://www.agentnorth.io) · [How It Works](#how-it-works) · [Features](#features)
 
 </div>
 
 ---
 
-## The problem
+## The Problem
 
-AI coding agents waste tokens rediscovering your project every session. For a module like `auth`, Claude reads 30-100 files (60K+ tokens) just to understand the structure. Multiply that by every session, every dev, every repo.
+AI coding agents waste **60K+ tokens per session** rediscovering your codebase. Every time Claude opens a module like `auth`, it reads 30-100 files just to understand the structure. Multiply that by every session, every developer, every repo.
 
-AgentNorth fixes this: **one MCP call replaces hundreds of file reads**.
+But tokens aren't the only problem — **you lose track of decisions**. One agent decides "JWT bearer over cookies", another session rewrites it to use cookies. Without a shared context layer, architecture decisions get lost between sessions, developers, and agents.
 
-## Quick start
+**AgentNorth fixes both: one MCP call replaces hundreds of file reads, and decisions persist across every session.**
+
+```
+Before AgentNorth:  Agent reads 47 files  → 62,000 tokens → $0.19/session
+After AgentNorth:   Agent calls 1 tool    →  2,100 tokens → $0.006/session
+                                              ─────────────────────────────
+                                              96.6% reduction in context cost
+```
+
+## Quick Start
 
 ```bash
 npx agentnorth init      # Detect modules, create config
-npx agentnorth index     # Scan files, generate context bundles
-npx agentnorth setup     # Generate Claude Code hooks + CLAUDE.md
-npx agentnorth sync      # Push to dashboard (optional)
+npx agentnorth index     # Scan & analyze your codebase
+npx agentnorth setup     # Wire into Claude Code (hooks + MCP)
+npx agentnorth sync      # Push to live dashboard
 ```
 
 That's it. Your agents now use AgentNorth automatically via Claude Code hooks.
 
-## How it works
+## How It Works
 
 ```
-Your Codebase              AgentNorth                   AI Agent
-─────────────             ──────────                   ─────────
-src/auth/        ──scan──▶ .agentnorth/bundles/
-src/billing/     ──scan──▶   auth.json                 agentnorth_get_context("auth")
-prisma/schema    ──scan──▶   billing.json               → 2K tokens (not 60K)
-
-                            MCP Server ◀──────────────▶ Claude Code
-                            6 tools (read + write-back)
+┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────┐
+│   Your Codebase  │     │     AgentNorth        │     │    AI Agent      │
+│                  │     │                      │     │                 │
+│  src/auth/       │────▶│  AST Parser          │     │  "get_context   │
+│  src/billing/    │────▶│  Git Blame + History  │────▶│   ('auth')"     │
+│  prisma/schema   │────▶│  Complexity Analysis  │     │                 │
+│  .agentnorth/    │────▶│  Decision Registry   │     │  → 2K tokens    │
+│    decisions/    │     │                      │     │    not 60K      │
+└─────────────────┘     └──────────┬───────────┘     └─────────────────┘
+                                   │
+                        ┌──────────▼───────────┐
+                        │   Live Dashboard      │
+                        │   agentnorth.io       │
+                        │                      │
+                        │  Real-time SSE sync   │
+                        │  Health Scorecard     │
+                        │  Dependency Graph     │
+                        │  Team Coordination    │
+                        └──────────────────────┘
 ```
 
-Instead of reading dozens of files, the agent calls `agentnorth_get_context("auth")` and gets:
+## Features
+
+### Intelligent Codebase Indexing
+
+The indexer goes beyond simple file listing. It uses **AST parsing** (via ast-grep) to extract:
+
+- **Exports & Imports** — full dependency graph with specifiers
+- **Cyclomatic Complexity** — per-file complexity scoring
+- **Git Blame** — file ownership (who wrote what, how many lines)
+- **Change Frequency** — hot files that change often (last 3 months)
+- **JSDoc Extraction** — pulls documentation from `/** */` comments
+- **Schema Detection** — Prisma, SQL, Mongoose schemas auto-detected
+- **Smart Warnings** — large files, high coupling, dead code, missing docs
 
 ```json
 {
   "module": "auth",
   "files": [
-    { "path": "src/auth/middleware.ts", "exports": ["authMiddleware"], "loc": 25 },
-    { "path": "src/auth/session.ts", "exports": ["SessionStore"], "loc": 18 }
+    {
+      "path": "src/auth/middleware.ts",
+      "exports": ["authMiddleware"],
+      "complexity": 8,
+      "authors": [{ "author": "Santiago", "lines": 45 }],
+      "change_frequency": 3,
+      "last_modified": "2026-05-01"
+    }
   ],
-  "schema": { "tables": ["users", "sessions"], "mermaid": "erDiagram..." },
-  "dependencies": { "internal": ["core"], "external": ["jsonwebtoken"] },
-  "decisions": [{ "title": "JWT bearer over cookies", "status": "active" }],
-  "recent_changes": [{ "summary": "Add refresh token rotation", "date": "2025-04-28" }]
+  "contributors": [{ "name": "Santiago", "commits": 12 }],
+  "warnings": ["1 file with >500 LOC", "Auth module missing tests"],
+  "decisions": [{ "title": "JWT bearer over cookies", "status": "active" }]
 }
 ```
 
-## MCP Tools
+### MCP Server — 6 Tools for Claude
 
 | Tool | Direction | What it does |
 |------|-----------|--------------|
 | `agentnorth_list_modules` | read | List all indexed modules |
-| `agentnorth_get_context` | read | Full context bundle for a module |
-| `agentnorth_get_schema` | read | Schema / ERD only |
-| `agentnorth_get_decisions` | read | Architecture decisions |
+| `agentnorth_get_context` | read | Full enriched context bundle |
+| `agentnorth_get_schema` | read | Database schema + ERD |
+| `agentnorth_get_decisions` | read | Architecture decisions for a module |
 | `agentnorth_log_decision` | **write** | Record an architecture decision |
 | `agentnorth_log_change` | **write** | Record a code change |
 
 Decisions and changes persist across sessions. Next time a different agent (or dev) touches the same module, they see what was decided and why.
 
-## Dashboard
+### Live Dashboard — [agentnorth.io](https://www.agentnorth.io)
 
-[agentnorth.io](https://agentnorth.io) gives your team real-time visibility:
+A full-featured codebase intelligence dashboard inspired by **Backstage**, **Sourcegraph**, and **Linear**:
 
-- **Live feed** — every agent session, decision, and change across all repos
-- **Multi-project** — switch between repos like Slack workspaces
-- **Team** — invite devs with a link, everyone shares the same context layer
-- **Token savings** — track how much context reuse saves in API costs
+| Feature | Description |
+|---------|-------------|
+| **Health Scorecard** | Automated project health score with 6 checks (tests, security, complexity, docs, dead code, modularization) |
+| **Interactive Dependency Graph** | Force-directed canvas visualization of module relationships |
+| **Architecture Map** | Screen-first drill-down: Pages → Components → Hooks → Libs |
+| **Decision Timeline** | Merged chronological view of all decisions + changes |
+| **Activity Heatmap** | GitHub-style 12-week contribution grid |
+| **Documentation Coverage** | Treemap visualization sized by LOC, colored by doc % |
+| **API Catalog** | Auto-detected endpoints with method filtering and caller tracking |
+| **Module Detail Pages** | Backstage-inspired entity pages with tabs (Overview, Files, Decisions, Deps) |
+| **Onboarding Guide** | Auto-generated guide for new developers joining the project |
+| **Change Impact Analysis** | Blast radius visualization per file |
+| **Global Search (Cmd+K)** | Search across files, decisions, APIs, dependencies with keyboard nav |
+| **Embeddable Badges** | SVG badges for health, coverage, modules — put them in your README |
+| **Health Score History** | Track project health over time with daily snapshots |
+| **Real-time SSE** | Instant dashboard updates when agents sync — no polling |
+| **Bidirectional Sync** | Dashboard → repo and repo → dashboard |
+| **Keyboard Shortcuts** | Alt+1-8 for view navigation, Cmd+K for search |
+| **Contributors** | Per-module contributor tracking from git history |
+| **Smart Warnings** | Auto-generated alerts for complexity, coupling, hot files |
 
-Sign in with GitHub. Connect your CLI with API keys. Everything syncs automatically.
+### Enforcement via Claude Code Hooks
 
-## Enforcement
-
-AgentNorth uses Claude Code hooks to ensure agents always check context before exploring:
+AgentNorth hooks into Claude Code to ensure agents always check context before exploring:
 
 ```bash
 npx agentnorth setup
@@ -96,17 +150,39 @@ npx agentnorth setup
 #   CLAUDE.md              — Agent instructions
 ```
 
-Three enforcement levels: `soft` (warn), `strict` (block), `audit` (silent tracking).
+Three enforcement levels:
+
+| Level | Behavior |
+|-------|----------|
+| `soft` | Warns agents to check context first |
+| `strict` | Blocks file reads without prior context check |
+| `audit` | Silently tracks agent behavior for analysis |
+
+### Bidirectional Sync
+
+```
+              ┌─────────┐
+  CLI ──sync──▶         ├──SSE──▶ Browser (instant)
+              │ Server  │
+  CLI ◀─pull──┤         ◀──POST── Dashboard (create decisions)
+              └─────────┘
+```
+
+- **Post-commit hook**: Automatically runs `pull → index → sync` after every commit
+- **Watch mode**: `npx agentnorth watch` — live file watching with debounced sync
+- **SSE**: Dashboard updates in real-time without polling
 
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
-| `agentnorth init` | Initialize project, detect modules |
-| `agentnorth index` | Generate context bundles |
-| `agentnorth setup` | Generate Claude Code hooks |
+| `agentnorth init` | Initialize project, auto-detect modules |
+| `agentnorth index` | Generate enriched context bundles (AST + git) |
+| `agentnorth setup` | Generate Claude Code hooks + MCP config |
 | `agentnorth serve` | Start MCP server (stdio) |
 | `agentnorth sync` | Push modules + decisions to dashboard |
+| `agentnorth pull` | Pull decisions created on dashboard to local repo |
+| `agentnorth watch` | Watch files and auto-sync on changes |
 | `agentnorth status` | Show module index status |
 | `agentnorth docs` | Generate markdown docs + Mermaid diagrams |
 | `agentnorth validate` | Check project health |
@@ -136,17 +212,32 @@ enforcement:
   track_sessions: true
 ```
 
-## Project structure
+## Architecture
 
 ```
-packages/agentnorth/   — npm package (MCP server + CLI)
-dashboard/             — Next.js web dashboard (agentnorth.io)
+packages/agentnorth/        — npm package
+  src/core/                 — Parser, indexer, git, scanner
+  src/server/               — MCP server (6 tools)
+  src/cli/                  — CLI commands
+dashboard/                  — Next.js 15 (agentnorth.io)
+  src/app/api/v1/           — Hono.js REST API
+  src/app/api/stream/       — SSE real-time endpoint
+  src/app/api/badge/        — Embeddable SVG badges
+  src/components/           — React dashboard components
+  src/models/               — MongoDB schemas
 ```
 
-## Requirements
+## Tech Stack
 
-- Node.js >= 22.14.0
-- A git repository
+- **Runtime**: Node.js >= 22.14.0, TypeScript ESM strict
+- **Parsing**: ast-grep (SgNode) for typed AST analysis
+- **Dashboard**: Next.js 15, React 19, Hono.js
+- **Database**: MongoDB with Mongoose
+- **Auth**: NextAuth.js with GitHub OAuth
+- **Build**: tsup (CLI), pnpm monorepo
+- **Lint**: Biome
+- **Test**: Vitest
+- **Deploy**: Vercel
 
 ## License
 

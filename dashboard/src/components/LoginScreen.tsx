@@ -3,13 +3,52 @@
 import { useState, useEffect } from "react";
 
 const FEED_DEMO = [
-  { who: "Claude", verb: "llamo", obj: 'get_context("auth")', tag: "-57k tokens", time: "ahora" },
-  { who: "Claude", verb: "previno reescribir", obj: "formatTenantId()", tag: "-3.1k tokens", time: "2m" },
-  { who: "Ana", verb: "fijo decision", obj: "no JWT en cookies httpOnly", tag: "pinned", time: "14m" },
-  { who: "Claude", verb: "leyo bundle de", obj: "module: billing", tag: "-71k tokens", time: "44m" },
+  { who: "Claude", verb: "called", obj: 'get_context("auth")', tag: "-57K tokens", time: "now" },
+  { who: "Claude", verb: "prevented rewrite of", obj: "formatTenantId()", tag: "-3.1K tokens", time: "2m" },
+  { who: "Dev", verb: "logged decision", obj: "JWT bearer over cookies", tag: "pinned", time: "14m" },
+  { who: "Claude", verb: "read bundle for", obj: "module: billing", tag: "-71K tokens", time: "44m" },
 ];
 
 const COUNTER_START = 284142;
+
+const STATS = [
+  { num: "96.6%", label: "Token reduction" },
+  { num: "1 call", label: "vs 47 file reads" },
+  { num: "$0.006", label: "vs $0.19/session" },
+];
+
+const FEATURES = [
+  {
+    icon: "\u26A1",
+    title: "AST-Powered Indexing",
+    desc: "Exports, imports, complexity, git blame, change frequency, JSDoc — all extracted via ast-grep and bundled per module.",
+  },
+  {
+    icon: "\uD83D\uDCCC",
+    title: "Persistent Decisions",
+    desc: "Architecture decisions travel with the codebase. Agents check them before acting — no more contradictions across sessions.",
+  },
+  {
+    icon: "\uD83D\uDEE1\uFE0F",
+    title: "Claude Code Hooks",
+    desc: "Auto-generated hooks enforce context usage. Soft warnings, strict blocks, or silent audit — three enforcement levels.",
+  },
+  {
+    icon: "\uD83D\uDCCA",
+    title: "Live Dashboard",
+    desc: "Health scorecard, dependency graph, architecture map, decision timeline, activity heatmap, and 15+ more views.",
+  },
+  {
+    icon: "\uD83D\uDD04",
+    title: "Bidirectional Sync",
+    desc: "CLI pushes to dashboard, dashboard creates decisions back. Post-commit hooks, watch mode, real-time SSE updates.",
+  },
+  {
+    icon: "\uD83D\uDCE6",
+    title: "MCP Protocol",
+    desc: "6 tools for Claude — list modules, get context, get schema, get decisions, log decision, log change. Zero config.",
+  },
+];
 
 export function LoginScreen() {
   const [counter, setCounter] = useState(COUNTER_START);
@@ -44,15 +83,33 @@ export function LoginScreen() {
 
       {/* Hero */}
       <section className="landing-hero">
-        <div className="landing-badge">Now on npm &mdash; v0.1.0</div>
+        <div className="landing-badge">Shared Context Layer for AI Coding Agents</div>
         <h1 className="landing-h1">
-          Your AI agents share<br />
+          Your agents share<br />
           <span className="landing-accent">one source of truth</span>
         </h1>
         <p className="landing-sub">
-          AgentNorth gives every coding agent pre-indexed context, architecture decisions,
-          and live coordination &mdash; so they stop wasting tokens rediscovering your codebase.
+          Pre-indexed context, architecture decisions, and live coordination.
+          One MCP call replaces hundreds of file reads — and decisions persist
+          across every session, so agents never contradict past choices.
         </p>
+
+        {/* Token savings comparison */}
+        <div className="landing-comparison">
+          <div className="lc-row before">
+            <span className="lc-label">Before</span>
+            <span className="lc-detail">47 files read</span>
+            <span className="lc-tokens">62,000 tokens</span>
+            <span className="lc-cost">$0.19/session</span>
+          </div>
+          <div className="lc-row after">
+            <span className="lc-label">After</span>
+            <span className="lc-detail">1 MCP call</span>
+            <span className="lc-tokens">2,100 tokens</span>
+            <span className="lc-cost">$0.006/session</span>
+          </div>
+        </div>
+
         <div className="landing-ctas">
           <button className="landing-cta" onClick={() => { window.location.href = "/api/auth/signin"; }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -67,6 +124,16 @@ export function LoginScreen() {
             <span className="landing-copy-hint">copy</span>
           </button>
         </div>
+      </section>
+
+      {/* Stats bar */}
+      <section className="landing-stats-bar">
+        {STATS.map((s) => (
+          <div key={s.label} className="ls-stat">
+            <div className="ls-stat-num">{s.num}</div>
+            <div className="ls-stat-label">{s.label}</div>
+          </div>
+        ))}
       </section>
 
       {/* Live preview */}
@@ -84,7 +151,7 @@ export function LoginScreen() {
               <div className="lp-hero-label">Tokens saved with AgentNorth</div>
               <div className="lp-hero-num">{counter.toLocaleString("en")}</div>
               <div className="lp-hero-sub">
-                ≈ <span style={{ color: "var(--green)", fontWeight: 600 }}>${dollars}</span> in API costs
+                {"\u2248"} <span style={{ color: "var(--green)", fontWeight: 600 }}>${dollars}</span> in API costs
               </div>
               <div className="lp-bar">
                 <div className="lp-bar-fill"></div>
@@ -125,30 +192,31 @@ export function LoginScreen() {
             <div className="ls-content">
               <h3>Index your codebase</h3>
               <p><span className="mono">npx agentnorth init && npx agentnorth index</span></p>
-              <p className="ls-desc">AgentNorth scans your repo and creates pre-indexed bundles for each module &mdash; files, exports, schemas, dependencies, all in one JSON.</p>
+              <p className="ls-desc">AST parsing (ast-grep), git blame, complexity analysis, schema detection. Creates enriched bundles per module.</p>
             </div>
           </div>
           <div className="landing-step">
             <div className="ls-num">2</div>
             <div className="ls-content">
-              <h3>Agents read context, not files</h3>
-              <p><span className="mono">agentnorth_get_context("auth")</span></p>
-              <p className="ls-desc">Instead of grepping 200 files, your agent gets 5K tokens of structured context. 90%+ reduction in exploration tokens.</p>
+              <h3>Wire into Claude Code</h3>
+              <p><span className="mono">npx agentnorth setup</span></p>
+              <p className="ls-desc">Generates MCP config, Claude Code hooks (SessionStart, PreToolUse, PostToolUse), and CLAUDE.md instructions.</p>
             </div>
           </div>
           <div className="landing-step">
             <div className="ls-num">3</div>
             <div className="ls-content">
-              <h3>Decisions stick across sessions</h3>
-              <p><span className="mono">agentnorth_log_decision()</span></p>
-              <p className="ls-desc">When an agent makes an architecture decision, it's recorded. Next session, different dev, different agent &mdash; same decisions respected.</p>
+              <h3>Agents read context, not files</h3>
+              <p><span className="mono">agentnorth_get_context("auth")</span></p>
+              <p className="ls-desc">Instead of reading 47 files, your agent gets 2K tokens of structured context. 96.6% reduction.</p>
             </div>
           </div>
           <div className="landing-step">
             <div className="ls-num">4</div>
             <div className="ls-content">
-              <h3>Dashboard shows everything</h3>
-              <p className="ls-desc">Live feed of all agent activity, sessions, decisions, and changes across every repo. Multi-project, multi-user, real-time.</p>
+              <h3>Sync to live dashboard</h3>
+              <p><span className="mono">npx agentnorth sync</span></p>
+              <p className="ls-desc">Push modules, decisions, and changes to your dashboard. Real-time SSE updates, bidirectional sync, health tracking.</p>
             </div>
           </div>
         </div>
@@ -158,36 +226,39 @@ export function LoginScreen() {
       <section className="landing-section">
         <h2 className="landing-h2">Built for teams shipping with AI</h2>
         <div className="landing-features-grid">
-          <div className="lf-card">
-            <div className="lf-card-icon">&#x26A1;</div>
-            <h3>Context Bundles</h3>
-            <p>Pre-indexed modules with files, exports, schemas, and dependencies. One MCP call replaces hundreds of file reads.</p>
+          {FEATURES.map((f) => (
+            <div key={f.title} className="lf-card">
+              <div className="lf-card-icon">{f.icon}</div>
+              <h3>{f.title}</h3>
+              <p>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* MCP Tools table */}
+      <section className="landing-section">
+        <h2 className="landing-h2">6 MCP Tools for Claude</h2>
+        <div className="landing-tools-table">
+          <div className="lt-tool-row header">
+            <span>Tool</span>
+            <span>Direction</span>
+            <span>What it does</span>
           </div>
-          <div className="lf-card">
-            <div className="lf-card-icon">&#x1F4CC;</div>
-            <h3>Persistent Decisions</h3>
-            <p>Architecture decisions travel with the codebase. Agents check them before acting &mdash; no more contradictions.</p>
-          </div>
-          <div className="lf-card">
-            <div className="lf-card-icon">&#x1F6E1;</div>
-            <h3>Claude Code Hooks</h3>
-            <p>Auto-generated hooks enforce context usage. Soft warnings or hard blocks when agents skip AgentNorth.</p>
-          </div>
-          <div className="lf-card">
-            <div className="lf-card-icon">&#x1F4CA;</div>
-            <h3>Live Dashboard</h3>
-            <p>Real-time feed of agent sessions, decisions, changes, and token savings across all your repositories.</p>
-          </div>
-          <div className="lf-card">
-            <div className="lf-card-icon">&#x1F465;</div>
-            <h3>Multi-User Teams</h3>
-            <p>One org, many devs, many repos. Invite teammates with a link. Everyone shares the same context layer.</p>
-          </div>
-          <div className="lf-card">
-            <div className="lf-card-icon">&#x1F4E6;</div>
-            <h3>MCP Protocol</h3>
-            <p>Standard MCP server works with Claude Code out of the box. 6 tools, zero config, just <span className="mono">npx agentnorth serve</span>.</p>
-          </div>
+          {[
+            { name: "list_modules", dir: "read", desc: "List all indexed modules" },
+            { name: "get_context", dir: "read", desc: "Full enriched context bundle" },
+            { name: "get_schema", dir: "read", desc: "Database schema + ERD" },
+            { name: "get_decisions", dir: "read", desc: "Architecture decisions for a module" },
+            { name: "log_decision", dir: "write", desc: "Record an architecture decision" },
+            { name: "log_change", dir: "write", desc: "Record a code change" },
+          ].map((t) => (
+            <div key={t.name} className="lt-tool-row">
+              <span className="mono">{t.name}</span>
+              <span className={"lt-dir " + t.dir}>{t.dir}</span>
+              <span>{t.desc}</span>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -201,11 +272,13 @@ export function LoginScreen() {
           </div>
           <div className="lt-body">
             <div className="lt-line"><span className="lt-prompt">$</span> npx agentnorth init</div>
-            <div className="lt-output">Detected: Next.js + TypeScript · Found 6 modules · Created .agentnorth/config.yaml</div>
+            <div className="lt-output">Detected: Next.js + TypeScript {"\u00B7"} Found 6 modules {"\u00B7"} Created .agentnorth/config.yaml</div>
             <div className="lt-line"><span className="lt-prompt">$</span> npx agentnorth index</div>
-            <div className="lt-output">Indexed 6 modules · 312 files · 48.2K LOC · Bundles written to .agentnorth/bundles/</div>
+            <div className="lt-output">Indexed 6 modules {"\u00B7"} 312 files {"\u00B7"} 48.2K LOC {"\u00B7"} AST + git enrichment complete</div>
             <div className="lt-line"><span className="lt-prompt">$</span> npx agentnorth setup</div>
-            <div className="lt-output">Created .claude/settings.json · 4 hooks · CLAUDE.md</div>
+            <div className="lt-output">Created .claude/settings.json {"\u00B7"} 4 hooks {"\u00B7"} CLAUDE.md</div>
+            <div className="lt-line"><span className="lt-prompt">$</span> npx agentnorth sync</div>
+            <div className="lt-output">Synced to dashboard {"\u00B7"} 6 modules {"\u00B7"} Real-time SSE active</div>
             <div className="lt-line"><span className="lt-prompt">$</span> <span className="lt-cursor">_</span></div>
           </div>
         </div>
@@ -214,15 +287,15 @@ export function LoginScreen() {
       {/* CTA */}
       <section className="landing-final">
         <h2 className="landing-h2">Stop wasting tokens.<br/>Start shipping faster.</h2>
-        <p className="landing-sub" style={{ maxWidth: 500, margin: "0 auto 32px" }}>
-          Free for open source. No credit card. Works with Claude Code today.
+        <p className="landing-sub" style={{ maxWidth: 520, margin: "0 auto 32px" }}>
+          Free and open source. No credit card required. Works with Claude Code today.
         </p>
         <div className="landing-ctas">
           <button className="landing-cta" onClick={() => { window.location.href = "/api/auth/signin"; }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
             </svg>
-            Get started free
+            Sign in with GitHub
           </button>
         </div>
       </section>
