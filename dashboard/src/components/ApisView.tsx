@@ -120,7 +120,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
           <div className="empty-icon">&#x1F310;</div>
           <div className="empty-title">Sin API routes detectadas</div>
           <div className="empty-desc">
-            Las API routes se detectan automaticamente de los archivos <code>route.ts</code> en <code>app/api/</code>
+            API routes are auto-detected from <code>route.ts</code> files in <code>app/api/</code>
           </div>
         </div>
       </section>
@@ -174,7 +174,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
           <span className="search-icon">&#x2315;</span>
           <input
             type="text"
-            placeholder="buscar endpoint..."
+            placeholder="search endpoint..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

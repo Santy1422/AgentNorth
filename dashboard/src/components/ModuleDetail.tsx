@@ -71,12 +71,12 @@ export function ModuleDetail({
     let score = 100;
 
     const hasTests = files.some((f) => f.kind === "test");
-    if (hasTests) checks.push({ name: "Tests", status: "pass", detail: "Tiene archivos de test" });
+    if (hasTests) checks.push({ name: "Tests", status: "pass", detail: "Has test files" });
     else { score -= 20; checks.push({ name: "Tests", status: "fail", detail: "Sin tests" }); }
 
     const largeFiles = files.filter((f) => f.loc > 300);
-    if (largeFiles.length === 0) checks.push({ name: "Complejidad", status: "pass", detail: "Sin archivos >300 LOC" });
-    else { score -= largeFiles.length * 5; checks.push({ name: "Complejidad", status: "warn", detail: `${largeFiles.length} archivos >300 LOC` }); }
+    if (largeFiles.length === 0) checks.push({ name: "Complexity", status: "pass", detail: "No files >300 LOC" });
+    else { score -= largeFiles.length * 5; checks.push({ name: "Complexity", status: "warn", detail: `${largeFiles.length} files >300 LOC` }); }
 
     const documented = files.filter((f) => f.summary && f.summary.trim().length > 0).length;
     const docPct = files.length > 0 ? Math.round((documented / files.length) * 100) : 0;
@@ -97,12 +97,12 @@ export function ModuleDetail({
           )
       );
     }).length;
-    if (deadCount === 0) checks.push({ name: "Codigo muerto", status: "pass", detail: "Sin archivos huerfanos" });
-    else { score -= deadCount * 5; checks.push({ name: "Codigo muerto", status: "warn", detail: `${deadCount} posibles muertos` }); }
+    if (deadCount === 0) checks.push({ name: "Dead code", status: "pass", detail: "No orphan files" });
+    else { score -= deadCount * 5; checks.push({ name: "Dead code", status: "warn", detail: `${deadCount} posibles muertos` }); }
 
-    if (moduleDecisions.length >= 2) checks.push({ name: "Decisiones", status: "pass", detail: `${moduleDecisions.length} decisiones registradas` });
-    else if (moduleDecisions.length > 0) { score -= 5; checks.push({ name: "Decisiones", status: "warn", detail: `Solo ${moduleDecisions.length} decision` }); }
-    else { score -= 10; checks.push({ name: "Decisiones", status: "fail", detail: "Sin decisiones" }); }
+    if (moduleDecisions.length >= 2) checks.push({ name: "Decisions", status: "pass", detail: `${moduleDecisions.length} decisions logged` });
+    else if (moduleDecisions.length > 0) { score -= 5; checks.push({ name: "Decisions", status: "warn", detail: `Solo ${moduleDecisions.length} decision` }); }
+    else { score -= 10; checks.push({ name: "Decisions", status: "fail", detail: "No decisions" }); }
 
     score = Math.max(0, Math.min(100, score));
     return { score, checks };
@@ -135,10 +135,10 @@ export function ModuleDetail({
             <h1 className="md-name mono">{mod.name}</h1>
             {mod.description && <p className="md-desc">{mod.description}</p>}
             <div className="md-meta">
-              <span>{mod.files_count} archivos</span>
+              <span>{mod.files_count} files</span>
               <span>{(mod.loc || 0).toLocaleString("es")} LOC</span>
               <span>{mod.exports_count || 0} exports</span>
-              <span>{moduleDecisions.length} decisiones</span>
+              <span>{moduleDecisions.length} decisions</span>
               <span>{moduleChanges.length} cambios</span>
             </div>
           </div>
@@ -412,7 +412,7 @@ export function ModuleDetail({
       {tab === "decisions" && (
         <div className="md-content">
           {moduleDecisions.length === 0 && moduleChanges.length === 0 ? (
-            <div className="empty-state">Sin decisiones ni cambios para este modulo</div>
+            <div className="empty-state">No decisions or changes for this module</div>
           ) : (
             <div className="md-timeline">
               {[...moduleDecisions.map((d) => ({
@@ -512,7 +512,7 @@ function timeAgo(dateStr: string): string {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "ahora";
+  if (mins < 1) return "now";
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h`;

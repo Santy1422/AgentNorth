@@ -1,6 +1,9 @@
 "use client";
 
-import type { Person } from "@/data/mock";
+interface Person {
+  initials: string;
+  color: string;
+}
 
 export function Avatar({ p, size = "" }: { p: Person | undefined; size?: string }) {
   if (!p) return null;

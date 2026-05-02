@@ -54,9 +54,9 @@ export function RisksView({
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4CC;</div>
-          <div className="empty-title">Sin decisiones ni cambios</div>
+          <div className="empty-title">No decisions or changes</div>
           <div className="empty-desc">
-            Sincroniza decisiones con <code>npx agentnorth sync</code>
+            Sync decisions with <code>npx agentnorth sync</code>
           </div>
         </div>
       </section>
@@ -69,7 +69,7 @@ export function RisksView({
         <h2>Decisiones y cambios</h2>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className="meta">
-            {decisions.length} decisiones · {changes.length} cambios
+            {decisions.length} decisions · {changes.length} changes
             {breakingChanges.length > 0 && (
               <span style={{ color: "var(--accent)" }}> · {breakingChanges.length} breaking</span>
             )}
@@ -88,7 +88,7 @@ export function RisksView({
       <div className="risks-summary">
         <div className="rs-card total">
           <div className="rs-num">{decisions.length}</div>
-          <div className="rs-label">decisiones</div>
+          <div className="rs-label">decisions</div>
         </div>
         <div className="rs-card med">
           <div className="rs-num">{changes.length}</div>
@@ -111,26 +111,26 @@ export function RisksView({
           </div>
           <input
             className="ndf-input"
-            placeholder="Titulo de la decision"
+            placeholder="Decision title"
             value={newDecision.title}
             onChange={(e) => setNewDecision({ ...newDecision, title: e.target.value })}
           />
           <input
             className="ndf-input"
-            placeholder="Modulo (opcional)"
+            placeholder="Module (optional)"
             value={newDecision.module}
             onChange={(e) => setNewDecision({ ...newDecision, module: e.target.value })}
           />
           <textarea
             className="ndf-textarea"
-            placeholder="Contexto — por que se toma esta decision?"
+            placeholder="Context — why is this decision being made?"
             value={newDecision.context}
             onChange={(e) => setNewDecision({ ...newDecision, context: e.target.value })}
             rows={3}
           />
           <textarea
             className="ndf-textarea"
-            placeholder="Decision — que se decidio?"
+            placeholder="Decision — what was decided?"
             value={newDecision.decision}
             onChange={(e) => setNewDecision({ ...newDecision, decision: e.target.value })}
             rows={3}
@@ -205,7 +205,7 @@ export function RisksView({
           <span className="search-icon">&#x2315;</span>
           <input
             type="text"
-            placeholder="buscar..."
+            placeholder="search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -287,12 +287,12 @@ export function RisksView({
           filteredChanges.map((c) => <ChangeRow key={c._id} change={c} />)}
         {tab === "decisions" && filteredDecisions.length === 0 && (
           <div className="risks-empty">
-            <span>{search ? "Sin resultados" : "Sin decisiones"}</span>
+            <span>{search ? "No results" : "No decisions"}</span>
           </div>
         )}
         {tab === "changes" && filteredChanges.length === 0 && (
           <div className="risks-empty">
-            <span>{search ? "Sin resultados" : "Sin cambios"}</span>
+            <span>{search ? "No results" : "No changes"}</span>
           </div>
         )}
       </div>
@@ -350,7 +350,7 @@ function ChangeRow({ change }: { change: ChangeData }) {
         </span>
         {change.module && <span className="risk-kind mono">{change.module}</span>}
         <div className="risk-title">{change.summary}</div>
-        <span className="risk-loc mono">{change.files_changed?.length || 0} archivos</span>
+        <span className="risk-loc mono">{change.files_changed?.length || 0} files</span>
         <span className="risk-caret">{open ? "-" : "+"}</span>
       </div>
       {open && change.files_changed && change.files_changed.length > 0 && (
@@ -441,7 +441,7 @@ function timeAgo(dateStr: string): string {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "ahora";
+  if (mins < 1) return "now";
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h`;

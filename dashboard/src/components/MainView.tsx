@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { FeedRow, DashboardData, FileData, HealthSnapshotData } from "@/app/page";
+import { useMemo } from "react";
+import type { FeedRow, DashboardData, FileData } from "@/app/page";
 
 const KIND_COLORS: Record<string, string> = {
   page: "#f97316",
@@ -40,10 +40,10 @@ function ModuleHoverCard({ module, allFiles }: { module: { name: string; descrip
         <div className="hover-card-score" style={{ background: scoreColor, color: "#000" }}>{score}</div>
       </div>
       <div className="hover-card-meta">
-        <span>{module.files_count} archivos</span>
-        <span>{module.loc.toLocaleString("es")} LOC</span>
+        <span>{module.files_count} files</span>
+        <span>{module.loc.toLocaleString("en")} LOC</span>
         <span>{docPct}% docs</span>
-        <span style={{ color: hasTests ? "var(--green)" : "var(--red)" }}>{hasTests ? "con tests" : "sin tests"}</span>
+        <span style={{ color: hasTests ? "var(--green)" : "var(--red)" }}>{hasTests ? "has tests" : "no tests"}</span>
       </div>
       <div className="hover-card-tags">
         {Object.entries(kinds).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => (
@@ -108,52 +108,47 @@ export function MainView({
       .sort((a, b) => a.pct - b.pct);
   }, [data]);
 
-  // Health scorecard (Backstage-inspired)
+  // Health scorecard
   const healthScore = useMemo(() => {
     if (!data) return null;
     const modules = data.project.modules || [];
     let score = 100;
     const checks: { name: string; status: "pass" | "warn" | "fail"; detail: string }[] = [];
 
-    // Check: has tests
     const hasTests = allFiles.some((f) => f.kind === "test");
     if (hasTests) {
-      checks.push({ name: "Tests", status: "pass", detail: "Archivos de test detectados" });
+      checks.push({ name: "Tests", status: "pass", detail: "Test files detected" });
     } else {
       score -= 15;
-      checks.push({ name: "Tests", status: "fail", detail: "Sin archivos de test" });
+      checks.push({ name: "Tests", status: "fail", detail: "No test files found" });
     }
 
-    // Check: no vulnerabilities
     if (vulnCount === 0) {
-      checks.push({ name: "Seguridad", status: "pass", detail: "Sin vulnerabilidades" });
+      checks.push({ name: "Security", status: "pass", detail: "No vulnerabilities" });
     } else {
       score -= Math.min(25, vulnCount * 5);
-      checks.push({ name: "Seguridad", status: "fail", detail: `${vulnCount} vulnerabilidades` });
+      checks.push({ name: "Security", status: "fail", detail: `${vulnCount} vulnerabilities` });
     }
 
-    // Check: no giant files
     const giantFiles = allFiles.filter((f) => f.loc > 500);
     if (giantFiles.length === 0) {
-      checks.push({ name: "Complejidad", status: "pass", detail: "Sin archivos >500 LOC" });
+      checks.push({ name: "Complexity", status: "pass", detail: "No files >500 LOC" });
     } else {
       score -= Math.min(15, giantFiles.length * 3);
-      checks.push({ name: "Complejidad", status: "warn", detail: `${giantFiles.length} archivos >500 LOC` });
+      checks.push({ name: "Complexity", status: "warn", detail: `${giantFiles.length} files >500 LOC` });
     }
 
-    // Check: documentation (decisions)
     const decCount = data.decisions?.length || 0;
     if (decCount >= 3) {
-      checks.push({ name: "Documentacion", status: "pass", detail: `${decCount} decisiones documentadas` });
+      checks.push({ name: "Documentation", status: "pass", detail: `${decCount} decisions documented` });
     } else if (decCount > 0) {
       score -= 5;
-      checks.push({ name: "Documentacion", status: "warn", detail: `Solo ${decCount} decisiones` });
+      checks.push({ name: "Documentation", status: "warn", detail: `Only ${decCount} decisions` });
     } else {
       score -= 10;
-      checks.push({ name: "Documentacion", status: "fail", detail: "Sin decisiones documentadas" });
+      checks.push({ name: "Documentation", status: "fail", detail: "No decisions documented" });
     }
 
-    // Check: dead files
     const deadCount = allFiles.filter((f) => {
       if (["page", "route", "test", "config"].includes(f.kind)) return false;
       const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
@@ -167,18 +162,17 @@ export function MainView({
       );
     }).length;
     if (deadCount === 0) {
-      checks.push({ name: "Codigo muerto", status: "pass", detail: "Sin archivos huerfanos" });
+      checks.push({ name: "Dead code", status: "pass", detail: "No orphan files" });
     } else {
       score -= Math.min(10, deadCount * 2);
-      checks.push({ name: "Codigo muerto", status: "warn", detail: `${deadCount} posibles archivos muertos` });
+      checks.push({ name: "Dead code", status: "warn", detail: `${deadCount} possible dead files` });
     }
 
-    // Check: modularization
     if (modules.length >= 2) {
-      checks.push({ name: "Modularizacion", status: "pass", detail: `${modules.length} modulos definidos` });
+      checks.push({ name: "Modularization", status: "pass", detail: `${modules.length} modules defined` });
     } else {
       score -= 10;
-      checks.push({ name: "Modularizacion", status: "warn", detail: "Poca modularizacion" });
+      checks.push({ name: "Modularization", status: "warn", detail: "Low modularization" });
     }
 
     score = Math.max(0, Math.min(100, score));
@@ -194,23 +188,23 @@ export function MainView({
       </div>
 
       <section className="hero">
-        <div className="hero-label">Tokens ahorrados con AgentNorth</div>
-        <div className="hero-num">{savedTokens.toLocaleString("es")}</div>
+        <div className="hero-label">Tokens saved with AgentNorth</div>
+        <div className="hero-num">{savedTokens.toLocaleString("en")}</div>
         <div className="hero-sub">
-          {"\u2248"} <span className="hero-money">${dollars}</span> en API
+          {"\u2248"} <span className="hero-money">${dollars}</span> in API costs
         </div>
         <div className="hero-stats">
           <div className="hero-stat">
             <span className="hero-stat-num">{modulesCount}</span>
-            <span className="hero-stat-label">modulos</span>
+            <span className="hero-stat-label">modules</span>
           </div>
           <div className="hero-stat">
             <span className="hero-stat-num">{decisionsCount}</span>
-            <span className="hero-stat-label">decisiones</span>
+            <span className="hero-stat-label">decisions</span>
           </div>
           <div className="hero-stat">
             <span className="hero-stat-num">{totalEvents}</span>
-            <span className="hero-stat-label">eventos</span>
+            <span className="hero-stat-label">events</span>
           </div>
         </div>
       </section>
@@ -219,17 +213,17 @@ export function MainView({
       {allFiles.length > 0 && (
         <section className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Resumen del codebase</h2>
-            <span className="meta">auto-generado</span>
+            <h2>Codebase overview</h2>
+            <span className="meta">auto-generated</span>
           </div>
           <div className="overview-grid">
             <div className="ov-stat">
               <div className="ov-stat-num">{allFiles.length}</div>
-              <div className="ov-stat-label">archivos</div>
+              <div className="ov-stat-label">files</div>
             </div>
             <div className="ov-stat">
-              <div className="ov-stat-num">{totalLoc.toLocaleString("es")}</div>
-              <div className="ov-stat-label">lineas</div>
+              <div className="ov-stat-num">{totalLoc.toLocaleString("en")}</div>
+              <div className="ov-stat-label">lines</div>
             </div>
             <div className="ov-stat">
               <div className="ov-stat-num">{routeCount}</div>
@@ -262,7 +256,7 @@ export function MainView({
                 <div key={m.name} className="ov-mod hover-card-anchor">
                   <span className="ov-mod-name mono">{m.name}</span>
                   {m.description && <span className="ov-mod-desc">{m.description}</span>}
-                  <span className="ov-mod-stats">{m.files_count} files · {(m.loc || 0).toLocaleString("es")} LOC</span>
+                  <span className="ov-mod-stats">{m.files_count} files · {(m.loc || 0).toLocaleString("en")} LOC</span>
                   <ModuleHoverCard module={m} allFiles={allFiles} />
                 </div>
               ))}
@@ -275,12 +269,11 @@ export function MainView({
       {data && data.events && data.events.length > 0 && (
         <section className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Actividad reciente</h2>
-            <span className="meta">tokens ahorrados por dia</span>
+            <h2>Recent activity</h2>
+            <span className="meta">tokens saved per day</span>
           </div>
           <div className="spark-chart">
             {(() => {
-              // Group events by day
               const dayMs = 86400000;
               const now = Date.now();
               const days: { date: string; tokens: number; events: number }[] = [];
@@ -295,7 +288,7 @@ export function MainView({
               }
               const maxTokens = Math.max(1, ...days.map((d) => d.tokens));
               return days.map((d) => (
-                <div key={d.date} className="spark-bar-wrap" title={`${d.date}: ${d.events} eventos, ${d.tokens.toLocaleString("es")} tokens`}>
+                <div key={d.date} className="spark-bar-wrap" title={`${d.date}: ${d.events} events, ${d.tokens.toLocaleString("en")} tokens`}>
                   <div
                     className="spark-bar"
                     style={{
@@ -315,8 +308,8 @@ export function MainView({
       {healthScore && (
         <section className="card-simple health-scorecard" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Salud del proyecto</h2>
-            <span className="meta">scorecard automatico</span>
+            <h2>Project health</h2>
+            <span className="meta">auto scorecard</span>
           </div>
           <div className="hs-content">
             <div className="hs-score-ring">
@@ -353,8 +346,8 @@ export function MainView({
       {data?.health_history && data.health_history.length > 1 && (
         <section className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Historial de salud</h2>
-            <span className="meta">ultimos {data.health_history.length} snapshots</span>
+            <h2>Health history</h2>
+            <span className="meta">last {data.health_history.length} snapshots</span>
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 80, padding: "8px 0" }}>
             {data.health_history.slice().reverse().map((snap, i) => {
@@ -386,8 +379,8 @@ export function MainView({
       {data?.project.id && (
         <section className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Badges embebibles</h2>
-            <span className="meta">para README, Notion, Slack</span>
+            <h2>Embeddable badges</h2>
+            <span className="meta">for README, Notion, Slack</span>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "8px 0" }}>
             {["health", "modules", "coverage", "deps"].map((type) => (
@@ -411,8 +404,8 @@ export function MainView({
       {staleDocs.length > 0 && (
         <section className="card-simple" style={{ marginBottom: 16, borderLeft: "3px solid var(--yellow)" }}>
           <div className="card-simple-head">
-            <h2>Documentacion desactualizada</h2>
-            <span className="meta">{staleDocs.length} modulos sin documentar</span>
+            <h2>Stale documentation</h2>
+            <span className="meta">{staleDocs.length} underdocumented modules</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {staleDocs.slice(0, 5).map((s) => (
@@ -422,7 +415,7 @@ export function MainView({
                 </span>
                 <span className="mono" style={{ fontSize: 12 }}>{s.name}</span>
                 <span style={{ fontSize: 10, color: "var(--text-4)", marginLeft: "auto" }}>
-                  {s.documented}/{s.total} archivos con summary
+                  {s.documented}/{s.total} files with summary
                 </span>
               </div>
             ))}
@@ -433,8 +426,8 @@ export function MainView({
       <section className="two-col">
         <div className="card-simple">
           <div className="card-simple-head">
-            <h2>Sesiones de agentes</h2>
-            <span className="meta">en vivo</span>
+            <h2>Agent sessions</h2>
+            <span className="meta">live</span>
           </div>
           {data?.sessions && data.sessions.length > 0 ? (
             data.sessions.slice(0, 6).map((s) => {
@@ -452,11 +445,11 @@ export function MainView({
                   <div className="ss-body">
                     <div className="ss-task">
                       {s.dev_id?.name || "Claude Agent"}
-                      {isActive && <span style={{ fontSize: 9, marginLeft: 6, color: "var(--green)", fontWeight: 600 }}>EN VIVO</span>}
+                      {isActive && <span style={{ fontSize: 9, marginLeft: 6, color: "var(--green)", fontWeight: 600 }}>LIVE</span>}
                     </div>
                     <div className="ss-meta">
                       <span className="ss-dot" style={{ background: isActive ? "var(--green)" : "var(--text-4)" }}></span>
-                      <span>{isActive ? "activa" : "terminada"}</span>
+                      <span>{isActive ? "active" : "ended"}</span>
                       <span>{"\u00B7"}</span>
                       <span>{duration}</span>
                       <span>{"\u00B7"}</span>
@@ -468,9 +461,9 @@ export function MainView({
             })
           ) : (
             <div className="empty-state">
-              <div style={{ fontSize: 11, color: "var(--text-4)" }}>Sin sesiones activas</div>
+              <div style={{ fontSize: 11, color: "var(--text-4)" }}>No active sessions</div>
               <div style={{ fontSize: 10, color: "var(--text-5)", marginTop: 4 }}>
-                Las sesiones se crean automaticamente al ejecutar <code style={{ fontSize: 10 }}>agentnorth sync</code>
+                Sessions are created automatically when running <code style={{ fontSize: 10 }}>agentnorth sync</code>
               </div>
             </div>
           )}
@@ -478,8 +471,8 @@ export function MainView({
 
         <div className="card-simple">
           <div className="card-simple-head">
-            <h2>Actividad reciente</h2>
-            <span className="meta">tiempo real via SSE</span>
+            <h2>Recent activity</h2>
+            <span className="meta">real-time via SSE</span>
           </div>
           <div className="simple-feed">
             {feedRows.length > 0 ? (
@@ -488,9 +481,9 @@ export function MainView({
               ))
             ) : (
               <div className="empty-state">
-                <div style={{ fontSize: 11, color: "var(--text-4)" }}>Sin actividad aun</div>
+                <div style={{ fontSize: 11, color: "var(--text-4)" }}>No activity yet</div>
                 <div style={{ fontSize: 10, color: "var(--text-5)", marginTop: 4 }}>
-                  La actividad aparece cuando agentes usan el contexto del proyecto
+                  Activity appears when agents use the project context
                 </div>
               </div>
             )}
@@ -505,7 +498,7 @@ function timeAgo(dateStr: string): string {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "ahora";
+  if (mins < 1) return "now";
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h`;

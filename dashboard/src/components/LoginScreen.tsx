@@ -272,13 +272,13 @@ export function LoginScreen() {
           </div>
           <div className="lt-body">
             <div className="lt-line"><span className="lt-prompt">$</span> npx agentnorth init</div>
-            <div className="lt-output">Detected: Next.js + TypeScript {"\u00B7"} Found 6 modules {"\u00B7"} Created .agentnorth/config.yaml</div>
+            <div className="lt-output">Detected framework + modules {"\u00B7"} Created .agentnorth/config.yaml</div>
             <div className="lt-line"><span className="lt-prompt">$</span> npx agentnorth index</div>
-            <div className="lt-output">Indexed 6 modules {"\u00B7"} 312 files {"\u00B7"} 48.2K LOC {"\u00B7"} AST + git enrichment complete</div>
+            <div className="lt-output">AST parsing + git blame + complexity analysis {"\u00B7"} Bundles ready</div>
             <div className="lt-line"><span className="lt-prompt">$</span> npx agentnorth setup</div>
-            <div className="lt-output">Created .claude/settings.json {"\u00B7"} 4 hooks {"\u00B7"} CLAUDE.md</div>
+            <div className="lt-output">MCP server + Claude Code hooks + CLAUDE.md {"\u00B7"} Wired</div>
             <div className="lt-line"><span className="lt-prompt">$</span> npx agentnorth sync</div>
-            <div className="lt-output">Synced to dashboard {"\u00B7"} 6 modules {"\u00B7"} Real-time SSE active</div>
+            <div className="lt-output">Pushed to dashboard {"\u00B7"} Real-time SSE active</div>
             <div className="lt-line"><span className="lt-prompt">$</span> <span className="lt-cursor">_</span></div>
           </div>
         </div>

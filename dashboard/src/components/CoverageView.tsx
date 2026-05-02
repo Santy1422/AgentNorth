@@ -120,7 +120,7 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
     <section className="cov-view">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
         <h2>Cobertura y salud del codebase</h2>
-        <span className="meta">{modules.length} modulos · {allFiles.length} archivos unicos</span>
+        <span className="meta">{modules.length} modules · {allFiles.length} unique files</span>
       </div>
 
       {/* Hero stats */}
@@ -128,7 +128,7 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
         <div className="cov-hero-info" style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
           <div className="cov-hero-row">
             <div className="cov-num">{stats.totalFiles.toLocaleString("es")}</div>
-            <div className="cov-label">archivos</div>
+            <div className="cov-label">files</div>
           </div>
           <div className="cov-hero-row">
             <div className="cov-num">{stats.totalLoc.toLocaleString("es")}</div>
@@ -173,11 +173,11 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
                     flexGrow: sizePct,
                     borderColor: color,
                   }}
-                  title={`${m.name}: ${pct}% documentado (${documented}/${total} archivos)`}
+                  title={`${m.name}: ${pct}% documented (${documented}/${total} files)`}
                 >
                   <div className="treemap-name mono">{m.name}</div>
                   <div className="treemap-pct" style={{ color }}>{pct}%</div>
-                  <div className="treemap-detail">{documented}/{total} archivos</div>
+                  <div className="treemap-detail">{documented}/{total} files</div>
                 </div>
               );
             })}
@@ -197,7 +197,7 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
                 key={kind}
                 className="cov-kind-segment"
                 style={{ width: pct + "%", background: KIND_COLORS[kind] || KIND_COLORS.unknown }}
-                title={`${kind}: ${count} archivos (${Math.round(pct)}%)`}
+                title={`${kind}: ${count} files (${Math.round(pct)}%)`}
               ></div>
             );
           })}
@@ -248,13 +248,13 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
                     <div className="cov-mod-detail">
                       <div className="cov-mod-flags">
                         <span className={"cov-flag" + (hasTests ? " ok" : " warn")}>
-                          {hasTests ? "tiene tests" : "sin tests"}
+                          {hasTests ? "has tests" : "no tests"}
                         </span>
                         {deadCount > 0 && (
                           <span className="cov-flag warn">{deadCount} posibles muertos</span>
                         )}
                         {largeFiles > 0 && (
-                          <span className="cov-flag warn">{largeFiles} archivos grandes (&gt;300 LOC)</span>
+                          <span className="cov-flag warn">{largeFiles} large files (&gt;300 LOC)</span>
                         )}
                         <span className="cov-flag">{avgLoc} LOC promedio</span>
                       </div>
@@ -297,7 +297,7 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
           <h2>Hotspots</h2>
-          <span className="meta">archivos que necesitan atencion</span>
+          <span className="meta">files that need attention</span>
         </div>
         <div className="cov-hotspots">
           <HotspotSection
@@ -344,7 +344,7 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
           <h2>Analisis de impacto</h2>
-          <span className="meta">archivos que si cambian afectan mas</span>
+          <span className="meta">high-impact files</span>
         </div>
         <div className="impact-list">
           {(() => {
@@ -432,7 +432,7 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
             </button>
           </div>
           <div className="cov-dead-desc">
-            Archivos que ningun otro archivo del proyecto importa. Pueden ser archivos muertos o entry points no detectados.
+            Files that no other file in the project imports. Could be dead code or undetected entry points.
           </div>
           {showDead && (
             <div className="cov-dead-list">

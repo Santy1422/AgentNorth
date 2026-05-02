@@ -56,7 +56,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       const depCount = f.imports.length;
       entries.push({
         file: f,
-        reason: `Pantalla principal — ${depCount} dependencias, ${f.loc} LOC`,
+        reason: `Main screen — ${depCount} dependencies, ${f.loc} LOC`,
         priority: 100 + depCount,
       });
     }
@@ -82,7 +82,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
     for (const { file, count } of topImported) {
       entries.push({
         file,
-        reason: `Usado por ${count} archivos — archivo critico del sistema`,
+        reason: `Used by ${count} files — critical system file`,
         priority: 50 + count,
       });
     }
@@ -145,7 +145,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
 
     // Has tests
     if (stats.tests.length > 0) {
-      conv.push({ title: "Testing", detail: `${stats.tests.length} archivos de test detectados` });
+      conv.push({ title: "Testing", detail: `${stats.tests.length} test files detected` });
     }
 
     // API routes
@@ -194,8 +194,8 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       <div className="onb-hero">
         <div className="onb-hero-title">{data.project.name}</div>
         <div className="onb-hero-desc">
-          {allFiles.length} archivos · {stats.totalLoc.toLocaleString("es")} lineas ·{" "}
-          {modules.length} modulos · {stats.routes.length} APIs
+          {allFiles.length} files · {stats.totalLoc.toLocaleString("en")} lines ·{" "}
+          {modules.length} modules · {stats.routes.length} APIs
         </div>
         <div className="onb-hero-stack">
           {techStack.map((cat) => (
@@ -253,7 +253,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
           <h2>Por donde empezar a leer</h2>
-          <span className="meta">archivos clave ordenados por importancia</span>
+          <span className="meta">key files sorted by importance</span>
         </div>
         <div className="onb-entries">
           {entryPoints.map(({ file, reason }, i) => (
@@ -287,7 +287,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
             <div key={m.name} className="onb-mod">
               <div className="onb-mod-head">
                 <span className="onb-mod-name mono">{m.name}</span>
-                <span className="onb-mod-stats">{m.files_count} archivos · {(m.loc || 0).toLocaleString("es")} LOC</span>
+                <span className="onb-mod-stats">{m.files_count} files · {(m.loc || 0).toLocaleString("en")} LOC</span>
               </div>
               {m.description && <div className="onb-mod-desc">{m.description}</div>}
               {m.dependencies && (
@@ -321,7 +321,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {moduleDeps.length > 1 && (
         <div className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Acoplamiento entre modulos</h2>
+            <h2>Module coupling</h2>
             <span className="meta">quien depende de quien</span>
           </div>
           <div className="onb-coupling">
@@ -346,7 +346,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {conventions.length > 0 && (
         <div className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Convenciones y decisiones</h2>
+            <h2>Conventions and decisions</h2>
             <span className="meta">reglas del proyecto</span>
           </div>
           <div className="onb-conventions">

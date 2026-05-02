@@ -118,7 +118,7 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F5FA;</div>
-          <div className="empty-title">Sin archivos indexados</div>
+          <div className="empty-title">No indexed files</div>
           <div className="empty-desc">
             Ejecuta <code>npx agentnorth index</code> y luego <code>npx agentnorth sync</code>
           </div>
@@ -168,7 +168,7 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
           )}
         </h2>
         <span className="meta">
-          {!selectedScreen && `${screens.length} pantallas · ${routes.length} APIs · ${uniqueFiles.length} archivos`}
+          {!selectedScreen && `${screens.length} screens · ${routes.length} APIs · ${uniqueFiles.length} files`}
           {selectedScreen && !selectedNode && "Flujo de dependencias de esta pantalla"}
           {selectedNode && `${selectedNode.exports.length} exports · ${selectedNode.imports.length} imports`}
         </span>
@@ -181,7 +181,7 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
             <span className="search-icon">&#x2315;</span>
             <input
               type="text"
-              placeholder="Buscar archivo, componente, hook..."
+              placeholder="Search file, component, hook..."
               value={mapSearch}
               onChange={(e) => setMapSearch(e.target.value)}
             />

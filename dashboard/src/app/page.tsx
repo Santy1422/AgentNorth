@@ -153,7 +153,7 @@ function timeAgo(dateStr: string): string {
   if (!dateStr) return "";
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "ahora";
+  if (mins < 1) return "now";
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h`;
@@ -169,7 +169,7 @@ function buildFeed(data: DashboardData): FeedRow[] {
       id: d._id,
       kind: "decision",
       who: d.author_name === "agent" ? "Claude" : d.author_name || "unknown",
-      verb: "fijo decision",
+      verb: "logged decision",
       obj: d.title,
       detail: d.decision || d.context || "",
       ago: timeAgo(d.created_at),
@@ -182,9 +182,9 @@ function buildFeed(data: DashboardData): FeedRow[] {
       id: c._id,
       kind: "doc",
       who: "Claude",
-      verb: "modifico",
+      verb: "modified",
       obj: c.summary,
-      detail: `${c.files_changed?.length || 0} archivos${c.breaking ? " · BREAKING" : ""}`,
+      detail: `${c.files_changed?.length || 0} files${c.breaking ? " · BREAKING" : ""}`,
       ago: timeAgo(c.created_at),
       badges: c.breaking ? [{ t: "breaking", c: "accent" }] : [{ t: "cambio", c: "blue" }],
     });
@@ -195,7 +195,7 @@ function buildFeed(data: DashboardData): FeedRow[] {
       id: e._id,
       kind: "claude",
       who: "Claude",
-      verb: e.action?.replace(/_/g, " ") || "evento",
+      verb: e.action?.replace(/_/g, " ") || "event",
       obj: e.module || "",
       detail: "",
       ago: timeAgo(e.timestamp),
@@ -206,8 +206,8 @@ function buildFeed(data: DashboardData): FeedRow[] {
   }
 
   rows.sort((a, b) => {
-    if (a.ago === "ahora") return -1;
-    if (b.ago === "ahora") return 1;
+    if (a.ago === "now") return -1;
+    if (b.ago === "now") return 1;
     return 0;
   });
 

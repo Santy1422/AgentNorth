@@ -115,7 +115,7 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
         </div>
         <div className="map-search" style={{ marginLeft: "auto" }}>
           <span className="search-icon">&#x2315;</span>
-          <input type="text" placeholder="buscar paquete..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input type="text" placeholder="search package..." value={search} onChange={(e) => setSearch(e.target.value)} />
           {search && <button className="search-clear" onClick={() => setSearch("")}>x</button>}
         </div>
       </div>

@@ -138,7 +138,7 @@ export function GlobalSearch({
         out.push({
           type: "change",
           title: c.summary,
-          subtitle: `cambio · ${c.module || "global"} · ${c.files_changed?.length || 0} archivos`,
+          subtitle: `change · ${c.module || "global"} · ${c.files_changed?.length || 0} files`,
           view: "risks",
           color: c.breaking ? "#ef4444" : "#60a5fa",
         });
@@ -192,7 +192,7 @@ export function GlobalSearch({
     return (
       <button className="global-search-trigger" onClick={() => setIsOpen(true)}>
         <span className="gst-icon">{"\u2315"}</span>
-        <span className="gst-text">Buscar...</span>
+        <span className="gst-text">Search...</span>
         <span className="gst-shortcut">{"\u2318"}K</span>
       </button>
     );
@@ -208,7 +208,7 @@ export function GlobalSearch({
             ref={inputRef}
             className="gs-input"
             type="text"
-            placeholder="Buscar archivos, decisiones, APIs, dependencias..."
+            placeholder="Search files, decisions, APIs, dependencies..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleInputKeyDown}
@@ -255,7 +255,7 @@ export function GlobalSearch({
 
         {!query.trim() && (
           <div className="gs-hints">
-            <span>Escribe para buscar en archivos, decisiones, APIs y dependencias</span>
+            <span>Type to search files, decisions, APIs, and dependencies</span>
           </div>
         )}
       </div>
