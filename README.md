@@ -111,7 +111,7 @@ The indexer goes beyond simple file listing. It uses **AST parsing** (via ast-gr
 | `agentnorth_log_decision` | **write** | Record an architecture decision |
 | `agentnorth_log_change` | **write** | Record a code change |
 
-Decisions and changes persist across sessions. Next time a different agent (or dev) touches the same module, they see what was decided and why.
+Decisions and changes are **not hardcoded** — they're created dynamically by agents and developers during real sessions. They persist as markdown files in `.agentnorth/decisions/` and sync to the dashboard. Next time a different agent (or dev) touches the same module, they see what was decided and why — automatically.
 
 ### Live Dashboard — [agentnorth.io](https://www.agentnorth.io)
 
