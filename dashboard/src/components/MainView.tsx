@@ -16,6 +16,44 @@ function shortName(path: string): string {
   return path.split("/").pop() || path;
 }
 
+function ModuleHoverCard({ module, allFiles }: { module: { name: string; description: string; files_count: number; loc: number; files?: FileData[]; dependencies?: { internal: string[]; external: string[] } }; allFiles: FileData[] }) {
+  const files = module.files || [];
+  const documented = files.filter((f) => f.summary?.trim()).length;
+  const docPct = files.length > 0 ? Math.round((documented / files.length) * 100) : 0;
+  const hasTests = files.some((f) => f.kind === "test");
+  const largeFiles = files.filter((f) => f.loc > 300).length;
+  let score = 100;
+  if (!hasTests) score -= 20;
+  if (largeFiles > 0) score -= largeFiles * 5;
+  score = Math.max(0, Math.min(100, score));
+  const scoreColor = score >= 80 ? "var(--green)" : score >= 50 ? "var(--yellow)" : "var(--red)";
+  const kinds: Record<string, number> = {};
+  for (const f of files) kinds[f.kind] = (kinds[f.kind] || 0) + 1;
+
+  return (
+    <div className="hover-card">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div className="hover-card-title">{module.name}</div>
+          {module.description && <div className="hover-card-desc">{module.description}</div>}
+        </div>
+        <div className="hover-card-score" style={{ background: scoreColor, color: "#000" }}>{score}</div>
+      </div>
+      <div className="hover-card-meta">
+        <span>{module.files_count} archivos</span>
+        <span>{module.loc.toLocaleString("es")} LOC</span>
+        <span>{docPct}% docs</span>
+        <span style={{ color: hasTests ? "var(--green)" : "var(--red)" }}>{hasTests ? "con tests" : "sin tests"}</span>
+      </div>
+      <div className="hover-card-tags">
+        {Object.entries(kinds).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => (
+          <span key={k} className="hover-card-tag">{v} {k}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function MainView({
   feedRows,
   savedTokens,
@@ -54,6 +92,21 @@ export function MainView({
   const depsCount = data?.project.deps?.length || 0;
   const vulnCount = data?.project.audit?.length || 0;
   const routeCount = kindCounts["route"] || 0;
+
+  // Doc freshness alerts
+  const staleDocs = useMemo(() => {
+    if (!data) return [];
+    return (data.project.modules || [])
+      .map((m) => {
+        const files = m.files || [];
+        const documented = files.filter((f) => f.summary?.trim()).length;
+        const total = files.length;
+        const pct = total > 0 ? Math.round((documented / total) * 100) : 0;
+        return { name: m.name, documented, total, pct };
+      })
+      .filter((m) => m.pct < 80 && m.total > 0)
+      .sort((a, b) => a.pct - b.pct);
+  }, [data]);
 
   // Health scorecard (Backstage-inspired)
   const healthScore = useMemo(() => {
@@ -200,10 +253,11 @@ export function MainView({
           {modulesCount > 0 && (
             <div className="overview-modules">
               {(data?.project.modules || []).map((m) => (
-                <div key={m.name} className="ov-mod">
+                <div key={m.name} className="ov-mod hover-card-anchor">
                   <span className="ov-mod-name mono">{m.name}</span>
                   {m.description && <span className="ov-mod-desc">{m.description}</span>}
                   <span className="ov-mod-stats">{m.files_count} files · {(m.loc || 0).toLocaleString("es")} LOC</span>
+                  <ModuleHoverCard module={m} allFiles={allFiles} />
                 </div>
               ))}
             </div>
@@ -289,6 +343,29 @@ export function MainView({
         </section>
       )}
 
+      {/* Doc Freshness Alerts */}
+      {staleDocs.length > 0 && (
+        <section className="card-simple" style={{ marginBottom: 16, borderLeft: "3px solid var(--yellow)" }}>
+          <div className="card-simple-head">
+            <h2>Documentacion desactualizada</h2>
+            <span className="meta">{staleDocs.length} modulos sin documentar</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {staleDocs.slice(0, 5).map((s) => (
+              <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                <span style={{ color: s.pct >= 40 ? "var(--yellow)" : "var(--red)", fontSize: 11, fontWeight: 600, minWidth: 36 }}>
+                  {s.pct}%
+                </span>
+                <span className="mono" style={{ fontSize: 12 }}>{s.name}</span>
+                <span style={{ fontSize: 10, color: "var(--text-4)", marginLeft: "auto" }}>
+                  {s.documented}/{s.total} archivos con summary
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="two-col">
         <div className="card-simple">
           <div className="card-simple-head">
@@ -296,29 +373,49 @@ export function MainView({
             <span className="meta">en vivo</span>
           </div>
           {data?.sessions && data.sessions.length > 0 ? (
-            data.sessions.slice(0, 6).map((s) => (
-              <div key={s._id} className="simple-session">
-                <div className="claude-avatar sm">C</div>
-                <div className="ss-body">
-                  <div className="ss-task">{s.dev_id?.name || "Agent"}</div>
-                  <div className="ss-meta">
-                    <span className="ss-dot" style={{ background: s.ended_at ? "var(--text-4)" : "var(--green)" }}></span>
-                    <span>{s.ended_at ? "terminada" : "activa"}</span>
-                    <span>{"\u00B7"}</span>
-                    <span>{timeAgo(s.started_at)}</span>
+            data.sessions.slice(0, 6).map((s) => {
+              const isActive = !s.ended_at;
+              const duration = (() => {
+                const start = new Date(s.started_at).getTime();
+                const end = s.ended_at ? new Date(s.ended_at).getTime() : Date.now();
+                const mins = Math.floor((end - start) / 60000);
+                if (mins < 60) return `${mins}m`;
+                return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+              })();
+              return (
+                <div key={s._id} className="simple-session">
+                  <div className="claude-avatar sm" style={{ background: isActive ? "var(--green)" : "var(--bg-3)", color: isActive ? "#000" : "var(--text-3)" }}>C</div>
+                  <div className="ss-body">
+                    <div className="ss-task">
+                      {s.dev_id?.name || "Claude Agent"}
+                      {isActive && <span style={{ fontSize: 9, marginLeft: 6, color: "var(--green)", fontWeight: 600 }}>EN VIVO</span>}
+                    </div>
+                    <div className="ss-meta">
+                      <span className="ss-dot" style={{ background: isActive ? "var(--green)" : "var(--text-4)" }}></span>
+                      <span>{isActive ? "activa" : "terminada"}</span>
+                      <span>{"\u00B7"}</span>
+                      <span>{duration}</span>
+                      <span>{"\u00B7"}</span>
+                      <span>{timeAgo(s.started_at)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
-            <div className="empty-state">Sin sesiones aun</div>
+            <div className="empty-state">
+              <div style={{ fontSize: 11, color: "var(--text-4)" }}>Sin sesiones activas</div>
+              <div style={{ fontSize: 10, color: "var(--text-5)", marginTop: 4 }}>
+                Las sesiones se crean automaticamente al ejecutar <code style={{ fontSize: 10 }}>agentnorth sync</code>
+              </div>
+            </div>
           )}
         </div>
 
         <div className="card-simple">
           <div className="card-simple-head">
             <h2>Actividad reciente</h2>
-            <span className="meta">auto-refresh 30s</span>
+            <span className="meta">tiempo real via SSE</span>
           </div>
           <div className="simple-feed">
             {feedRows.length > 0 ? (
@@ -326,7 +423,12 @@ export function MainView({
                 <FeedRowComponent key={r.id} row={r} isNew={i === 0 && !!r.fresh} />
               ))
             ) : (
-              <div className="empty-state">Sin actividad aun</div>
+              <div className="empty-state">
+                <div style={{ fontSize: 11, color: "var(--text-4)" }}>Sin actividad aun</div>
+                <div style={{ fontSize: 10, color: "var(--text-5)", marginTop: 4 }}>
+                  La actividad aparece cuando agentes usan el contexto del proyecto
+                </div>
+              </div>
             )}
           </div>
         </div>

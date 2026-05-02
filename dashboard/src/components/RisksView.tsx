@@ -19,6 +19,8 @@ export function RisksView({
   const [showNewDecision, setShowNewDecision] = useState(false);
   const [newDecision, setNewDecision] = useState({ module: "", title: "", context: "", decision: "" });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const breakingChanges = changes.filter((c) => c.breaking);
 
   const filteredDecisions = useMemo(() => {
@@ -139,6 +141,7 @@ export function RisksView({
             onClick={async () => {
               if (!newDecision.title.trim() || !projectName) return;
               setSaving(true);
+              setSaveError(null);
               try {
                 const res = await fetch("/api/dashboard", {
                   method: "POST",
@@ -151,14 +154,29 @@ export function RisksView({
                 if (res.ok) {
                   setShowNewDecision(false);
                   setNewDecision({ module: "", title: "", context: "", decision: "" });
+                  setSaveSuccess(true);
+                  setTimeout(() => setSaveSuccess(false), 3000);
                   onRefresh?.();
+                } else {
+                  const text = await res.text();
+                  setSaveError(`Error (${res.status}): ${text}`);
                 }
-              } catch {}
+              } catch (err) {
+                setSaveError(`Error de red: ${err instanceof Error ? err.message : "desconocido"}`);
+              }
               setSaving(false);
             }}
           >
             {saving ? "Guardando..." : "Crear decision"}
           </button>
+          {saveError && (
+            <div style={{ color: "var(--red)", fontSize: 11, marginTop: 6 }}>{saveError}</div>
+          )}
+        </div>
+      )}
+      {saveSuccess && (
+        <div style={{ background: "var(--green)", color: "#000", padding: "8px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, marginBottom: 12 }}>
+          Decision creada exitosamente
         </div>
       )}
 

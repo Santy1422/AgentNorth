@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { View, ProjectRef } from "@/app/page";
 
-const NAV_ITEMS: { view: View; label: string }[] = [
-  { view: "main", label: "Inicio" },
-  { view: "map", label: "Mapa" },
-  { view: "deps", label: "Deps" },
-  { view: "coverage", label: "Cobertura" },
-  { view: "risks", label: "Decisiones" },
-  { view: "apis", label: "APIs" },
-  { view: "onboarding", label: "Guia" },
+const NAV_ITEMS: { view: View; label: string; shortcut: string }[] = [
+  { view: "main", label: "Inicio", shortcut: "1" },
+  { view: "map", label: "Mapa", shortcut: "2" },
+  { view: "deps", label: "Deps", shortcut: "3" },
+  { view: "coverage", label: "Cobertura", shortcut: "4" },
+  { view: "risks", label: "Decisiones", shortcut: "5" },
+  { view: "apis", label: "APIs", shortcut: "6" },
+  { view: "onboarding", label: "Guia", shortcut: "7" },
 ];
 
 function formatTime(d: Date): string {
@@ -50,6 +50,22 @@ export function Header({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Keyboard shortcuts: Alt+1-7 to switch views
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.altKey && !e.metaKey && !e.ctrlKey) {
+      const item = NAV_ITEMS.find((n) => n.shortcut === e.key);
+      if (item) {
+        e.preventDefault();
+        setView(item.view);
+      }
+    }
+  }, [setView]);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   const hasMultiple = projects.length > 1;
   const displayName = activeProject?.name || "dashboard";
@@ -96,6 +112,7 @@ export function Header({
             key={item.view}
             className={"nav-btn" + (view === item.view ? " active" : "")}
             onClick={() => setView(item.view)}
+            title={`${item.label} (Alt+${item.shortcut})`}
           >
             {item.label}
           </button>

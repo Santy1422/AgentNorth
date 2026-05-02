@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import type { DashboardData, View, FileData } from "@/app/page";
 
 interface SearchResult {
@@ -39,6 +39,7 @@ export function GlobalSearch({
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Cmd+K shortcut
   useEffect(() => {
@@ -87,8 +88,8 @@ export function GlobalSearch({
     });
   }, [data]);
 
-  const results = useMemo((): SearchResult[] => {
-    if (!query.trim() || !data) return [];
+  const { results, totalCount } = useMemo((): { results: SearchResult[]; totalCount: number } => {
+    if (!query.trim() || !data) return { results: [], totalCount: 0 };
     const q = query.toLowerCase();
     const out: SearchResult[] = [];
 
@@ -157,8 +158,35 @@ export function GlobalSearch({
       }
     }
 
-    return out.slice(0, 15);
+    return { results: out.slice(0, 15), totalCount: out.length };
   }, [query, data, allFiles]);
+
+  // Reset selection when results change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [results]);
+
+  // Keyboard navigation handler
+  const handleInputKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+      } else if (e.key === "Enter" && results.length > 0) {
+        e.preventDefault();
+        const selected = results[selectedIndex];
+        if (selected) {
+          onNavigate(selected.view);
+          setIsOpen(false);
+          setQuery("");
+        }
+      }
+    },
+    [results, selectedIndex, onNavigate],
+  );
 
   if (!isOpen) {
     return (
@@ -183,6 +211,7 @@ export function GlobalSearch({
             placeholder="Buscar archivos, decisiones, APIs, dependencias..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleInputKeyDown}
           />
           <button className="gs-close" onClick={() => { setIsOpen(false); setQuery(""); }}>
             ESC
@@ -192,24 +221,32 @@ export function GlobalSearch({
         {query.trim() && (
           <div className="gs-results">
             {results.length > 0 ? (
-              results.map((r, i) => (
-                <button
-                  key={`${r.type}-${r.title}-${i}`}
-                  className="gs-result"
-                  onClick={() => {
-                    onNavigate(r.view);
-                    setIsOpen(false);
-                    setQuery("");
-                  }}
-                >
-                  <span className="gs-result-dot" style={{ background: r.color }}></span>
-                  <div className="gs-result-info">
-                    <span className="gs-result-title">{r.title}</span>
-                    <span className="gs-result-sub">{r.subtitle}</span>
-                  </div>
-                  <span className="gs-result-type">{r.type}</span>
-                </button>
-              ))
+              <>
+                {results.map((r, i) => (
+                  <button
+                    key={`${r.type}-${r.title}-${i}`}
+                    className={`gs-result${i === selectedIndex ? " selected" : ""}`}
+                    style={i === selectedIndex ? { background: "var(--bg-3, #2a2a2a)" } : undefined}
+                    onMouseEnter={() => setSelectedIndex(i)}
+                    onClick={() => {
+                      onNavigate(r.view);
+                      setIsOpen(false);
+                      setQuery("");
+                    }}
+                  >
+                    <span className="gs-result-dot" style={{ background: r.color }}></span>
+                    <div className="gs-result-info">
+                      <span className="gs-result-title">{r.title}</span>
+                      <span className="gs-result-sub">{r.subtitle}</span>
+                    </div>
+                    <span className="gs-result-type">{r.type}</span>
+                  </button>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 12px", fontSize: "11px", color: "var(--text-3, #888)", borderTop: "1px solid var(--border, #333)" }}>
+                  <span>{totalCount} resultado{totalCount !== 1 ? "s" : ""}</span>
+                  {totalCount > 15 && <span>...y {totalCount - 15} m\u00e1s</span>}
+                </div>
+              </>
             ) : (
               <div className="gs-no-results">Sin resultados para &ldquo;{query}&rdquo;</div>
             )}
