@@ -87,13 +87,23 @@ export interface SessionData {
   dev_id: { name?: string } | null;
   started_at: string;
   ended_at: string | null;
-  tokens_total: number;
   tokens_saved_total: number;
+  tokens_input?: number;
+  tokens_output?: number;
   events_count?: number;
   modules_visited?: string[];
   tools_used?: string[];
   files_touched?: string[];
   branch?: string;
+  repo_url?: string;
+  files_changed_count?: number;
+  changes_logged?: number;
+  decisions_logged?: number;
+  errors_count?: number;
+  commit_shas?: string[];
+  claude_model?: string;
+  conversation_id?: string;
+  duration_mins?: number;
 }
 
 export interface EventData {

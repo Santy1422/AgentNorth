@@ -30,7 +30,7 @@ if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
     -H "X-Dev-Key: $AGENTNORTH_DEV_KEY" \\
     -H "Content-Type: application/json" \\
-    -d "{\\"repo\\": \\"$(git remote get-url origin 2>/dev/null)\\", \\"dev\\": \\"$(git config user.name)\\", \\"branch\\": \\"$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')\\"}" \\
+    -d "{\\"repo\\": \\"$(git remote get-url origin 2>/dev/null)\\", \\"dev\\": \\"$(git config user.name)\\", \\"branch\\": \\"$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')\\", \\"model\\": \\"$(echo $CLAUDE_MODEL 2>/dev/null)\\", \\"conversation_id\\": \\"$(echo $CLAUDE_CONVERSATION_ID 2>/dev/null)\\"}" \\
     > /dev/null 2>&1 &
 fi
 `;
@@ -92,10 +92,10 @@ if [ -n "$MODULE" ] && echo "$ACTION" | grep -q "get_context"; then
   echo "$MODULE" >> "$CONTEXT_LOG"
 fi
 
-# Record log_change for session end hook
-if echo "$ACTION" | grep -q "log_change"; then
+# Record log_change and log_decision for session end hook
+if echo "$ACTION" | grep -qE "log_change|log_decision"; then
   CONTEXT_LOG="/tmp/agentnorth-context-$(date +%Y%m%d).log"
-  echo "log_change" >> "$CONTEXT_LOG"
+  echo "$ACTION" >> "$CONTEXT_LOG"
 fi
 
 # Estimate token savings based on action
@@ -150,13 +150,27 @@ FILES_LIST=$(git diff --name-only 2>/dev/null | head -50 | jq -R -s 'split("\\n"
 TOKENS_LOG="/tmp/agentnorth-tokens-$(date +%Y%m%d).log"
 TOKENS_SAVED=$(cat "$TOKENS_LOG" 2>/dev/null | awk '{s+=$1} END {print s+0}')
 
+# Gather commit SHAs made during this session (last 2 hours)
+COMMIT_SHAS=$(git log --since="2 hours ago" --format="%H" 2>/dev/null | head -20 | jq -R -s 'split("\\n") | map(select(length > 0))')
+
+# Count decisions logged
+DECISIONS_LOGGED=$(grep -c "log_decision" "$CONTEXT_LOG" 2>/dev/null || echo 0)
+
 # Send session end event to API
 if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
   curl -s -X POST "\${AGENTNORTH_API_URL}/api/v1/sessions/end" \\
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
     -H "X-Dev-Key: $AGENTNORTH_DEV_KEY" \\
     -H "Content-Type: application/json" \\
-    -d "{\\"dev\\": \\"$(git config user.name)\\", \\"files_changed\\": $CHANGES, \\"changes_logged\\": $LOGGED, \\"files_touched\\": $FILES_LIST, \\"tokens_saved\\": $TOKENS_SAVED}" \\
+    -d "{
+      \\"dev\\": \\"$(git config user.name)\\",
+      \\"files_changed\\": $CHANGES,
+      \\"changes_logged\\": $LOGGED,
+      \\"decisions_logged\\": $DECISIONS_LOGGED,
+      \\"files_touched\\": $FILES_LIST,
+      \\"commit_shas\\": $COMMIT_SHAS,
+      \\"tokens_saved\\": $TOKENS_SAVED
+    }" \\
     > /dev/null 2>&1 &
 fi
 `;

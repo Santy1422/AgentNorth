@@ -126,10 +126,21 @@ app.post("/sessions/start", authMiddleware, async (c) => {
       dev_id: dev._id,
       project_id: project._id,
       branch: body.branch || "",
+      repo_url: body.repo || "",
+      claude_model: body.model || "",
+      conversation_id: body.conversation_id || "",
     });
-  } else if (body.branch && !session.branch) {
-    session.branch = body.branch;
-    await session.save();
+  } else {
+    // Update existing session with any new metadata
+    const updates: Record<string, unknown> = {};
+    if (body.branch && !session.branch) updates.branch = body.branch;
+    if (body.repo && !session.repo_url) updates.repo_url = body.repo;
+    if (body.model && !session.claude_model) updates.claude_model = body.model;
+    if (body.conversation_id && !session.conversation_id) updates.conversation_id = body.conversation_id;
+    if (Object.keys(updates).length > 0) {
+      Object.assign(session, updates);
+      await session.save();
+    }
   }
 
   // Notify SSE — session started
@@ -162,12 +173,26 @@ app.post("/sessions/end", authMiddleware, async (c) => {
 
   if (session) {
     session.ended_at = new Date();
-    session.actions_count = body.files_changed || 0;
+    session.duration_mins = Math.round((Date.now() - new Date(session.started_at).getTime()) / 60000);
+    session.files_changed_count = body.files_changed || 0;
+    session.changes_logged = body.changes_logged || 0;
+    session.errors_count = body.errors_count || 0;
     if (Array.isArray(body.files_touched)) {
-      session.files_touched = body.files_touched;
+      // Merge with any files already accumulated via events
+      const merged = new Set([...(session.files_touched || []), ...body.files_touched]);
+      session.files_touched = [...merged];
+    }
+    if (Array.isArray(body.commit_shas)) {
+      session.commit_shas = body.commit_shas;
     }
     if (body.tokens_saved) {
       session.tokens_saved_total = (session.tokens_saved_total || 0) + body.tokens_saved;
+    }
+    if (body.tokens_input) {
+      session.tokens_input = (session.tokens_input || 0) + body.tokens_input;
+    }
+    if (body.tokens_output) {
+      session.tokens_output = (session.tokens_output || 0) + body.tokens_output;
     }
     await session.save();
 
@@ -181,9 +206,13 @@ app.post("/sessions/end", authMiddleware, async (c) => {
           data: {
             action: "end",
             dev: dev.name,
-            files_changed: session.actions_count,
+            branch: session.branch,
+            files_changed: session.files_changed_count,
             tokens_saved: session.tokens_saved_total,
-            duration_mins: Math.round((Date.now() - new Date(session.started_at).getTime()) / 60000),
+            duration_mins: session.duration_mins,
+            modules_visited: session.modules_visited,
+            tools_used: session.tools_used,
+            events_count: session.events_count,
             at: new Date().toISOString(),
           },
         });
@@ -215,21 +244,30 @@ app.post("/events", authMiddleware, async (c) => {
 
   // Update active session with event data
   try {
-    const sessionUpdate: Record<string, unknown> = {
-      $inc: {
-        events_count: 1,
-        tokens_saved_total: body.tokens_saved_estimate || 0,
-      },
-      $addToSet: {
-        tools_used: body.action,
-      } as Record<string, unknown>,
+    const incFields: Record<string, number> = {
+      events_count: 1,
+      tokens_saved_total: body.tokens_saved_estimate || 0,
+    };
+    if (body.tokens_input) incFields.tokens_input = body.tokens_input;
+    if (body.tokens_output) incFields.tokens_output = body.tokens_output;
+    // Track decision/change logging in session counters
+    if (body.action === "log_decision") incFields.decisions_logged = 1;
+    if (body.action === "log_change") incFields.changes_logged = 1;
+    if (body.action === "error") incFields.errors_count = 1;
+
+    const addToSetFields: Record<string, unknown> = {
+      tools_used: body.action,
     };
     if (body.module) {
-      (sessionUpdate.$addToSet as Record<string, unknown>).modules_visited = body.module;
+      addToSetFields.modules_visited = body.module;
     }
+    if (body.file) {
+      addToSetFields.files_touched = body.file;
+    }
+
     await Session.findOneAndUpdate(
       { org_id: org._id, dev_id: dev._id, ended_at: null },
-      sessionUpdate,
+      { $inc: incFields, $addToSet: addToSetFields },
       { sort: { started_at: -1 } },
     );
   } catch { /* session update is non-critical */ }
