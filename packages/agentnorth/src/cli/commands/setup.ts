@@ -30,7 +30,7 @@ if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
     -H "X-Dev-Key: $AGENTNORTH_DEV_KEY" \\
     -H "Content-Type: application/json" \\
-    -d "{\\"repo\\": \\"$(git remote get-url origin 2>/dev/null)\\", \\"dev\\": \\"$(git config user.name)\\"}" \\
+    -d "{\\"repo\\": \\"$(git remote get-url origin 2>/dev/null)\\", \\"dev\\": \\"$(git config user.name)\\", \\"branch\\": \\"$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')\\"}" \\
     > /dev/null 2>&1 &
 fi
 `;
@@ -98,6 +98,22 @@ if echo "$ACTION" | grep -q "log_change"; then
   echo "log_change" >> "$CONTEXT_LOG"
 fi
 
+# Estimate token savings based on action
+TOKENS_SAVED=0
+if echo "$ACTION" | grep -q "get_context"; then
+  FILE_COUNT=$(cat ".agentnorth/bundles/$MODULE.json" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d.get('files',[])))" 2>/dev/null || echo 0)
+  TOKENS_SAVED=$((FILE_COUNT * 1100))
+elif echo "$ACTION" | grep -qE "get_decisions|get_schema"; then
+  TOKENS_SAVED=5000
+elif echo "$ACTION" | grep -q "list_modules"; then
+  TOKENS_SAVED=2000
+fi
+
+# Append tokens saved to daily log (for session end hook)
+if [ "$TOKENS_SAVED" -gt 0 ]; then
+  echo "$TOKENS_SAVED" >> "/tmp/agentnorth-tokens-$(date +%Y%m%d).log"
+fi
+
 # Send event to API (async, does not block Claude)
 if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
   curl -s -X POST "\${AGENTNORTH_API_URL}/api/v1/events" \\
@@ -108,7 +124,8 @@ if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
       \\"action\\": \\"$ACTION\\",
       \\"module\\": \\"$MODULE\\",
       \\"timestamp\\": \\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\",
-      \\"dev\\": \\"$(git config user.name)\\"
+      \\"dev\\": \\"$(git config user.name)\\",
+      \\"tokens_saved_estimate\\": $TOKENS_SAVED
     }" \\
     > /dev/null 2>&1 &
 fi
@@ -128,13 +145,18 @@ ${requireLogChange ? `if [ "$CHANGES" -gt 0 ] && [ "$LOGGED" -eq 0 ]; then
   echo "[AgentNorth] $CHANGES files modified but no changes were logged with agentnorth_log_change(). Consider logging changes before closing."
 fi` : "# log_change not required by enforcement config"}
 
+# Gather files touched and tokens saved for session summary
+FILES_LIST=$(git diff --name-only 2>/dev/null | head -50 | jq -R -s 'split("\\n") | map(select(length > 0))')
+TOKENS_LOG="/tmp/agentnorth-tokens-$(date +%Y%m%d).log"
+TOKENS_SAVED=$(cat "$TOKENS_LOG" 2>/dev/null | awk '{s+=$1} END {print s+0}')
+
 # Send session end event to API
 if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
   curl -s -X POST "\${AGENTNORTH_API_URL}/api/v1/sessions/end" \\
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
     -H "X-Dev-Key: $AGENTNORTH_DEV_KEY" \\
     -H "Content-Type: application/json" \\
-    -d "{\\"dev\\": \\"$(git config user.name)\\", \\"files_changed\\": $CHANGES, \\"changes_logged\\": $LOGGED}" \\
+    -d "{\\"dev\\": \\"$(git config user.name)\\", \\"files_changed\\": $CHANGES, \\"changes_logged\\": $LOGGED, \\"files_touched\\": $FILES_LIST, \\"tokens_saved\\": $TOKENS_SAVED}" \\
     > /dev/null 2>&1 &
 fi
 `;

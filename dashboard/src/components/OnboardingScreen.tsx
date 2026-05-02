@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useT } from "@/i18n/provider";
 
 export function OnboardingScreen() {
+  const { t } = useT();
   const [keys, setKeys] = useState<{ org_key: string; dev_key: string } | null>(null);
   const [team, setTeam] = useState<{
     org: { name?: string; invite_code?: string; plan?: string };
@@ -41,8 +43,8 @@ export function OnboardingScreen() {
         <div className="onboard-header">
           <div className="brand-mark" style={{ width: 40, height: 40, fontSize: 15, borderRadius: 10 }}>AN</div>
           <div>
-            <h1 className="onboard-title">Welcome to AgentNorth</h1>
-            <p className="onboard-sub">{team?.org?.name || "Set up your first project in 2 minutes"}</p>
+            <h1 className="onboard-title">{t("onboarding.welcome")}</h1>
+            <p className="onboard-sub">{team?.org?.name || t("onboarding.subtitle")}</p>
           </div>
         </div>
 
@@ -50,15 +52,15 @@ export function OnboardingScreen() {
         <div className="onboard-step">
           <div className="os-num">1</div>
           <div className="os-body">
-            <div className="os-title">Install AgentNorth in your repo</div>
+            <div className="os-title">{t("onboarding.step1Title")}</div>
             <div className="os-code">
               <code>npx agentnorth init</code>
               <button className="os-copy" onClick={() => copy("npx agentnorth init", "init")}>
-                {copied === "init" ? "copied!" : "copy"}
+                {copied === "init" ? t("onboarding.copied") : t("onboarding.copy")}
               </button>
             </div>
             <div className="os-desc">
-              Scans your project and creates <span className="mono">.agentnorth/config.yaml</span> with your modules.
+              {t("onboarding.step1Desc")}
             </div>
           </div>
         </div>
@@ -67,15 +69,15 @@ export function OnboardingScreen() {
         <div className="onboard-step">
           <div className="os-num">2</div>
           <div className="os-body">
-            <div className="os-title">Index your codebase</div>
+            <div className="os-title">{t("onboarding.step2Title")}</div>
             <div className="os-code">
               <code>npx agentnorth index</code>
               <button className="os-copy" onClick={() => copy("npx agentnorth index", "index")}>
-                {copied === "index" ? "copied!" : "copy"}
+                {copied === "index" ? t("onboarding.copied") : t("onboarding.copy")}
               </button>
             </div>
             <div className="os-desc">
-              Generates context bundles — files, exports, schemas, dependencies per module.
+              {t("onboarding.step2Desc")}
             </div>
           </div>
         </div>
@@ -84,15 +86,15 @@ export function OnboardingScreen() {
         <div className="onboard-step">
           <div className="os-num">3</div>
           <div className="os-body">
-            <div className="os-title">Set up Claude Code hooks</div>
+            <div className="os-title">{t("onboarding.step3Title")}</div>
             <div className="os-code">
               <code>npx agentnorth setup</code>
               <button className="os-copy" onClick={() => copy("npx agentnorth setup", "setup")}>
-                {copied === "setup" ? "copied!" : "copy"}
+                {copied === "setup" ? t("onboarding.copied") : t("onboarding.copy")}
               </button>
             </div>
             <div className="os-desc">
-              Creates <span className="mono">.claude/</span> hooks + <span className="mono">CLAUDE.md</span> so agents use AgentNorth automatically.
+              {t("onboarding.step3Desc")}
             </div>
           </div>
         </div>
@@ -101,14 +103,14 @@ export function OnboardingScreen() {
         <div className="onboard-step">
           <div className="os-num">4</div>
           <div className="os-body">
-            <div className="os-title">Connect to the dashboard</div>
+            <div className="os-title">{t("onboarding.step4Title")}</div>
             <div className="os-desc" style={{ marginBottom: 12 }}>
-              Generate API keys so your MCP server sends data here in real-time.
+              {t("onboarding.step4Desc")}
             </div>
 
             {!keys ? (
               <button className="onboard-btn" onClick={generateKeys} disabled={loading}>
-                {loading ? "Generating..." : "Generate API Keys"}
+                {loading ? t("onboarding.generating") : t("onboarding.generateKeys")}
               </button>
             ) : (
               <div className="os-keys">
@@ -116,28 +118,28 @@ export function OnboardingScreen() {
                   <span className="os-key-label">AGENTNORTH_ORG_KEY</span>
                   <code className="os-key-value">{keys.org_key}</code>
                   <button className="os-copy" onClick={() => copy(keys.org_key, "org")}>
-                    {copied === "org" ? "copied!" : "copy"}
+                    {copied === "org" ? t("onboarding.copied") : t("onboarding.copy")}
                   </button>
                 </div>
                 <div className="os-key-row">
                   <span className="os-key-label">AGENTNORTH_DEV_KEY</span>
                   <code className="os-key-value">{keys.dev_key}</code>
                   <button className="os-copy" onClick={() => copy(keys.dev_key, "dev")}>
-                    {copied === "dev" ? "copied!" : "copy"}
+                    {copied === "dev" ? t("onboarding.copied") : t("onboarding.copy")}
                   </button>
                 </div>
                 <div className="os-key-row">
                   <span className="os-key-label">AGENTNORTH_API_URL</span>
                   <code className="os-key-value">{window.location.origin}</code>
                   <button className="os-copy" onClick={() => copy(window.location.origin, "url")}>
-                    {copied === "url" ? "copied!" : "copy"}
+                    {copied === "url" ? t("onboarding.copied") : t("onboarding.copy")}
                   </button>
                 </div>
                 <div className="os-key-warn">
-                  Save these keys now — they won't be shown again.
+                  {t("onboarding.saveKeys")}
                 </div>
                 <div className="os-desc" style={{ marginTop: 12 }}>
-                  Add them to <span className="mono">.claude/settings.json</span> → <span className="mono">mcpServers.agentnorth.env</span>
+                  {t("onboarding.addKeys")}
                 </div>
               </div>
             )}
@@ -148,15 +150,15 @@ export function OnboardingScreen() {
         <div className="onboard-step">
           <div className="os-num">5</div>
           <div className="os-body">
-            <div className="os-title">Sync your project</div>
+            <div className="os-title">{t("onboarding.step5Title")}</div>
             <div className="os-code">
               <code>npx agentnorth sync</code>
               <button className="os-copy" onClick={() => copy("npx agentnorth sync", "sync")}>
-                {copied === "sync" ? "copied!" : "copy"}
+                {copied === "sync" ? t("onboarding.copied") : t("onboarding.copy")}
               </button>
             </div>
             <div className="os-desc">
-              Pushes modules + decisions to the dashboard. After this, MCP does it automatically.
+              {t("onboarding.step5Desc")}
             </div>
           </div>
         </div>
@@ -166,14 +168,14 @@ export function OnboardingScreen() {
           <div className="onboard-step">
             <div className="os-num" style={{ background: "var(--violet)" }}>+</div>
             <div className="os-body">
-              <div className="os-title">Invite your team</div>
+              <div className="os-title">{t("onboarding.step6Title")}</div>
               <div className="os-desc" style={{ marginBottom: 10 }}>
-                Share this link with teammates. They sign in with GitHub and join your org automatically.
+                {t("onboarding.step6Desc")}
               </div>
               <div className="os-code">
                 <code>{inviteUrl}</code>
                 <button className="os-copy" onClick={() => copy(inviteUrl, "invite")}>
-                  {copied === "invite" ? "copied!" : "copy"}
+                  {copied === "invite" ? t("onboarding.copied") : t("onboarding.copy")}
                 </button>
               </div>
               {team && team.members.length > 1 && (
@@ -192,7 +194,7 @@ export function OnboardingScreen() {
 
         <div className="onboard-footer">
           <button className="onboard-btn secondary" onClick={() => window.location.reload()}>
-            I've synced — show dashboard
+            {t("onboarding.showDashboard")}
           </button>
         </div>
       </div>

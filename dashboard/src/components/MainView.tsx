@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { FeedRow, DashboardData, FileData } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 const KIND_COLORS: Record<string, string> = {
   page: "#f97316",
@@ -16,7 +17,7 @@ function shortName(path: string): string {
   return path.split("/").pop() || path;
 }
 
-function ModuleHoverCard({ module, allFiles }: { module: { name: string; description: string; files_count: number; loc: number; files?: FileData[]; dependencies?: { internal: string[]; external: string[] } }; allFiles: FileData[] }) {
+function ModuleHoverCard({ module, allFiles, t }: { module: { name: string; description: string; files_count: number; loc: number; files?: FileData[]; dependencies?: { internal: string[]; external: string[] } }; allFiles: FileData[]; t: (key: string, vars?: Record<string, string | number>) => string }) {
   const files = module.files || [];
   const documented = files.filter((f) => f.summary?.trim()).length;
   const docPct = files.length > 0 ? Math.round((documented / files.length) * 100) : 0;
@@ -40,10 +41,10 @@ function ModuleHoverCard({ module, allFiles }: { module: { name: string; descrip
         <div className="hover-card-score" style={{ background: scoreColor, color: "#000" }}>{score}</div>
       </div>
       <div className="hover-card-meta">
-        <span>{module.files_count} files</span>
+        <span>{module.files_count} {t("main.files")}</span>
         <span>{module.loc.toLocaleString("en")} LOC</span>
         <span>{docPct}% docs</span>
-        <span style={{ color: hasTests ? "var(--green)" : "var(--red)" }}>{hasTests ? "has tests" : "no tests"}</span>
+        <span style={{ color: hasTests ? "var(--green)" : "var(--red)" }}>{hasTests ? t("main.testFilesDetected") : t("main.noTestFiles")}</span>
       </div>
       <div className="hover-card-tags">
         {Object.entries(kinds).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => (
@@ -63,6 +64,7 @@ export function MainView({
   savedTokens: number;
   data: DashboardData | null;
 }) {
+  const { t } = useT();
   const dollars = (savedTokens / 100000).toFixed(2);
   const totalEvents = data?.total_events || 0;
   const modulesCount = data?.project.modules?.length || 0;
@@ -117,14 +119,14 @@ export function MainView({
 
     const hasTests = allFiles.some((f) => f.kind === "test");
     if (hasTests) {
-      checks.push({ name: "Tests", status: "pass", detail: "Test files detected" });
+      checks.push({ name: "Tests", status: "pass", detail: t("main.testFilesDetected") });
     } else {
       score -= 15;
-      checks.push({ name: "Tests", status: "fail", detail: "No test files found" });
+      checks.push({ name: "Tests", status: "fail", detail: t("main.noTestFiles") });
     }
 
     if (vulnCount === 0) {
-      checks.push({ name: "Security", status: "pass", detail: "No vulnerabilities" });
+      checks.push({ name: "Security", status: "pass", detail: t("main.noVulnerabilities") });
     } else {
       score -= Math.min(25, vulnCount * 5);
       checks.push({ name: "Security", status: "fail", detail: `${vulnCount} vulnerabilities` });
@@ -132,7 +134,7 @@ export function MainView({
 
     const giantFiles = allFiles.filter((f) => f.loc > 500);
     if (giantFiles.length === 0) {
-      checks.push({ name: "Complexity", status: "pass", detail: "No files >500 LOC" });
+      checks.push({ name: "Complexity", status: "pass", detail: t("main.noLargeFiles") });
     } else {
       score -= Math.min(15, giantFiles.length * 3);
       checks.push({ name: "Complexity", status: "warn", detail: `${giantFiles.length} files >500 LOC` });
@@ -140,13 +142,13 @@ export function MainView({
 
     const decCount = data.decisions?.length || 0;
     if (decCount >= 3) {
-      checks.push({ name: "Documentation", status: "pass", detail: `${decCount} decisions documented` });
+      checks.push({ name: "Documentation", status: "pass", detail: `${decCount} ${t("main.decisions")}` });
     } else if (decCount > 0) {
       score -= 5;
-      checks.push({ name: "Documentation", status: "warn", detail: `Only ${decCount} decisions` });
+      checks.push({ name: "Documentation", status: "warn", detail: `Only ${decCount} ${t("main.decisions")}` });
     } else {
       score -= 10;
-      checks.push({ name: "Documentation", status: "fail", detail: "No decisions documented" });
+      checks.push({ name: "Documentation", status: "fail", detail: t("main.noDecisions") });
     }
 
     const deadCount = allFiles.filter((f) => {
@@ -162,17 +164,17 @@ export function MainView({
       );
     }).length;
     if (deadCount === 0) {
-      checks.push({ name: "Dead code", status: "pass", detail: "No orphan files" });
+      checks.push({ name: "Dead code", status: "pass", detail: t("main.noOrphans") });
     } else {
       score -= Math.min(10, deadCount * 2);
       checks.push({ name: "Dead code", status: "warn", detail: `${deadCount} possible dead files` });
     }
 
     if (modules.length >= 2) {
-      checks.push({ name: "Modularization", status: "pass", detail: `${modules.length} modules defined` });
+      checks.push({ name: "Modularization", status: "pass", detail: `${modules.length} ${t("main.modules")}` });
     } else {
       score -= 10;
-      checks.push({ name: "Modularization", status: "warn", detail: "Low modularization" });
+      checks.push({ name: "Modularization", status: "warn", detail: t("main.lowModularization") });
     }
 
     score = Math.max(0, Math.min(100, score));
@@ -183,28 +185,28 @@ export function MainView({
     <>
       {/* Free version banner */}
       <div className="free-banner">
-        <span className="free-banner-badge">Free</span>
-        <span>AgentNorth is currently free for all users. No limits, no credit card.</span>
+        <span className="free-banner-badge">{t("main.free")}</span>
+        <span>{t("main.freeBanner")}</span>
       </div>
 
       <section className="hero">
-        <div className="hero-label">Tokens saved with AgentNorth</div>
+        <div className="hero-label">{t("main.tokensSaved")}</div>
         <div className="hero-num">{savedTokens.toLocaleString("en")}</div>
         <div className="hero-sub">
-          {"\u2248"} <span className="hero-money">${dollars}</span> in API costs
+          {"\u2248"} <span className="hero-money">${dollars}</span> {t("main.inCosts")}
         </div>
         <div className="hero-stats">
           <div className="hero-stat">
             <span className="hero-stat-num">{modulesCount}</span>
-            <span className="hero-stat-label">modules</span>
+            <span className="hero-stat-label">{t("main.modules")}</span>
           </div>
           <div className="hero-stat">
             <span className="hero-stat-num">{decisionsCount}</span>
-            <span className="hero-stat-label">decisions</span>
+            <span className="hero-stat-label">{t("main.decisions")}</span>
           </div>
           <div className="hero-stat">
             <span className="hero-stat-num">{totalEvents}</span>
-            <span className="hero-stat-label">events</span>
+            <span className="hero-stat-label">{t("main.events")}</span>
           </div>
         </div>
       </section>
@@ -213,31 +215,31 @@ export function MainView({
       {allFiles.length > 0 && (
         <section className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Codebase overview</h2>
-            <span className="meta">auto-generated</span>
+            <h2>{t("main.codebaseOverview")}</h2>
+            <span className="meta">{t("main.autoGenerated")}</span>
           </div>
           <div className="overview-grid">
             <div className="ov-stat">
               <div className="ov-stat-num">{allFiles.length}</div>
-              <div className="ov-stat-label">files</div>
+              <div className="ov-stat-label">{t("main.files")}</div>
             </div>
             <div className="ov-stat">
               <div className="ov-stat-num">{totalLoc.toLocaleString("en")}</div>
-              <div className="ov-stat-label">lines</div>
+              <div className="ov-stat-label">{t("main.lines")}</div>
             </div>
             <div className="ov-stat">
               <div className="ov-stat-num">{routeCount}</div>
-              <div className="ov-stat-label">APIs</div>
+              <div className="ov-stat-label">{t("main.apis")}</div>
             </div>
             <div className="ov-stat">
               <div className="ov-stat-num">{depsCount}</div>
-              <div className="ov-stat-label">deps</div>
+              <div className="ov-stat-label">{t("main.deps")}</div>
             </div>
             <div className="ov-stat">
               <div className="ov-stat-num" style={{ color: vulnCount > 0 ? "var(--red)" : "var(--green)" }}>
                 {vulnCount}
               </div>
-              <div className="ov-stat-label">vulns</div>
+              <div className="ov-stat-label">{t("main.vulns")}</div>
             </div>
           </div>
           <div className="overview-kinds">
@@ -257,7 +259,7 @@ export function MainView({
                   <span className="ov-mod-name mono">{m.name}</span>
                   {m.description && <span className="ov-mod-desc">{m.description}</span>}
                   <span className="ov-mod-stats">{m.files_count} files · {(m.loc || 0).toLocaleString("en")} LOC</span>
-                  <ModuleHoverCard module={m} allFiles={allFiles} />
+                  <ModuleHoverCard module={m} allFiles={allFiles} t={t} />
                 </div>
               ))}
             </div>
@@ -269,8 +271,8 @@ export function MainView({
       {data && data.events && data.events.length > 0 && (
         <section className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Recent activity</h2>
-            <span className="meta">tokens saved per day</span>
+            <h2>{t("main.recentActivity")}</h2>
+            <span className="meta">{t("main.tokensSavedPerDay")}</span>
           </div>
           <div className="spark-chart">
             {(() => {
@@ -308,8 +310,8 @@ export function MainView({
       {healthScore && (
         <section className="card-simple health-scorecard" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Project health</h2>
-            <span className="meta">auto scorecard</span>
+            <h2>{t("main.projectHealth")}</h2>
+            <span className="meta">{t("main.autoScorecard")}</span>
           </div>
           <div className="hs-content">
             <div className="hs-score-ring">
@@ -325,7 +327,7 @@ export function MainView({
                 />
               </svg>
               <div className="hs-score-num">{healthScore.score}</div>
-              <div className="hs-score-label">/ 100</div>
+              <div className="hs-score-label">{t("main.outOf100")}</div>
             </div>
             <div className="hs-checks">
               {healthScore.checks.map((c) => (
@@ -346,8 +348,8 @@ export function MainView({
       {data?.health_history && data.health_history.length > 1 && (
         <section className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Health history</h2>
-            <span className="meta">last {data.health_history.length} snapshots</span>
+            <h2>{t("main.healthHistory")}</h2>
+            <span className="meta">{t("main.lastSnapshots", { n: data.health_history.length })}</span>
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 80, padding: "8px 0" }}>
             {data.health_history.slice().reverse().map((snap, i) => {
@@ -379,8 +381,8 @@ export function MainView({
       {data?.project.id && (
         <section className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Embeddable badges</h2>
-            <span className="meta">for README, Notion, Slack</span>
+            <h2>{t("main.badges")}</h2>
+            <span className="meta">{t("main.badgesDesc")}</span>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "8px 0" }}>
             {["health", "modules", "coverage", "deps"].map((type) => (
@@ -404,8 +406,8 @@ export function MainView({
       {staleDocs.length > 0 && (
         <section className="card-simple" style={{ marginBottom: 16, borderLeft: "3px solid var(--yellow)" }}>
           <div className="card-simple-head">
-            <h2>Stale documentation</h2>
-            <span className="meta">{staleDocs.length} underdocumented modules</span>
+            <h2>{t("main.staleDocs")}</h2>
+            <span className="meta">{t("main.underdocModules", { n: staleDocs.length })}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {staleDocs.slice(0, 5).map((s) => (
@@ -415,7 +417,7 @@ export function MainView({
                 </span>
                 <span className="mono" style={{ fontSize: 12 }}>{s.name}</span>
                 <span style={{ fontSize: 10, color: "var(--text-4)", marginLeft: "auto" }}>
-                  {s.documented}/{s.total} files with summary
+                  {t("main.filesWithSummary", { n: s.documented, total: s.total })}
                 </span>
               </div>
             ))}
@@ -426,8 +428,8 @@ export function MainView({
       <section className="two-col">
         <div className="card-simple">
           <div className="card-simple-head">
-            <h2>Agent sessions</h2>
-            <span className="meta">live</span>
+            <h2>{t("main.sessions")}</h2>
+            <span className="meta">{t("main.live")}</span>
           </div>
           {data?.sessions && data.sessions.length > 0 ? (
             data.sessions.slice(0, 6).map((s) => {
@@ -444,12 +446,12 @@ export function MainView({
                   <div className="claude-avatar sm" style={{ background: isActive ? "var(--green)" : "var(--bg-3)", color: isActive ? "#000" : "var(--text-3)" }}>C</div>
                   <div className="ss-body">
                     <div className="ss-task">
-                      {s.dev_id?.name || "Claude Agent"}
-                      {isActive && <span style={{ fontSize: 9, marginLeft: 6, color: "var(--green)", fontWeight: 600 }}>LIVE</span>}
+                      {s.dev_id?.name || t("main.claudeAgent")}
+                      {isActive && <span style={{ fontSize: 9, marginLeft: 6, color: "var(--green)", fontWeight: 600 }}>{t("main.liveLabel")}</span>}
                     </div>
                     <div className="ss-meta">
                       <span className="ss-dot" style={{ background: isActive ? "var(--green)" : "var(--text-4)" }}></span>
-                      <span>{isActive ? "active" : "ended"}</span>
+                      <span>{isActive ? t("main.active") : t("main.ended")}</span>
                       <span>{"\u00B7"}</span>
                       <span>{duration}</span>
                       <span>{"\u00B7"}</span>
@@ -461,9 +463,9 @@ export function MainView({
             })
           ) : (
             <div className="empty-state">
-              <div style={{ fontSize: 11, color: "var(--text-4)" }}>No active sessions</div>
+              <div style={{ fontSize: 11, color: "var(--text-4)" }}>{t("main.noSessions")}</div>
               <div style={{ fontSize: 10, color: "var(--text-5)", marginTop: 4 }}>
-                Sessions are created automatically when running <code style={{ fontSize: 10 }}>agentnorth sync</code>
+                {t("main.sessionsHint")}
               </div>
             </div>
           )}
@@ -471,8 +473,8 @@ export function MainView({
 
         <div className="card-simple">
           <div className="card-simple-head">
-            <h2>Recent activity</h2>
-            <span className="meta">real-time via SSE</span>
+            <h2>{t("main.recentActivity")}</h2>
+            <span className="meta">{t("main.realtimeSSE")}</span>
           </div>
           <div className="simple-feed">
             {feedRows.length > 0 ? (
@@ -481,9 +483,9 @@ export function MainView({
               ))
             ) : (
               <div className="empty-state">
-                <div style={{ fontSize: 11, color: "var(--text-4)" }}>No activity yet</div>
+                <div style={{ fontSize: 11, color: "var(--text-4)" }}>{t("main.noActivity")}</div>
                 <div style={{ fontSize: 10, color: "var(--text-5)", marginTop: 4 }}>
-                  Activity appears when agents use the project context
+                  {t("main.activityHint")}
                 </div>
               </div>
             )}

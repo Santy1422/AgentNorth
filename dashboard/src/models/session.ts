@@ -9,6 +9,11 @@ export interface ISession extends Document {
   actions_count: number;
   tokens_total: number;
   tokens_saved_total: number;
+  modules_visited: string[];
+  tools_used: string[];
+  files_touched: string[];
+  branch: string;
+  events_count: number;
 }
 
 const SessionSchema = new Schema<ISession>({
@@ -20,6 +25,11 @@ const SessionSchema = new Schema<ISession>({
   actions_count: { type: Number, default: 0 },
   tokens_total: { type: Number, default: 0 },
   tokens_saved_total: { type: Number, default: 0 },
+  modules_visited: { type: [String], default: [] },
+  tools_used: { type: [String], default: [] },
+  files_touched: { type: [String], default: [] },
+  branch: { type: String, default: "" },
+  events_count: { type: Number, default: 0 },
 });
 
 SessionSchema.index({ org_id: 1, started_at: -1 });

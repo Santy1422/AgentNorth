@@ -125,6 +125,7 @@ export async function GET(req: NextRequest) {
       Session.find({ project_id: project._id })
         .sort({ started_at: -1 })
         .limit(10)
+        .select("org_id dev_id project_id started_at ended_at actions_count tokens_total tokens_saved_total")
         .populate("dev_id", "name email")
         .lean(),
       UsageEvent.find({ project_id: project._id })

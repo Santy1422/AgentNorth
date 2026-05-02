@@ -54,17 +54,20 @@ export async function GET(req: NextRequest) {
       }
       projectListeners.get(projectId)!.add(send);
 
-      // Send initial heartbeat
-      send(`event: connected\ndata: ${JSON.stringify({ project: projectId })}\n\n`);
+      // Tell browser to reconnect after 3s if disconnected
+      send(`retry: 3000\n\n`);
 
-      // Heartbeat every 30s to keep connection alive
+      // Send initial connection event
+      send(`event: connected\ndata: ${JSON.stringify({ project: projectId, listeners: (projectListeners.get(projectId)?.size || 1) })}\n\n`);
+
+      // Heartbeat every 15s to keep connection alive (avoids proxy/LB timeouts)
       const heartbeat = setInterval(() => {
         try {
-          send(`event: heartbeat\ndata: ${JSON.stringify({ t: Date.now() })}\n\n`);
+          send(`event: heartbeat\ndata: ${JSON.stringify({ t: Date.now(), listeners: projectListeners.get(projectId)?.size || 0 })}\n\n`);
         } catch {
           clearInterval(heartbeat);
         }
-      }, 30000);
+      }, 15000);
 
       // Cleanup on close
       req.signal.addEventListener("abort", () => {

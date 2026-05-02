@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { DecisionData, ChangeData } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 export function RisksView({
   decisions,
@@ -21,6 +22,7 @@ export function RisksView({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const { t } = useT();
   const breakingChanges = changes.filter((c) => c.breaking);
 
   const filteredDecisions = useMemo(() => {
@@ -50,13 +52,13 @@ export function RisksView({
     return (
       <section className="risks-view">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-          <h2>Decisions and changes</h2>
+          <h2>{t("risks.title")}</h2>
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4CC;</div>
-          <div className="empty-title">No decisions or changes</div>
+          <div className="empty-title">{t("risks.noData")}</div>
           <div className="empty-desc">
-            Sync decisions with <code>npx agentnorth sync</code>
+            {t("risks.noDataDesc")}
           </div>
         </div>
       </section>
@@ -66,12 +68,12 @@ export function RisksView({
   return (
     <section className="risks-view">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-        <h2>Decisions and changes</h2>
+        <h2>{t("risks.title")}</h2>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className="meta">
-            {decisions.length} decisions · {changes.length} changes
+            {t("risks.subtitle", { decisions: decisions.length, changes: changes.length })}
             {breakingChanges.length > 0 && (
-              <span style={{ color: "var(--accent)" }}> · {breakingChanges.length} breaking</span>
+              <span style={{ color: "var(--accent)" }}> · {t("risks.breaking", { n: breakingChanges.length })}</span>
             )}
           </span>
           {projectName && (
@@ -79,7 +81,7 @@ export function RisksView({
               className="ndf-trigger"
               onClick={() => setShowNewDecision(!showNewDecision)}
             >
-              + New decision
+              {t("risks.newDecision")}
             </button>
           )}
         </div>
@@ -88,16 +90,16 @@ export function RisksView({
       <div className="risks-summary">
         <div className="rs-card total">
           <div className="rs-num">{decisions.length}</div>
-          <div className="rs-label">decisions</div>
+          <div className="rs-label">{t("risks.decisionsTab")}</div>
         </div>
         <div className="rs-card med">
           <div className="rs-num">{changes.length}</div>
-          <div className="rs-label">changes</div>
+          <div className="rs-label">{t("risks.changesTab")}</div>
         </div>
         {breakingChanges.length > 0 && (
           <div className="rs-card high">
             <div className="rs-num">{breakingChanges.length}</div>
-            <div className="rs-label">breaking changes</div>
+            <div className="rs-label">{t("risks.breakingLabel")}</div>
           </div>
         )}
       </div>
@@ -106,31 +108,31 @@ export function RisksView({
       {showNewDecision && (
         <div className="new-decision-form">
           <div className="ndf-head">
-            <h3>New decision</h3>
-            <button className="btn-simple" onClick={() => setShowNewDecision(false)}>cancelar</button>
+            <h3>{t("risks.newDecisionTitle")}</h3>
+            <button className="btn-simple" onClick={() => setShowNewDecision(false)}>&times;</button>
           </div>
           <input
             className="ndf-input"
-            placeholder="Decision title"
+            placeholder={t("risks.decisionTitle")}
             value={newDecision.title}
             onChange={(e) => setNewDecision({ ...newDecision, title: e.target.value })}
           />
           <input
             className="ndf-input"
-            placeholder="Module (optional)"
+            placeholder={t("risks.module")}
             value={newDecision.module}
             onChange={(e) => setNewDecision({ ...newDecision, module: e.target.value })}
           />
           <textarea
             className="ndf-textarea"
-            placeholder="Context — why is this decision being made?"
+            placeholder={t("risks.context")}
             value={newDecision.context}
             onChange={(e) => setNewDecision({ ...newDecision, context: e.target.value })}
             rows={3}
           />
           <textarea
             className="ndf-textarea"
-            placeholder="Decision — what was decided?"
+            placeholder={t("risks.decision")}
             value={newDecision.decision}
             onChange={(e) => setNewDecision({ ...newDecision, decision: e.target.value })}
             rows={3}
@@ -162,12 +164,12 @@ export function RisksView({
                   setSaveError(`Error (${res.status}): ${text}`);
                 }
               } catch (err) {
-                setSaveError(`Error de red: ${err instanceof Error ? err.message : "desconocido"}`);
+                setSaveError(`${t("risks.networkError")} ${err instanceof Error ? err.message : "unknown"}`);
               }
               setSaving(false);
             }}
           >
-            {saving ? "Saving..." : "Create decision"}
+            {saving ? t("risks.saving") : t("risks.create")}
           </button>
           {saveError && (
             <div style={{ color: "var(--red)", fontSize: 11, marginTop: 6 }}>{saveError}</div>
@@ -176,7 +178,7 @@ export function RisksView({
       )}
       {saveSuccess && (
         <div style={{ background: "var(--green)", color: "#000", padding: "8px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, marginBottom: 12 }}>
-          Decision created successfully
+          {t("risks.created")}
         </div>
       )}
 
@@ -186,26 +188,26 @@ export function RisksView({
             className={"cov-filter" + (tab === "timeline" ? " active" : "")}
             onClick={() => setTab("timeline")}
           >
-            Timeline
+            {t("risks.timeline")}
           </button>
           <button
             className={"cov-filter" + (tab === "decisions" ? " active" : "")}
             onClick={() => setTab("decisions")}
           >
-            Decisions ({decisions.length})
+            {t("risks.decisionsTab")} ({decisions.length})
           </button>
           <button
             className={"cov-filter" + (tab === "changes" ? " active" : "")}
             onClick={() => setTab("changes")}
           >
-            Changes ({changes.length})
+            {t("risks.changesTab")} ({changes.length})
           </button>
         </div>
         <div className="map-search" style={{ marginLeft: "auto" }}>
           <span className="search-icon">&#x2315;</span>
           <input
             type="text"
-            placeholder="search..."
+            placeholder={t("risks.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -231,7 +233,7 @@ export function RisksView({
             items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             if (items.length === 0) {
-              return <div className="risks-empty"><span>Sin actividad</span></div>;
+              return <div className="risks-empty"><span>{t("risks.noActivity")}</span></div>;
             }
 
             return items.slice(0, 20).map((item, i) => {
@@ -247,7 +249,7 @@ export function RisksView({
                   <div className="tl-content">
                     <div className="tl-header">
                       <span className={"tl-type " + item.type}>
-                        {isDecision ? "decision" : c?.breaking ? "breaking" : "change"}
+                        {isDecision ? t("risks.decisionLabel") : c?.breaking ? t("risks.breakingLabel") : t("risks.changeLabel")}
                       </span>
                       {(d?.module || c?.module) && (
                         <span className="tl-module mono">{d?.module || c?.module}</span>
@@ -269,7 +271,7 @@ export function RisksView({
                     {d && (
                       <div className="tl-footer">
                         <span className={"tl-status " + d.status}>{d.status}</span>
-                        <span className="tl-author">by {d.author_name}</span>
+                        <span className="tl-author">{t("risks.by", { author: d.author_name })}</span>
                       </div>
                     )}
                   </div>
@@ -287,12 +289,12 @@ export function RisksView({
           filteredChanges.map((c) => <ChangeRow key={c._id} change={c} />)}
         {tab === "decisions" && filteredDecisions.length === 0 && (
           <div className="risks-empty">
-            <span>{search ? "No results" : "No decisions"}</span>
+            <span>{search ? t("risks.noResults") : t("risks.noDecisions")}</span>
           </div>
         )}
         {tab === "changes" && filteredChanges.length === 0 && (
           <div className="risks-empty">
-            <span>{search ? "No results" : "No changes"}</span>
+            <span>{search ? t("risks.noResults") : t("risks.noChanges")}</span>
           </div>
         )}
       </div>
@@ -301,6 +303,7 @@ export function RisksView({
 }
 
 function DecisionRow({ decision }: { decision: DecisionData }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const statusColor =
     decision.status === "active"
@@ -312,7 +315,7 @@ function DecisionRow({ decision }: { decision: DecisionData }) {
   return (
     <div className={"risk-row" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
       <div className="risk-row-head">
-        <span className="risk-pill med">decision</span>
+        <span className="risk-pill med">{t("risks.decisionLabel")}</span>
         {decision.module && <span className="risk-kind mono">{decision.module}</span>}
         <div className="risk-title">{decision.title}</div>
         <span className="risk-status" style={{ color: statusColor }}>
@@ -325,12 +328,12 @@ function DecisionRow({ decision }: { decision: DecisionData }) {
           {decision.decision && <div className="risk-detail">{decision.decision}</div>}
           {decision.context && (
             <div className="risk-suggest">
-              <span className="risk-suggest-label">Contexto</span>
+              <span className="risk-suggest-label">{t("risks.contextLabel")}</span>
               <span className="risk-suggest-text">{decision.context}</span>
             </div>
           )}
           <div className="risk-foot">
-            <span className="risk-by mono">por {decision.author_name}</span>
+            <span className="risk-by mono">{t("risks.by", { author: decision.author_name })}</span>
             <span className="risk-by mono">· {timeAgo(decision.created_at)}</span>
           </div>
         </div>
@@ -340,17 +343,18 @@ function DecisionRow({ decision }: { decision: DecisionData }) {
 }
 
 function ChangeRow({ change }: { change: ChangeData }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
 
   return (
     <div className={"risk-row" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
       <div className="risk-row-head">
         <span className={"risk-pill " + (change.breaking ? "high" : "low")}>
-          {change.breaking ? "breaking" : "change"}
+          {change.breaking ? t("risks.breakingLabel") : t("risks.changeLabel")}
         </span>
         {change.module && <span className="risk-kind mono">{change.module}</span>}
         <div className="risk-title">{change.summary}</div>
-        <span className="risk-loc mono">{change.files_changed?.length || 0} files</span>
+        <span className="risk-loc mono">{t("risks.filesChanged", { n: change.files_changed?.length || 0 })}</span>
         <span className="risk-caret">{open ? "-" : "+"}</span>
       </div>
       {open && change.files_changed && change.files_changed.length > 0 && (
@@ -378,6 +382,7 @@ function ActivityHeatmap({
   decisions: DecisionData[];
   changes: ChangeData[];
 }) {
+  const { t } = useT();
   // Build 12-week heatmap
   const weeks = useMemo(() => {
     const now = new Date();
@@ -415,7 +420,7 @@ function ActivityHeatmap({
 
   return (
     <div className="heatmap-card">
-      <div className="heatmap-label">Actividad (12 semanas)</div>
+      <div className="heatmap-label">{t("risks.activityWeeks")}</div>
       <div className="heatmap-grid">
         {weeks.map((week, wi) => (
           <div key={wi} className="heatmap-col">
@@ -423,7 +428,7 @@ function ActivityHeatmap({
               <div
                 key={day.date}
                 className="heatmap-cell"
-                title={`${day.date}: ${day.count} events`}
+                title={t("risks.heatmapDay", { date: day.date, count: day.count })}
                 style={{
                   opacity: day.count === 0 ? 0.1 : 0.2 + (day.count / maxCount) * 0.8,
                   background: day.count === 0 ? "var(--bg-4)" : "var(--green)",

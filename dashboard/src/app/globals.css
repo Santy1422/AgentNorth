@@ -3252,6 +3252,26 @@ html, body {
 .deps-col-kind { text-align: center; }
 .deps-col-status { text-align: center; }
 
+/* ─── Language Toggle ─── */
+.lang-toggle {
+  background: var(--bg-3);
+  border: 1px solid var(--border-1);
+  color: var(--text-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-family: var(--mono);
+}
+.lang-toggle:hover {
+  background: var(--bg-4);
+  color: var(--text-1);
+  border-color: var(--accent);
+}
+
 /* ─── Header: Refresh & Status ─── */
 .header-right {
   display: flex;
@@ -4715,6 +4735,76 @@ html, body {
   line-height: 1.4;
   margin-top: 4px;
 }
+
+/* File detail panel */
+.md-file-row.expanded { background: var(--bg-3); border: 1px solid var(--border-2); }
+.md-file-row:hover:not(.expanded) { background: var(--bg-3); }
+
+.fd-panel {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--bg-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: default;
+}
+
+.fd-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-4);
+  margin-bottom: 6px;
+}
+
+.fd-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.fd-chip {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg-4);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+}
+.fd-chip.default { background: var(--accent); color: #000; font-weight: 600; }
+.fd-chip.type { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+.fd-chip.ext { background: var(--bg-4); color: var(--text-3); }
+
+.fd-imports { display: flex; flex-direction: column; gap: 3px; }
+.fd-import-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.fd-import-source { color: var(--accent); }
+.fd-import-specs { color: var(--text-3); font-size: 10px; }
+.fd-more { font-size: 10px; color: var(--text-4); font-style: italic; }
+
+.fd-metrics { display: flex; gap: 16px; flex-wrap: wrap; }
+.fd-metric { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.fd-metric-val { font-size: 16px; font-weight: 700; color: var(--text-1); font-family: var(--mono); }
+.fd-metric-label { font-size: 9px; color: var(--text-4); text-transform: uppercase; }
+
+.fd-jsdoc { display: flex; flex-direction: column; gap: 4px; }
+.fd-jsdoc-entry {
+  font-size: 10px;
+  color: var(--text-3);
+  padding: 4px 8px;
+  background: var(--bg-3);
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-height: 60px;
+  overflow: hidden;
+}
+
+.fd-history { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fd-author { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+.fd-author-name { color: var(--text-2); }
+.fd-author-lines { color: var(--text-4); font-size: 10px; font-family: var(--mono); }
+.fd-last-mod { font-size: 10px; color: var(--text-4); }
+
+.fd-summary { font-size: 11px; color: var(--text-3); line-height: 1.4; }
 
 /* Dep graph */
 .md-dep-graph {

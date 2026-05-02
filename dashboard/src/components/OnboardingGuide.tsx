@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { DashboardData, ModuleData, FileData } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 const KIND_COLORS: Record<string, string> = {
   page: "#f97316",
@@ -21,6 +22,7 @@ function shortName(path: string): string {
 }
 
 export function OnboardingGuide({ data }: { data: DashboardData | null }) {
+  const { t } = useT();
   const modules = data?.project.modules || [];
   const decisions = data?.decisions || [];
   const deps = data?.project.deps || [];
@@ -102,12 +104,12 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
   // Tech stack from external deps
   const techStack = useMemo(() => {
     const categories: Record<string, { name: string; deps: string[] }> = {
-      framework: { name: "Framework", deps: [] },
-      ui: { name: "UI / Estilos", deps: [] },
-      state: { name: "Estado / Data", deps: [] },
-      tooling: { name: "Tooling", deps: [] },
-      testing: { name: "Testing", deps: [] },
-      other: { name: "Otros", deps: [] },
+      framework: { name: t("guide.framework"), deps: [] },
+      ui: { name: t("guide.uiStyles"), deps: [] },
+      state: { name: t("guide.stateData"), deps: [] },
+      tooling: { name: t("guide.tooling"), deps: [] },
+      testing: { name: t("guide.testing"), deps: [] },
+      other: { name: t("guide.other"), deps: [] },
     };
 
     const frameworkPkgs = ["next", "react", "react-dom", "express", "fastify", "nuxt", "vue", "svelte", "angular"];
@@ -170,13 +172,13 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
     return (
       <section className="onb-guide">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-          <h2>Guia de onboarding</h2>
+          <h2>{t("guide.title")}</h2>
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4D6;</div>
-          <div className="empty-title">Sin datos del proyecto</div>
+          <div className="empty-title">{t("guide.noData")}</div>
           <div className="empty-desc">
-            Ejecuta <code>npx agentnorth index</code> y luego <code>npx agentnorth sync</code>
+            {t("guide.noDataDesc")}
           </div>
         </div>
       </section>
@@ -186,8 +188,8 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
   return (
     <section className="onb-guide">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-        <h2>Guia de onboarding</h2>
-        <span className="meta">auto-generada para nuevos desarrolladores</span>
+        <h2>{t("guide.title")}</h2>
+        <span className="meta">{t("guide.subtitle")}</span>
       </div>
 
       {/* Project overview */}
@@ -214,37 +216,37 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {/* Architecture summary */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
-          <h2>Arquitectura en 30 segundos</h2>
+          <h2>{t("guide.arch30s")}</h2>
         </div>
         <div className="onb-arch-summary">
           <div className="onb-arch-layer">
             <div className="onb-arch-num" style={{ color: KIND_COLORS.page }}>{stats.screens.length}</div>
-            <div className="onb-arch-label">Pantallas</div>
-            <div className="onb-arch-desc">Entry points del usuario</div>
+            <div className="onb-arch-label">{t("guide.screens")}</div>
+            <div className="onb-arch-desc">{t("guide.screensDesc")}</div>
           </div>
           <div className="onb-arch-arrow">{"\u2192"}</div>
           <div className="onb-arch-layer">
             <div className="onb-arch-num" style={{ color: KIND_COLORS.component }}>{stats.components.length}</div>
-            <div className="onb-arch-label">Componentes</div>
-            <div className="onb-arch-desc">UI reutilizable</div>
+            <div className="onb-arch-label">{t("guide.components")}</div>
+            <div className="onb-arch-desc">{t("guide.componentsDesc")}</div>
           </div>
           <div className="onb-arch-arrow">{"\u2192"}</div>
           <div className="onb-arch-layer">
             <div className="onb-arch-num" style={{ color: KIND_COLORS.hook }}>{stats.hooks.length}</div>
-            <div className="onb-arch-label">Hooks</div>
-            <div className="onb-arch-desc">Logica compartida</div>
+            <div className="onb-arch-label">{t("guide.hooks")}</div>
+            <div className="onb-arch-desc">{t("guide.hooksDesc")}</div>
           </div>
           <div className="onb-arch-arrow">{"\u2192"}</div>
           <div className="onb-arch-layer">
             <div className="onb-arch-num" style={{ color: KIND_COLORS.lib }}>{stats.libs.length}</div>
-            <div className="onb-arch-label">Librerias</div>
-            <div className="onb-arch-desc">Utils y core</div>
+            <div className="onb-arch-label">{t("guide.libraries")}</div>
+            <div className="onb-arch-desc">{t("guide.librariesDesc")}</div>
           </div>
           <div className="onb-arch-arrow">{"\u2192"}</div>
           <div className="onb-arch-layer">
             <div className="onb-arch-num" style={{ color: KIND_COLORS.route }}>{stats.routes.length}</div>
-            <div className="onb-arch-label">APIs</div>
-            <div className="onb-arch-desc">Backend endpoints</div>
+            <div className="onb-arch-label">{t("guide.apisLabel")}</div>
+            <div className="onb-arch-desc">{t("guide.apisDesc")}</div>
           </div>
         </div>
       </div>
@@ -252,8 +254,8 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {/* Where to start reading */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
-          <h2>Por donde empezar a leer</h2>
-          <span className="meta">key files sorted by importance</span>
+          <h2>{t("guide.whereToStart")}</h2>
+          <span className="meta">{t("guide.keyFiles")}</span>
         </div>
         <div className="onb-entries">
           {entryPoints.map(({ file, reason }, i) => (
@@ -279,8 +281,8 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {/* Module guide */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
-          <h2>Project modules</h2>
-          <span className="meta">each module and its responsibility</span>
+          <h2>{t("guide.projectModules")}</h2>
+          <span className="meta">{t("guide.modulesDesc")}</span>
         </div>
         <div className="onb-modules">
           {modules.map((m) => (
@@ -294,7 +296,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
                 <div className="onb-mod-deps">
                   {(m.dependencies.internal || []).length > 0 && (
                     <span className="onb-mod-dep-tag">
-                      depende de: {m.dependencies.internal.join(", ")}
+                      {t("guide.dependsOn")} {m.dependencies.internal.join(", ")}
                     </span>
                   )}
                 </div>
@@ -308,7 +310,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
                     </span>
                   ))}
                   {m.files.length > 5 && (
-                    <span className="onb-mod-file muted">+{m.files.length - 5} mas</span>
+                    <span className="onb-mod-file muted">{t("guide.moreFiles", { n: m.files.length - 5 })}</span>
                   )}
                 </div>
               )}
@@ -321,8 +323,8 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {moduleDeps.length > 1 && (
         <div className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Module coupling</h2>
-            <span className="meta">quien depende de quien</span>
+            <h2>{t("guide.moduleCoupling")}</h2>
+            <span className="meta">{t("guide.couplingDesc")}</span>
           </div>
           <div className="onb-coupling">
             {moduleDeps
@@ -346,8 +348,8 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {conventions.length > 0 && (
         <div className="card-simple" style={{ marginBottom: 16 }}>
           <div className="card-simple-head">
-            <h2>Conventions and decisions</h2>
-            <span className="meta">reglas del proyecto</span>
+            <h2>{t("guide.conventions")}</h2>
+            <span className="meta">{t("guide.conventionsDesc")}</span>
           </div>
           <div className="onb-conventions">
             {conventions.map((c, i) => (
@@ -363,17 +365,17 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {/* Security status */}
       <div className="card-simple">
         <div className="card-simple-head">
-          <h2>Security status</h2>
+          <h2>{t("guide.security")}</h2>
         </div>
         <div className="onb-security">
           <div className={"onb-sec-badge " + (audit.length === 0 ? "ok" : "warn")}>
             {audit.length === 0
-              ? "Sin vulnerabilidades conocidas"
-              : `${audit.length} vulnerabilidades detectadas`}
+              ? t("guide.noVulns")
+              : t("guide.vulnsDetected", { n: audit.length })}
           </div>
           <div className="onb-sec-stats">
-            <span>{deps.filter((d) => d.kind === "prod").length} deps de produccion</span>
-            <span>{deps.filter((d) => d.kind === "dev").length} deps de desarrollo</span>
+            <span>{t("guide.prodDeps", { n: deps.filter((d) => d.kind === "prod").length })}</span>
+            <span>{t("guide.devDeps", { n: deps.filter((d) => d.kind === "dev").length })}</span>
           </div>
         </div>
       </div>

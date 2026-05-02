@@ -88,6 +88,15 @@ app.post("/sessions/start", authMiddleware, async (c) => {
   const org = c.get("org");
   const dev = c.get("dev");
 
+  // Auto-close stale sessions for this dev
+  try {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await Session.updateMany(
+      { org_id: org._id, dev_id: dev._id, ended_at: null, started_at: { $lt: twoHoursAgo } },
+      { $set: { ended_at: new Date() } },
+    );
+  } catch {}
+
   // Find project by name first, then by github_url, then by most recent
   let project = await Project.findOne({ org_id: org._id, name: body.repo });
   if (!project) {
@@ -116,8 +125,24 @@ app.post("/sessions/start", authMiddleware, async (c) => {
       org_id: org._id,
       dev_id: dev._id,
       project_id: project._id,
+      branch: body.branch || "",
     });
+  } else if (body.branch && !session.branch) {
+    session.branch = body.branch;
+    await session.save();
   }
+
+  // Notify SSE — session started
+  try {
+    const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
+      ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
+    if (notify) {
+      notify(project._id.toString(), {
+        type: "session",
+        data: { action: "start", dev: dev.name, branch: body.branch || "", at: new Date().toISOString() },
+      });
+    }
+  } catch {}
 
   return c.json({ session_id: session._id });
 });
@@ -138,7 +163,32 @@ app.post("/sessions/end", authMiddleware, async (c) => {
   if (session) {
     session.ended_at = new Date();
     session.actions_count = body.files_changed || 0;
+    if (Array.isArray(body.files_touched)) {
+      session.files_touched = body.files_touched;
+    }
+    if (body.tokens_saved) {
+      session.tokens_saved_total = (session.tokens_saved_total || 0) + body.tokens_saved;
+    }
     await session.save();
+
+    // Notify SSE — session ended
+    try {
+      const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
+        ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
+      if (notify && session.project_id) {
+        notify(session.project_id.toString(), {
+          type: "session",
+          data: {
+            action: "end",
+            dev: dev.name,
+            files_changed: session.actions_count,
+            tokens_saved: session.tokens_saved_total,
+            duration_mins: Math.round((Date.now() - new Date(session.started_at).getTime()) / 60000),
+            at: new Date().toISOString(),
+          },
+        });
+      }
+    } catch {}
   }
 
   return c.json({ ok: true });
@@ -146,7 +196,7 @@ app.post("/sessions/end", authMiddleware, async (c) => {
 
 app.post("/events", authMiddleware, async (c) => {
   await db();
-  const { Project, UsageEvent } = await models();
+  const { Project, Session, UsageEvent } = await models();
   const body = await c.req.json();
   const org = c.get("org");
   const dev = c.get("dev");
@@ -163,6 +213,27 @@ app.post("/events", authMiddleware, async (c) => {
     timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
   });
 
+  // Update active session with event data
+  try {
+    const sessionUpdate: Record<string, unknown> = {
+      $inc: {
+        events_count: 1,
+        tokens_saved_total: body.tokens_saved_estimate || 0,
+      },
+      $addToSet: {
+        tools_used: body.action,
+      } as Record<string, unknown>,
+    };
+    if (body.module) {
+      (sessionUpdate.$addToSet as Record<string, unknown>).modules_visited = body.module;
+    }
+    await Session.findOneAndUpdate(
+      { org_id: org._id, dev_id: dev._id, ended_at: null },
+      sessionUpdate,
+      { sort: { started_at: -1 } },
+    );
+  } catch { /* session update is non-critical */ }
+
   // Notify SSE
   if (project?._id) {
     try {
@@ -171,7 +242,13 @@ app.post("/events", authMiddleware, async (c) => {
       if (notify) {
         notify(project._id.toString(), {
           type: "event",
-          data: { action: body.action, module: body.module, at: new Date().toISOString() },
+          data: {
+            action: body.action,
+            module: body.module,
+            tokens_saved: body.tokens_saved_estimate || 0,
+            dev: dev.name,
+            at: new Date().toISOString(),
+          },
         });
       }
     } catch {}
@@ -323,6 +400,20 @@ app.post("/sync", authMiddleware, async (c) => {
     }
   }
 
+  // Auto-close stale sessions (older than 2 hours with no activity)
+  try {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    await Session.updateMany(
+      {
+        org_id: org._id,
+        project_id: project._id,
+        ended_at: null,
+        started_at: { $lt: twoHoursAgo },
+      },
+      { $set: { ended_at: new Date() } },
+    );
+  } catch {}
+
   // Auto-create/refresh agent session on sync
   try {
     const activeSession = await Session.findOne({
@@ -368,6 +459,38 @@ app.post("/sync", authMiddleware, async (c) => {
     if (vulnCount === 0) checks.push({ name: "Vulnerabilities", status: "pass", detail: "No vulnerabilities" });
     else if (vulnCount <= 3) checks.push({ name: "Vulnerabilities", status: "warn", detail: `${vulnCount} vulnerability(ies)` });
     else checks.push({ name: "Vulnerabilities", status: "fail", detail: `${vulnCount} vulnerabilities` });
+
+    // Check: average complexity
+    const allFiles = mods.flatMap((m: Record<string, unknown>) => (m.files as Record<string, unknown>[]) || []);
+    const complexities = allFiles.map((f: Record<string, unknown>) => (f.complexity as number) || 0);
+    const avgComplexity = complexities.length > 0
+      ? complexities.reduce((s: number, v: number) => s + v, 0) / complexities.length
+      : 0;
+    if (avgComplexity < 8) checks.push({ name: "Average complexity", status: "pass", detail: `Avg complexity ${avgComplexity.toFixed(1)}` });
+    else if (avgComplexity < 15) checks.push({ name: "Average complexity", status: "warn", detail: `Avg complexity ${avgComplexity.toFixed(1)}` });
+    else checks.push({ name: "Average complexity", status: "fail", detail: `Avg complexity ${avgComplexity.toFixed(1)}` });
+
+    // Check: documentation coverage
+    const filesWithJsdoc = allFiles.filter((f: Record<string, unknown>) => Array.isArray(f.jsdoc) && (f.jsdoc as string[]).length > 0).length;
+    const docCoverage = allFiles.length > 0 ? (filesWithJsdoc / allFiles.length) * 100 : 0;
+    if (docCoverage >= 60) checks.push({ name: "Documentation coverage", status: "pass", detail: `${docCoverage.toFixed(0)}% of files documented` });
+    else if (docCoverage >= 30) checks.push({ name: "Documentation coverage", status: "warn", detail: `${docCoverage.toFixed(0)}% of files documented` });
+    else checks.push({ name: "Documentation coverage", status: "fail", detail: `${docCoverage.toFixed(0)}% of files documented` });
+
+    // Check: large files
+    const largeFiles = allFiles.filter((f: Record<string, unknown>) => ((f.loc as number) || 0) > 500).length;
+    if (largeFiles === 0) checks.push({ name: "Large files", status: "pass", detail: "No files over 500 LOC" });
+    else if (largeFiles <= 3) checks.push({ name: "Large files", status: "warn", detail: `${largeFiles} file(s) over 500 LOC` });
+    else checks.push({ name: "Large files", status: "fail", detail: `${largeFiles} files over 500 LOC` });
+
+    // Check: test coverage
+    const modsWithTests = mods.filter((m: Record<string, unknown>) =>
+      ((m.files as Record<string, unknown>[]) || []).some((f: Record<string, unknown>) => f.kind === "test")
+    ).length;
+    const testCoverage = modulesCount > 0 ? (modsWithTests / modulesCount) * 100 : 0;
+    if (testCoverage >= 100) checks.push({ name: "Test coverage", status: "pass", detail: `All ${modulesCount} module(s) have tests` });
+    else if (testCoverage >= 50) checks.push({ name: "Test coverage", status: "warn", detail: `${modsWithTests}/${modulesCount} modules have tests` });
+    else checks.push({ name: "Test coverage", status: "fail", detail: `${modsWithTests}/${modulesCount} modules have tests` });
 
     // Score: each check pass=100, warn=50, fail=0 → average
     const scoreMap = { pass: 100, warn: 50, fail: 0 };

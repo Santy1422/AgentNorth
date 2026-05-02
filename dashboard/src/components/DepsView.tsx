@@ -2,8 +2,10 @@
 
 import { useState, useMemo } from "react";
 import type { DepData, AuditVuln } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] }) {
+  const { t } = useT();
   const [filter, setFilter] = useState<"all" | "prod" | "dev" | "vuln">("all");
   const [search, setSearch] = useState("");
   const [showLicenseView, setShowLicenseView] = useState(false);
@@ -44,14 +46,12 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
     return (
       <section className="risks-view">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-          <h2>Dependencies</h2>
+          <h2>{t("deps.title")}</h2>
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4E6;</div>
-          <div className="empty-title">No scanned dependencies</div>
-          <div className="empty-desc">
-            Ejecuta <code>npx agentnorth sync</code> para escanear los package.json del proyecto
-          </div>
+          <div className="empty-title">{t("deps.noData")}</div>
+          <div className="empty-desc">{t("deps.noDataDesc")}</div>
         </div>
       </section>
     );
@@ -60,38 +60,38 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
   return (
     <section className="risks-view">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-        <h2>Dependencies</h2>
+        <h2>{t("deps.title")}</h2>
         <span className="meta">
-          {deps.length} paquetes · {sources.length} package.json · npm audit integrado
+          {t("deps.subtitle", { n: deps.length, sources: sources.length })}
         </span>
       </div>
 
       <div className="risks-summary">
         <div className="rs-card total">
           <div className="rs-num">{deps.length}</div>
-          <div className="rs-label">total</div>
+          <div className="rs-label">{t("deps.total")}</div>
         </div>
         <div className="rs-card med">
           <div className="rs-num">{prodDeps.length}</div>
-          <div className="rs-label">produccion</div>
+          <div className="rs-label">{t("deps.production")}</div>
         </div>
         <div className="rs-card low">
           <div className="rs-num">{devDeps.length}</div>
-          <div className="rs-label">desarrollo</div>
+          <div className="rs-label">{t("deps.development")}</div>
         </div>
         {audit.length > 0 ? (
           <div className="rs-card high">
             <div className="rs-num">{audit.length}</div>
             <div className="rs-label">
-              vulnerabilidades
-              {criticalCount > 0 && <span> · {criticalCount} criticas</span>}
-              {highCount > 0 && <span> · {highCount} altas</span>}
+              {t("deps.vulnerabilities")}
+              {criticalCount > 0 && <span> · {t("deps.critical", { n: criticalCount })}</span>}
+              {highCount > 0 && <span> · {t("deps.high", { n: highCount })}</span>}
             </div>
           </div>
         ) : (
           <div className="rs-card" style={{ borderLeft: "3px solid var(--green)" }}>
             <div className="rs-num" style={{ color: "var(--green)" }}>0</div>
-            <div className="rs-label">vulnerabilidades</div>
+            <div className="rs-label">{t("deps.vulnerabilities")}</div>
           </div>
         )}
       </div>
@@ -99,23 +99,23 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
       <div className="risks-toolbar">
         <div className="cov-filters">
           <button className={"cov-filter" + (filter === "all" ? " active" : "")} onClick={() => setFilter("all")}>
-            Todas ({deps.length})
+            {t("deps.all")} ({deps.length})
           </button>
           <button className={"cov-filter" + (filter === "prod" ? " active" : "")} onClick={() => setFilter("prod")}>
-            Prod ({prodDeps.length})
+            {t("deps.prod")} ({prodDeps.length})
           </button>
           <button className={"cov-filter" + (filter === "dev" ? " active" : "")} onClick={() => setFilter("dev")}>
-            Dev ({devDeps.length})
+            {t("deps.dev")} ({devDeps.length})
           </button>
           {audit.length > 0 && (
             <button className={"cov-filter high" + (filter === "vuln" ? " active" : "")} onClick={() => setFilter("vuln")}>
-              Vulnerables ({vulnDeps.length})
+              {t("deps.vulnerable")} ({vulnDeps.length})
             </button>
           )}
         </div>
         <div className="map-search" style={{ marginLeft: "auto" }}>
           <span className="search-icon">&#x2315;</span>
-          <input type="text" placeholder="search package..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input type="text" placeholder={t("deps.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
           {search && <button className="search-clear" onClick={() => setSearch("")}>x</button>}
         </div>
       </div>
@@ -124,7 +124,7 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
       {sources.length > 1 && (
         <div className="deps-source-bar" style={{ marginBottom: 12 }}>
           <div className="card-simple-head" style={{ marginBottom: 8 }}>
-            <h2 style={{ fontSize: 13 }}>Por package.json</h2>
+            <h2 style={{ fontSize: 13 }}>{t("deps.byPackageJson")}</h2>
           </div>
           {sources.map((src) => {
             const count = deps.filter((d) => d.source === src).length;
@@ -144,11 +144,11 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
 
       <div className="deps-list">
         <div className="deps-header">
-          <span className="deps-col-name">Paquete</span>
-          <span className="deps-col-ver">Version</span>
-          <span className="deps-col-kind">Tipo</span>
-          <span className="deps-col-status">Estado</span>
-          <span className="deps-col-src">Origen</span>
+          <span className="deps-col-name">{t("deps.package")}</span>
+          <span className="deps-col-ver">{t("deps.version")}</span>
+          <span className="deps-col-kind">{t("deps.type")}</span>
+          <span className="deps-col-status">{t("deps.status")}</span>
+          <span className="deps-col-src">{t("deps.source")}</span>
         </div>
         {filtered.map((d) => {
           const vuln = vulnMap.get(d.name);
@@ -165,7 +165,7 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
                     {vuln.severity}
                   </span>
                 ) : (
-                  <span className="dep-safe-pill">ok</span>
+                  <span className="dep-safe-pill">{t("deps.ok")}</span>
                 )}
               </span>
               <span className="deps-col-src mono">{d.source}</span>
@@ -173,7 +173,7 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
           );
         })}
         {filtered.length === 0 && (
-          <div className="risks-empty"><span>Sin resultados</span></div>
+          <div className="risks-empty"><span>{t("deps.noResults")}</span></div>
         )}
       </div>
     </section>

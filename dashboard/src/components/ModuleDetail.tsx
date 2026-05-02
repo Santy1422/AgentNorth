@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { DashboardData, ModuleData, FileData, DecisionData, ChangeData } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 const KIND_COLORS: Record<string, string> = {
   page: "#f97316",
@@ -31,7 +32,9 @@ export function ModuleDetail({
   onBack: () => void;
   onNavigateModule: (name: string) => void;
 }) {
+  const { t } = useT();
   const [tab, setTab] = useState<"overview" | "files" | "decisions" | "deps">("overview");
+  const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
   const mod = useMemo(
     () => (data?.project.modules || []).find((m) => m.name === moduleName) || null,
@@ -111,10 +114,10 @@ export function ModuleDetail({
   if (!mod) {
     return (
       <section className="md-page">
-        <button className="btn-simple" onClick={onBack}>&larr; Back</button>
+        <button className="btn-simple" onClick={onBack}>&larr; {t("mod.back")}</button>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4E6;</div>
-          <div className="empty-title">Module not found</div>
+          <div className="empty-title">{t("mod.notFound")}</div>
         </div>
       </section>
     );
@@ -126,7 +129,7 @@ export function ModuleDetail({
     <section className="md-page">
       {/* Header */}
       <div className="md-header">
-        <button className="btn-simple" onClick={onBack}>&larr; Back</button>
+        <button className="btn-simple" onClick={onBack}>&larr; {t("mod.back")}</button>
         <div className="md-hero">
           <div className="md-score-ring" style={{ borderColor: scoreColor }}>
             <span style={{ color: scoreColor }}>{health.score}</span>
@@ -147,13 +150,13 @@ export function ModuleDetail({
 
       {/* Tabs */}
       <div className="md-tabs">
-        {(["overview", "files", "decisions", "deps"] as const).map((t) => (
+        {(["overview", "files", "decisions", "deps"] as const).map((tb) => (
           <button
-            key={t}
-            className={"md-tab" + (tab === t ? " active" : "")}
-            onClick={() => setTab(t)}
+            key={tb}
+            className={"md-tab" + (tab === tb ? " active" : "")}
+            onClick={() => setTab(tb)}
           >
-            {t === "overview" ? "Overview" : t === "files" ? `Files (${files.length})` : t === "decisions" ? `Decisions (${moduleDecisions.length})` : "Dependencies"}
+            {tb === "overview" ? t("mod.overview") : tb === "files" ? t("mod.filesTab", { n: files.length }) : tb === "decisions" ? t("mod.decisionsTab", { n: moduleDecisions.length }) : t("mod.depsTab")}
           </button>
         ))}
       </div>
@@ -164,7 +167,7 @@ export function ModuleDetail({
           {/* File composition */}
           <div className="card-simple" style={{ marginBottom: 16 }}>
             <div className="card-simple-head">
-              <h2>Composicion</h2>
+              <h2>{t("mod.composition")}</h2>
             </div>
             <div className="md-kind-bar">
               {kindCounts.map(([kind, count]) => {
@@ -192,8 +195,8 @@ export function ModuleDetail({
           {/* Health checks */}
           <div className="card-simple" style={{ marginBottom: 16 }}>
             <div className="card-simple-head">
-              <h2>Scorecard de compliance</h2>
-              <span className="meta">estandares del equipo</span>
+              <h2>{t("mod.scorecard")}</h2>
+              <span className="meta">{t("mod.teamStandards")}</span>
             </div>
             <div className="hs-checks" style={{ paddingTop: 8 }}>
               {health.checks.map((c) => (
@@ -212,11 +215,11 @@ export function ModuleDetail({
           {mod.dependencies && (
             <div className="card-simple" style={{ marginBottom: 16 }}>
               <div className="card-simple-head">
-                <h2>Module dependencies</h2>
+                <h2>{t("mod.moduleDeps")}</h2>
               </div>
               {(mod.dependencies.internal || []).length > 0 && (
                 <div className="md-dep-section">
-                  <div className="md-dep-label">Depends on:</div>
+                  <div className="md-dep-label">{t("mod.dependsOn")}</div>
                   <div className="md-dep-chips">
                     {mod.dependencies.internal.map((d) => (
                       <button key={d} className="md-dep-chip mono" onClick={() => onNavigateModule(d)}>
@@ -234,7 +237,7 @@ export function ModuleDetail({
                 if (dependents.length === 0) return null;
                 return (
                   <div className="md-dep-section">
-                    <div className="md-dep-label">Dependido por:</div>
+                    <div className="md-dep-label">{t("mod.dependedOnBy")}</div>
                     <div className="md-dep-chips">
                       {dependents.map((d) => (
                         <button key={d} className="md-dep-chip mono" onClick={() => onNavigateModule(d)}>
@@ -247,7 +250,7 @@ export function ModuleDetail({
               })()}
               {(mod.dependencies.external || []).length > 0 && (
                 <div className="md-dep-section">
-                  <div className="md-dep-label">Paquetes externos:</div>
+                  <div className="md-dep-label">{t("mod.extPackages")}</div>
                   <div className="md-dep-chips">
                     {mod.dependencies.external.map((d) => (
                       <span key={d} className="fd-chip ext mono">{d}</span>
@@ -262,8 +265,8 @@ export function ModuleDetail({
           {mod.warnings && mod.warnings.length > 0 && (
             <div className="card-simple" style={{ marginBottom: 16, borderLeft: "3px solid var(--yellow)" }}>
               <div className="card-simple-head">
-                <h2>Warnings</h2>
-                <span className="meta">{mod.warnings.length} alertas</span>
+                <h2>{t("mod.warnings")}</h2>
+                <span className="meta">{t("mod.alerts", { n: mod.warnings.length })}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 4 }}>
                 {mod.warnings.map((w, i) => (
@@ -280,8 +283,8 @@ export function ModuleDetail({
           {mod.contributors && mod.contributors.length > 0 && (
             <div className="card-simple" style={{ marginBottom: 16 }}>
               <div className="card-simple-head">
-                <h2>Contribuidores</h2>
-                <span className="meta">ultimos 6 meses</span>
+                <h2>{t("mod.contributors")}</h2>
+                <span className="meta">{t("mod.last6mo")}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 4 }}>
                 {mod.contributors.slice(0, 5).map((c, i) => (
@@ -290,7 +293,7 @@ export function ModuleDetail({
                       {c.name.charAt(0).toUpperCase()}
                     </span>
                     <span style={{ flex: 1, color: "var(--text-1)" }}>{c.name}</span>
-                    <span className="mono" style={{ fontSize: 11, color: "var(--text-3)" }}>{c.commits} commits</span>
+                    <span className="mono" style={{ fontSize: 11, color: "var(--text-3)" }}>{c.commits} {t("mod.commits")}</span>
                     {c.last_active && (
                       <span style={{ fontSize: 10, color: "var(--text-4)" }}>{c.last_active.slice(0, 10)}</span>
                     )}
@@ -304,8 +307,8 @@ export function ModuleDetail({
           {mod.recent_changes && mod.recent_changes.length > 0 && (
             <div className="card-simple" style={{ marginBottom: 16 }}>
               <div className="card-simple-head">
-                <h2>Git commits recientes</h2>
-                <span className="meta">{mod.recent_changes.length} commits</span>
+                <h2>{t("mod.recentCommits")}</h2>
+                <span className="meta">{t("mod.nCommits", { n: mod.recent_changes.length })}</span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 4 }}>
                 {mod.recent_changes.slice(0, 8).map((ch, i) => (
@@ -324,7 +327,7 @@ export function ModuleDetail({
           {(moduleDecisions.length > 0 || moduleChanges.length > 0) && (
             <div className="card-simple">
               <div className="card-simple-head">
-                <h2>Actividad reciente</h2>
+                <h2>{t("mod.recentActivity")}</h2>
               </div>
               <div className="md-activity">
                 {[...moduleDecisions.map((d) => ({ type: "decision" as const, date: d.created_at, title: d.title })),
@@ -335,7 +338,7 @@ export function ModuleDetail({
                   .map((item, i) => (
                     <div key={i} className="md-activity-row">
                       <span className={"md-activity-type " + item.type}>
-                        {item.type === "decision" ? "decision" : "change"}
+                        {item.type === "decision" ? t("risks.decisionLabel") : t("risks.changeLabel")}
                       </span>
                       <span className="md-activity-title">{item.title}</span>
                       <span className="md-activity-date">{timeAgo(item.date)}</span>
@@ -366,8 +369,12 @@ export function ModuleDetail({
                       )
                   );
                 })();
+                const isExpanded = expandedFile === f.path;
                 return (
-                  <div key={f.path} className={"md-file-row" + (isDead ? " dead" : "") + (f.loc > 300 ? " large" : "")}>
+                  <div key={f.path} className={"md-file-row" + (isDead ? " dead" : "") + (f.loc > 300 ? " large" : "") + (isExpanded ? " expanded" : "")}
+                    onClick={() => setExpandedFile(isExpanded ? null : f.path)}
+                    style={{ cursor: "pointer" }}
+                  >
                     <span className="cov-file-kind" style={{ background: KIND_COLORS[f.kind] || KIND_COLORS.unknown }}>
                       {f.kind}
                     </span>
@@ -388,18 +395,119 @@ export function ModuleDetail({
                     )}
                     {isDead && <span className="cov-file-badge dead">unused</span>}
                     {f.loc > 300 && <span className="cov-file-badge large">large</span>}
-                    {f.authors && f.authors.length > 0 && (
-                      <div style={{ display: "flex", gap: 4, fontSize: 9, color: "var(--text-4)" }}>
-                        {f.authors.slice(0, 2).map((a) => (
-                          <span key={a.author}>{a.author}</span>
-                        ))}
+
+                    {/* Expanded file detail panel */}
+                    {isExpanded && (
+                      <div className="fd-panel" onClick={(e) => e.stopPropagation()}>
+                        {/* Exports */}
+                        {f.exports.length > 0 && (
+                          <div className="fd-section">
+                            <div className="fd-section-label">{t("mod.exports")}</div>
+                            <div className="fd-chips">
+                              {f.exports.map((exp) => (
+                                <span key={exp} className="fd-chip mono">{exp}</span>
+                              ))}
+                              {f.has_default_export && <span className="fd-chip default mono">default</span>}
+                            </div>
+                            {f.type_exports && f.type_exports.length > 0 && (
+                              <div className="fd-chips" style={{ marginTop: 4 }}>
+                                {f.type_exports.map((t) => (
+                                  <span key={t} className="fd-chip type mono">{t}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Imports */}
+                        {f.imports.length > 0 && (
+                          <div className="fd-section">
+                            <div className="fd-section-label">{t("mod.imports")} ({f.imports.length})</div>
+                            <div className="fd-imports">
+                              {f.imports.slice(0, 15).map((imp, idx) => (
+                                <div key={idx} className="fd-import-row">
+                                  <span className="fd-import-source mono">{imp.source}</span>
+                                  {imp.specifiers.length > 0 && (
+                                    <span className="fd-import-specs">{imp.specifiers.join(", ")}</span>
+                                  )}
+                                </div>
+                              ))}
+                              {f.imports.length > 15 && (
+                                <span className="fd-more">+{f.imports.length - 15} more</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Complexity + metrics */}
+                        <div className="fd-section">
+                          <div className="fd-section-label">{t("mod.metrics")}</div>
+                          <div className="fd-metrics">
+                            <div className="fd-metric">
+                              <span className="fd-metric-val">{f.loc}</span>
+                              <span className="fd-metric-label">{t("mod.loc")}</span>
+                            </div>
+                            <div className="fd-metric">
+                              <span className="fd-metric-val" style={{ color: (f.complexity || 0) > 15 ? "var(--red)" : (f.complexity || 0) > 8 ? "var(--yellow)" : "var(--green)" }}>
+                                {f.complexity || 0}
+                              </span>
+                              <span className="fd-metric-label">{t("mod.complexity")}</span>
+                            </div>
+                            <div className="fd-metric">
+                              <span className="fd-metric-val">{f.exports.length}</span>
+                              <span className="fd-metric-label">{t("mod.exports")}</span>
+                            </div>
+                            <div className="fd-metric">
+                              <span className="fd-metric-val">{f.imports.length}</span>
+                              <span className="fd-metric-label">{t("mod.imports")}</span>
+                            </div>
+                            {f.change_frequency != null && (
+                              <div className="fd-metric">
+                                <span className="fd-metric-val">{f.change_frequency}</span>
+                                <span className="fd-metric-label">{t("mod.changes3mo")}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* JSDoc */}
+                        {f.jsdoc && f.jsdoc.length > 0 && (
+                          <div className="fd-section">
+                            <div className="fd-section-label">{t("mod.documentation")}</div>
+                            <div className="fd-jsdoc">
+                              {f.jsdoc.slice(0, 3).map((doc, i) => (
+                                <div key={i} className="fd-jsdoc-entry mono">{doc}</div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Authors + last modified */}
+                        {(f.authors?.length || f.last_modified) && (
+                          <div className="fd-section">
+                            <div className="fd-section-label">{t("mod.history")}</div>
+                            <div className="fd-history">
+                              {f.authors && f.authors.map((a) => (
+                                <div key={a.author} className="fd-author">
+                                  <span className="fd-author-name">{a.author}</span>
+                                  <span className="fd-author-lines">{a.lines} lines</span>
+                                </div>
+                              ))}
+                              {f.last_modified && (
+                                <div className="fd-last-mod">{t("mod.lastModified")} {f.last_modified.slice(0, 10)}</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Summary */}
+                        {f.summary && (
+                          <div className="fd-section">
+                            <div className="fd-section-label">{t("mod.summary")}</div>
+                            <div className="fd-summary">{f.summary}</div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {f.last_modified && (
-                      <span style={{ fontSize: 9, color: "var(--text-4)" }}>{f.last_modified.slice(0, 10)}</span>
-                    )}
-                    {f.summary && (
-                      <div className="md-file-summary">{f.summary}</div>
                     )}
                   </div>
                 );
@@ -412,7 +520,7 @@ export function ModuleDetail({
       {tab === "decisions" && (
         <div className="md-content">
           {moduleDecisions.length === 0 && moduleChanges.length === 0 ? (
-            <div className="empty-state">No decisions or changes for this module</div>
+            <div className="empty-state">{t("mod.noDecisionsChanges")}</div>
           ) : (
             <div className="md-timeline">
               {[...moduleDecisions.map((d) => ({
@@ -442,13 +550,13 @@ export function ModuleDetail({
                     <div className="tl-content">
                       <div className="tl-header">
                         <span className={"tl-type " + item.type}>
-                          {item.type === "decision" ? "decision" : item.status === "breaking" ? "breaking" : "change"}
+                          {item.type === "decision" ? t("risks.decisionLabel") : item.status === "breaking" ? t("risks.breakingLabel") : t("risks.changeLabel")}
                         </span>
                         <span className="tl-date">{timeAgo(item.date)}</span>
                       </div>
                       <div className="tl-title">{item.title}</div>
                       {item.detail && <div className="tl-detail">{item.detail}</div>}
-                      {item.author && <div className="tl-author" style={{ marginTop: 4 }}>by {item.author}</div>}
+                      {item.author && <div className="tl-author" style={{ marginTop: 4 }}>{t("risks.by", { author: item.author })}</div>}
                     </div>
                   </div>
                 ))}
@@ -462,7 +570,7 @@ export function ModuleDetail({
         <div className="md-content">
           <div className="card-simple" style={{ marginBottom: 16 }}>
             <div className="card-simple-head">
-              <h2>Internal dependency graph</h2>
+              <h2>{t("mod.internalGraph")}</h2>
             </div>
             <div className="md-dep-graph">
               {files.map((f) => {

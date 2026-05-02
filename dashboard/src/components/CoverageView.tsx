@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ModuleData, FileData } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 const KIND_COLORS: Record<string, string> = {
   page: "#f97316",
@@ -21,6 +22,7 @@ function shortName(path: string): string {
 }
 
 export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[]; onSelectModule?: (name: string) => void }) {
+  const { t } = useT();
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const [showDead, setShowDead] = useState(false);
 
@@ -103,14 +105,12 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
     return (
       <section className="cov-view">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-          <h2>Cobertura y salud del codebase</h2>
+          <h2>{t("cov.title")}</h2>
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4CA;</div>
-          <div className="empty-title">Sin datos de cobertura</div>
-          <div className="empty-desc">
-            Ejecuta <code>npx agentnorth index</code> y luego <code>npx agentnorth sync</code>
-          </div>
+          <div className="empty-title">{t("cov.noData")}</div>
+          <div className="empty-desc">{t("cov.noDataDesc")}</div>
         </div>
       </section>
     );
@@ -119,8 +119,8 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
   return (
     <section className="cov-view">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-        <h2>Cobertura y salud del codebase</h2>
-        <span className="meta">{modules.length} modules · {allFiles.length} unique files</span>
+        <h2>{t("cov.title")}</h2>
+        <span className="meta">{t("cov.subtitle", { n: modules.length, files: allFiles.length })}</span>
       </div>
 
       {/* Hero stats */}
@@ -128,21 +128,21 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
         <div className="cov-hero-info" style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
           <div className="cov-hero-row">
             <div className="cov-num">{stats.totalFiles.toLocaleString("en")}</div>
-            <div className="cov-label">files</div>
+            <div className="cov-label">{t("cov.files")}</div>
           </div>
           <div className="cov-hero-row">
             <div className="cov-num">{stats.totalLoc.toLocaleString("en")}</div>
-            <div className="cov-label">lines</div>
+            <div className="cov-label">{t("cov.lines")}</div>
           </div>
           <div className="cov-hero-row">
             <div className="cov-num">{stats.totalExports.toLocaleString("en")}</div>
-            <div className="cov-label">exports</div>
+            <div className="cov-label">{t("cov.exports")}</div>
           </div>
           <div className="cov-hero-row">
             <div className="cov-num" style={{ color: deadFiles.length > 0 ? "var(--yellow)" : "var(--green)" }}>
               {deadFiles.length}
             </div>
-            <div className="cov-label">possible dead</div>
+            <div className="cov-label">{t("cov.possibleDead")}</div>
           </div>
         </div>
       </div>
@@ -150,8 +150,8 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
       {/* Documentation coverage treemap */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
-          <h2>Documentation coverage</h2>
-          <span className="meta">size = LOC, color = has summary</span>
+          <h2>{t("cov.docCoverage")}</h2>
+          <span className="meta">{t("cov.docCoverageDesc")}</span>
         </div>
         <div className="treemap-grid">
           {modules
@@ -177,7 +177,7 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
                 >
                   <div className="treemap-name mono">{m.name}</div>
                   <div className="treemap-pct" style={{ color }}>{pct}%</div>
-                  <div className="treemap-detail">{documented}/{total} files</div>
+                  <div className="treemap-detail">{t("cov.documented", { n: documented, total })}</div>
                 </div>
               );
             })}
@@ -187,7 +187,7 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
       {/* File type distribution */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
-          <h2>File types</h2>
+          <h2>{t("cov.fileTypes")}</h2>
         </div>
         <div className="cov-kind-bar">
           {kindCounts.map(([kind, count]) => {
@@ -215,8 +215,8 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
       {/* Module health */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
-          <h2>Health by module</h2>
-          <span className="meta">click to expand</span>
+          <h2>{t("cov.healthByModule")}</h2>
+          <span className="meta">{t("cov.clickExpand")}</span>
         </div>
         <div className="cov-modules">
           {moduleHealth
@@ -248,15 +248,15 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
                     <div className="cov-mod-detail">
                       <div className="cov-mod-flags">
                         <span className={"cov-flag" + (hasTests ? " ok" : " warn")}>
-                          {hasTests ? "has tests" : "no tests"}
+                          {hasTests ? t("cov.hasTests") : t("cov.noTests")}
                         </span>
                         {deadCount > 0 && (
-                          <span className="cov-flag warn">{deadCount} possible dead</span>
+                          <span className="cov-flag warn">{t("cov.possibleDeadN", { n: deadCount })}</span>
                         )}
                         {largeFiles > 0 && (
-                          <span className="cov-flag warn">{largeFiles} large files (&gt;300 LOC)</span>
+                          <span className="cov-flag warn">{t("cov.largeFiles", { n: largeFiles })}</span>
                         )}
-                        <span className="cov-flag">{avgLoc} LOC promedio</span>
+                        <span className="cov-flag">{t("cov.avgLoc", { n: avgLoc })}</span>
                       </div>
                       <div className="cov-mod-files-list">
                         {(m.files || [])
@@ -279,8 +279,8 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
                                 </span>
                                 <span className="cov-file-name mono">{shortName(f.path)}</span>
                                 <span className="cov-file-loc">{f.loc} LOC</span>
-                                {isDead && <span className="cov-file-badge dead">unused</span>}
-                                {isLarge && <span className="cov-file-badge large">large</span>}
+                                {isDead && <span className="cov-file-badge dead">{t("cov.unused")}</span>}
+                                {isLarge && <span className="cov-file-badge large">{t("cov.large")}</span>}
                               </div>
                             );
                           })}
@@ -296,27 +296,27 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
       {/* Complexity hotspots */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
-          <h2>Hotspots</h2>
-          <span className="meta">files that need attention</span>
+          <h2>{t("cov.hotspots")}</h2>
+          <span className="meta">{t("cov.hotspotsDesc")}</span>
         </div>
         <div className="cov-hotspots">
           <HotspotSection
-            title="Largest files"
+            title={t("cov.largestFiles")}
             files={[...allFiles].sort((a, b) => b.loc - a.loc).slice(0, 5)}
             metric={(f) => `${f.loc} LOC`}
           />
           <HotspotSection
-            title="Highest complexity"
+            title={t("cov.highestComplexity")}
             files={[...allFiles].filter((f) => (f.complexity || 0) > 0).sort((a, b) => (b.complexity || 0) - (a.complexity || 0)).slice(0, 5)}
             metric={(f) => `complexity: ${f.complexity || 0}`}
           />
           <HotspotSection
-            title="Hot files (most changes 3m)"
+            title={t("cov.hotFiles")}
             files={[...allFiles].filter((f) => (f.change_frequency || 0) > 0).sort((a, b) => (b.change_frequency || 0) - (a.change_frequency || 0)).slice(0, 5)}
             metric={(f) => `${f.change_frequency} changes`}
           />
           <HotspotSection
-            title="Mas importados"
+            title={t("cov.mostImported")}
             files={(() => {
               const importCounts = allFiles.map((f) => {
                 const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
@@ -333,7 +333,7 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
                 .filter((x) => x.count > 0)
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 5)
-                .map((x) => ({ ...x.file, _metricValue: `${x.count} dependientes` }));
+                .map((x) => ({ ...x.file, _metricValue: t("cov.dependents", { n: x.count }) }));
             })()}
             metric={(f) => (f as FileData & { _metricValue?: string })._metricValue || ""}
           />
@@ -343,8 +343,8 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
       {/* Change Impact Analysis */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
-          <h2>Analisis de impacto</h2>
-          <span className="meta">high-impact files</span>
+          <h2>{t("cov.impactAnalysis")}</h2>
+          <span className="meta">{t("cov.highImpact")}</span>
         </div>
         <div className="impact-list">
           {(() => {
@@ -407,9 +407,9 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
                   </span>
                   <span className="impact-name mono">{shortName(x.file.path)}</span>
                   <span className="impact-nums">
-                    <span className="impact-direct">{x.directCount} directos</span>
+                    <span className="impact-direct">{t("cov.direct", { n: x.directCount })}</span>
                     {x.totalBlast > x.directCount && (
-                      <span className="impact-total"> · {x.totalBlast} total</span>
+                      <span className="impact-total"> · {t("cov.totalBlast", { n: x.totalBlast })}</span>
                     )}
                   </span>
                 </div>
@@ -422,17 +422,17 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
       {deadFiles.length > 0 && (
         <div className="card-simple">
           <div className="card-simple-head">
-            <h2>Possibly dead files ({deadFiles.length})</h2>
+            <h2>{t("cov.deadFiles")} ({deadFiles.length})</h2>
             <button
               className="btn-simple"
               onClick={() => setShowDead(!showDead)}
               style={{ padding: "4px 12px", fontSize: 12 }}
             >
-              {showDead ? "hide" : "show all"}
+              {showDead ? t("cov.hide") : t("cov.showAll")}
             </button>
           </div>
           <div className="cov-dead-desc">
-            Files that no other file in the project imports. Could be dead code or undetected entry points.
+            {t("cov.deadFilesDesc")}
           </div>
           {showDead && (
             <div className="cov-dead-list">

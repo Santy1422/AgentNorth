@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import type { ModuleData, FileData } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 const KIND_COLORS: Record<string, string> = {
   page: "#f97316",
@@ -18,15 +19,15 @@ const KIND_COLORS: Record<string, string> = {
 
 const KIND_LABELS: Record<string, string> = {
   page: "Screen",
-  component: "Componente",
+  component: "Component",
   hook: "Hook",
-  lib: "Libreria",
-  model: "Modelo",
+  lib: "Library",
+  model: "Model",
   route: "API Route",
   schema: "Schema",
   test: "Test",
   config: "Config",
-  unknown: "Otro",
+  unknown: "Other",
 };
 
 function shortName(path: string): string {
@@ -82,6 +83,7 @@ function getUsedBy(file: FileData, allFiles: FileData[]): FileData[] {
 
 // ─── Main Component ───
 export function MapView({ modules }: { modules: ModuleData[] }) {
+  const { t } = useT();
   const [selectedScreen, setSelectedScreen] = useState<FileData | null>(null);
   const [selectedNode, setSelectedNode] = useState<FileData | null>(null);
   const [mapSearch, setMapSearch] = useState("");
@@ -114,14 +116,12 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
     return (
       <section className="map-simple">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-          <h2>Mapa del codebase</h2>
+          <h2>{t("map.title")}</h2>
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F5FA;</div>
-          <div className="empty-title">No indexed files</div>
-          <div className="empty-desc">
-            Ejecuta <code>npx agentnorth index</code> y luego <code>npx agentnorth sync</code>
-          </div>
+          <div className="empty-title">{t("map.noFiles")}</div>
+          <div className="empty-desc">{t("map.noFilesDesc")}</div>
         </div>
       </section>
     );
@@ -147,7 +147,7 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
               setSelectedNode(null);
             }}
           >
-            Arquitectura
+            {t("map.architecture")}
           </button>
           {selectedScreen && (
             <>
@@ -168,9 +168,9 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
           )}
         </h2>
         <span className="meta">
-          {!selectedScreen && `${screens.length} screens · ${routes.length} APIs · ${uniqueFiles.length} files`}
-          {selectedScreen && !selectedNode && "Dependency flow for this screen"}
-          {selectedNode && `${selectedNode.exports.length} exports · ${selectedNode.imports.length} imports`}
+          {!selectedScreen && `${screens.length} ${t("map.screens")} · ${routes.length} ${t("map.apis")} · ${uniqueFiles.length} files`}
+          {selectedScreen && !selectedNode && t("map.depFlow")}
+          {selectedNode && `${selectedNode.exports.length} ${t("map.exports")} · ${selectedNode.imports.length} ${t("map.imports")}`}
         </span>
       </div>
 
@@ -181,7 +181,7 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
             <span className="search-icon">&#x2315;</span>
             <input
               type="text"
-              placeholder="Search file, component, hook..."
+              placeholder={t("map.search")}
               value={mapSearch}
               onChange={(e) => setMapSearch(e.target.value)}
             />
@@ -288,6 +288,7 @@ function ArchitectureOverview({
   onSelectScreen: (f: FileData) => void;
   onSelectFile: (f: FileData) => void;
 }) {
+  const { t } = useT();
   return (
     <div className="arch-overview">
       {/* Screens - the main entry point */}
@@ -295,7 +296,7 @@ function ArchitectureOverview({
         <div className="arch-layer">
           <div className="arch-layer-label">
             <span className="arch-dot" style={{ background: KIND_COLORS.page }}></span>
-            Pantallas ({screens.length})
+            {t("map.screensTab")} ({screens.length})
           </div>
           <div className="arch-cards">
             {screens.map((s) => {
@@ -309,9 +310,9 @@ function ArchitectureOverview({
                     <div className="asc-path mono">{s.path}</div>
                     <div className="asc-meta">
                       {s.loc} LOC
-                      {compCount > 0 && <span> · {compCount} componentes</span>}
+                      {compCount > 0 && <span> · {compCount} {t("map.components")}</span>}
                       {deps.length > compCount && (
-                        <span> · {deps.length - compCount} otros</span>
+                        <span> · {deps.length - compCount} {t("map.others")}</span>
                       )}
                     </div>
                   </div>
@@ -327,7 +328,7 @@ function ArchitectureOverview({
       {screens.length > 0 && components.length > 0 && (
         <div className="arch-connector">
           <div className="arch-connector-line"></div>
-          <span className="arch-connector-label">usan</span>
+          <span className="arch-connector-label">{t("map.uses")}</span>
           <div className="arch-connector-line"></div>
         </div>
       )}
@@ -337,7 +338,7 @@ function ArchitectureOverview({
         <div className="arch-layer">
           <div className="arch-layer-label">
             <span className="arch-dot" style={{ background: KIND_COLORS.component }}></span>
-            Componentes ({components.length})
+            {t("map.componentsTab")} ({components.length})
           </div>
           <div className="arch-chips-grid">
             {components.map((c) => {
@@ -362,7 +363,7 @@ function ArchitectureOverview({
       {(hooks.length > 0 || libs.length > 0) && (
         <div className="arch-connector">
           <div className="arch-connector-line"></div>
-          <span className="arch-connector-label">importan</span>
+          <span className="arch-connector-label">{t("map.import")}</span>
           <div className="arch-connector-line"></div>
         </div>
       )}
@@ -374,7 +375,7 @@ function ArchitectureOverview({
             <div className="arch-layer">
               <div className="arch-layer-label">
                 <span className="arch-dot" style={{ background: KIND_COLORS.hook }}></span>
-                Hooks ({hooks.length})
+                {t("map.hooksTab")} ({hooks.length})
               </div>
               <div className="arch-chips-grid">
                 {hooks.map((h) => (
@@ -390,7 +391,7 @@ function ArchitectureOverview({
             <div className="arch-layer">
               <div className="arch-layer-label">
                 <span className="arch-dot" style={{ background: KIND_COLORS.lib }}></span>
-                Librerias ({libs.length})
+                {t("map.libsTab")} ({libs.length})
               </div>
               <div className="arch-chips-grid">
                 {libs.map((l) => (
@@ -409,7 +410,7 @@ function ArchitectureOverview({
       {models.length > 0 && (
         <div className="arch-connector">
           <div className="arch-connector-line"></div>
-          <span className="arch-connector-label">acceden a</span>
+          <span className="arch-connector-label">{t("map.accessTo")}</span>
           <div className="arch-connector-line"></div>
         </div>
       )}
@@ -419,7 +420,7 @@ function ArchitectureOverview({
         <div className="arch-layer">
           <div className="arch-layer-label">
             <span className="arch-dot" style={{ background: KIND_COLORS.model }}></span>
-            Modelos / Data ({models.length})
+            {t("map.modelsTab")} ({models.length})
           </div>
           <div className="arch-chips-grid">
             {models.map((m) => (
@@ -439,7 +440,7 @@ function ArchitectureOverview({
           <div className="arch-layer">
             <div className="arch-layer-label">
               <span className="arch-dot" style={{ background: KIND_COLORS.route }}></span>
-              API Routes ({routes.length})
+              {t("map.routesTab")} ({routes.length})
             </div>
             <div className="arch-chips-grid">
               {routes.map((r) => {
@@ -451,7 +452,7 @@ function ArchitectureOverview({
                   <button key={r.path} className="arch-chip route" onClick={() => onSelectFile(r)}>
                     <span className="arch-chip-dot" style={{ background: KIND_COLORS.route }}></span>
                     <span className="arch-chip-name mono">{pathLabel}</span>
-                    <span className="arch-chip-method">GET/POST</span>
+                    <span className="arch-chip-method">{t("map.getPost")}</span>
                   </button>
                 );
               })}
@@ -465,7 +466,7 @@ function ArchitectureOverview({
         <div className="arch-layer" style={{ marginTop: 8 }}>
           <div className="arch-layer-label">
             <span className="arch-dot" style={{ background: KIND_COLORS.unknown }}></span>
-            Otros ({others.length})
+            {t("map.othersTab")} ({others.length})
           </div>
           <div className="arch-chips-grid">
             {others.map((o) => (
@@ -493,6 +494,7 @@ function ScreenFlow({
   onSelectFile: (f: FileData) => void;
   onBack: () => void;
 }) {
+  const { t } = useT();
   // Build dependency tree
   const directDeps = getDirectDeps(screen, allFiles);
 
@@ -556,7 +558,7 @@ function ScreenFlow({
       {directDeps.length > 0 && (
         <div className="sf-connector-v">
           <div className="sf-line-v"></div>
-          <span className="sf-connector-label">importa directamente</span>
+          <span className="sf-connector-label">{t("map.importsDirect")}</span>
         </div>
       )}
 
@@ -593,7 +595,7 @@ function ScreenFlow({
                       {f.exports.length > 0 && <span>{f.exports.length} exp</span>}
                       {subDeps.length > 0 && (
                         <span style={{ color: "var(--text-3)" }}>
-                          usa {subDeps.length} mas
+                          {t("map.uses")} {subDeps.length}+
                         </span>
                       )}
                     </div>
@@ -619,7 +621,7 @@ function ScreenFlow({
         <>
           <div className="sf-connector-v">
             <div className="sf-line-v"></div>
-            <span className="sf-connector-label">esos a su vez usan</span>
+            <span className="sf-connector-label">{t("map.thoseUse")}</span>
           </div>
 
           {Object.entries(secondByKind)
@@ -653,7 +655,7 @@ function ScreenFlow({
         <div className="sf-dep-group" style={{ marginTop: 8 }}>
           <div className="sf-dep-group-label">
             <span className="arch-dot" style={{ background: "#60a5fa" }}></span>
-            Paquetes externos ({externalImports.length})
+            {t("map.extPackages")} ({externalImports.length})
           </div>
           <div className="sf-dep-chips">
             {externalImports.map((imp) => (
@@ -664,7 +666,7 @@ function ScreenFlow({
       )}
 
       <button className="btn-simple" style={{ marginTop: 20 }} onClick={onBack}>
-        &larr; Volver a Arquitectura
+        &larr; {t("map.backToArch")}
       </button>
     </div>
   );
@@ -682,6 +684,7 @@ function NodeDetail({
   onNavigate: (f: FileData) => void;
   onBack: () => void;
 }) {
+  const { t } = useT();
   const deps = getDirectDeps(file, allFiles);
   const usedBy = getUsedBy(file, allFiles);
   const externalImports = file.imports.filter(
@@ -707,29 +710,29 @@ function NodeDetail({
         </div>
         <div className="fd-stat">
           <span className="fd-stat-num">{file.exports.length}</span>
-          <span>exports</span>
+          <span>{t("map.exports")}</span>
         </div>
         <div className="fd-stat">
           <span className="fd-stat-num">{deps.length}</span>
-          <span>importa</span>
+          <span>{t("map.imports")}</span>
         </div>
         <div className="fd-stat">
           <span className="fd-stat-num">{usedBy.length}</span>
-          <span>lo usan</span>
+          <span>{t("map.usedBy")}</span>
         </div>
       </div>
 
       <div className="fd-sections">
         {file.summary && (
           <div className="fd-section">
-            <div className="fd-section-title">Summary</div>
+            <div className="fd-section-title">{t("map.summary")}</div>
             <div className="fd-summary">{file.summary}</div>
           </div>
         )}
 
         {file.exports.length > 0 && (
           <div className="fd-section">
-            <div className="fd-section-title">Exports ({file.exports.length})</div>
+            <div className="fd-section-title">{t("map.exportsLabel")} ({file.exports.length})</div>
             <div className="fd-exports-xref">
               {file.exports.map((exp) => {
                 // Find who imports this specific export
@@ -757,7 +760,7 @@ function NodeDetail({
                         ))}
                       </div>
                     ) : (
-                      <span className="fd-export-unused">unused</span>
+                      <span className="fd-export-unused">{t("map.unused")}</span>
                     )}
                   </div>
                 );
@@ -768,7 +771,7 @@ function NodeDetail({
 
         {deps.length > 0 && (
           <div className="fd-section">
-            <div className="fd-section-title">Importa de ({deps.length})</div>
+            <div className="fd-section-title">{t("map.importsFrom")} ({deps.length})</div>
             {deps.map((target) => (
               <button key={target.path} className="fd-link" onClick={() => onNavigate(target)}>
                 <span className="mc-kind-dot" style={{ background: KIND_COLORS[target.kind] }}></span>
@@ -782,7 +785,7 @@ function NodeDetail({
 
         {usedBy.length > 0 && (
           <div className="fd-section">
-            <div className="fd-section-title">Usado por ({usedBy.length})</div>
+            <div className="fd-section-title">{t("map.usedBy")} ({usedBy.length})</div>
             {usedBy.map((f) => (
               <button key={f.path} className="fd-link" onClick={() => onNavigate(f)}>
                 <span className="mc-kind-dot" style={{ background: KIND_COLORS[f.kind] }}></span>
@@ -796,7 +799,7 @@ function NodeDetail({
 
         {externalImports.length > 0 && (
           <div className="fd-section">
-            <div className="fd-section-title">Paquetes externos ({externalImports.length})</div>
+            <div className="fd-section-title">{t("map.extPackages")} ({externalImports.length})</div>
             <div className="fd-chips">
               {externalImports.map((imp) => (
                 <span key={imp.source} className="fd-chip ext mono">{imp.source}</span>
@@ -808,14 +811,14 @@ function NodeDetail({
         {deps.length === 0 && usedBy.length === 0 && (
           <div className="fd-section">
             <div className="fd-orphan">
-              &#x26A0; This file has no internal connections. Possibly dead code.
+              &#x26A0; {t("map.noConnections")}
             </div>
           </div>
         )}
       </div>
 
       <button className="btn-simple" style={{ marginTop: 16 }} onClick={onBack}>
-        &larr; Volver
+        &larr; {t("map.back")}
       </button>
     </div>
   );

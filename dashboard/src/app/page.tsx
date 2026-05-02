@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useT } from "@/i18n/provider";
 import { Header } from "@/components/Header";
 import { MainView } from "@/components/MainView";
 import { MapView } from "@/components/MapView";
@@ -88,6 +89,11 @@ export interface SessionData {
   ended_at: string | null;
   tokens_total: number;
   tokens_saved_total: number;
+  events_count?: number;
+  modules_visited?: string[];
+  tools_used?: string[];
+  files_touched?: string[];
+  branch?: string;
 }
 
 export interface EventData {
@@ -161,60 +167,109 @@ function timeAgo(dateStr: string): string {
   return `${days}d`;
 }
 
-function buildFeed(data: DashboardData): FeedRow[] {
-  const rows: FeedRow[] = [];
+function buildFeed(data: DashboardData, t: (key: string, vars?: Record<string, string | number>) => string): FeedRow[] {
+  const rows: { row: FeedRow; ts: number }[] = [];
 
-  for (const d of data.decisions.slice(0, 5)) {
+  for (const d of data.decisions) {
     rows.push({
-      id: d._id,
-      kind: "decision",
-      who: d.author_name === "agent" ? "Claude" : d.author_name || "unknown",
-      verb: "logged decision",
-      obj: d.title,
-      detail: d.decision || d.context || "",
-      ago: timeAgo(d.created_at),
-      badges: [{ t: "pinned", c: "violet" }, { t: d.module || "", c: "" }],
+      ts: new Date(d.created_at).getTime(),
+      row: {
+        id: d._id,
+        kind: "decision",
+        who: d.author_name && d.author_name !== "agent" && d.author_name !== "unknown"
+          ? d.author_name
+          : "agent",
+        verb: t("feed.loggedDecision"),
+        obj: d.title,
+        detail: d.decision || d.context || "",
+        ago: timeAgo(d.created_at),
+        badges: [
+          { t: d.status || "active", c: "violet" },
+          ...(d.module ? [{ t: d.module, c: "" }] : []),
+        ],
+      },
     });
   }
 
-  for (const c of data.changes.slice(0, 5)) {
+  for (const c of data.changes) {
     rows.push({
-      id: c._id,
-      kind: "doc",
-      who: "Claude",
-      verb: "modified",
-      obj: c.summary,
-      detail: `${c.files_changed?.length || 0} files${c.breaking ? " · BREAKING" : ""}`,
-      ago: timeAgo(c.created_at),
-      badges: c.breaking ? [{ t: "breaking", c: "accent" }] : [{ t: "change", c: "blue" }],
+      ts: new Date(c.created_at).getTime(),
+      row: {
+        id: c._id,
+        kind: "doc",
+        who: "agent",
+        verb: c.breaking ? t("feed.breakingChange") : t("feed.modified"),
+        obj: c.summary,
+        detail: c.files_changed?.length
+          ? `${c.files_changed.length} file${c.files_changed.length > 1 ? "s" : ""}: ${c.files_changed.slice(0, 3).map((f) => f.split("/").pop()).join(", ")}${c.files_changed.length > 3 ? "…" : ""}`
+          : "",
+        ago: timeAgo(c.created_at),
+        badges: c.breaking ? [{ t: "breaking", c: "accent" }] : [{ t: t("common.change"), c: "blue" }],
+      },
     });
   }
 
-  for (const e of data.events.slice(0, 5)) {
+  for (const e of data.events) {
     rows.push({
-      id: e._id,
-      kind: "claude",
-      who: "Claude",
-      verb: e.action?.replace(/_/g, " ") || "event",
-      obj: e.module || "",
-      detail: "",
-      ago: timeAgo(e.timestamp),
-      badges: e.tokens_saved_estimate
-        ? [{ t: `-${(e.tokens_saved_estimate / 1000).toFixed(1)}k tokens`, c: "accent" }]
-        : [],
+      ts: new Date(e.timestamp).getTime(),
+      row: {
+        id: e._id,
+        kind: "claude",
+        who: e.dev_id?.name || "agent",
+        verb: e.action?.replace(/_/g, " ") || "event",
+        obj: e.module || "",
+        detail: "",
+        ago: timeAgo(e.timestamp),
+        badges: e.tokens_saved_estimate
+          ? [{ t: `-${(e.tokens_saved_estimate / 1000).toFixed(1)}k tokens`, c: "accent" }]
+          : [],
+      },
     });
   }
 
-  rows.sort((a, b) => {
-    if (a.ago === "now") return -1;
-    if (b.ago === "now") return 1;
-    return 0;
-  });
+  // Add session info to feed
+  for (const s of data.sessions) {
+    if (s.ended_at) {
+      const duration = Math.round((new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) / 60000);
+      rows.push({
+        ts: new Date(s.ended_at).getTime(),
+        row: {
+          id: s._id + "-end",
+          kind: "session",
+          who: s.dev_id?.name || "agent",
+          verb: t("feed.sessionEnded"),
+          obj: `${duration}min`,
+          detail: s.tokens_saved_total ? t("feed.saved", { n: (s.tokens_saved_total / 1000).toFixed(1) }) : "",
+          ago: timeAgo(s.ended_at),
+          badges: [{ t: t("common.session"), c: "" }],
+        },
+      });
+    } else {
+      rows.push({
+        ts: new Date(s.started_at).getTime(),
+        row: {
+          id: s._id + "-start",
+          kind: "session",
+          who: s.dev_id?.name || "agent",
+          verb: t("feed.sessionActive"),
+          obj: "",
+          detail: "",
+          ago: timeAgo(s.started_at),
+          badges: [{ t: "live", c: "accent" }],
+          fresh: true,
+        },
+      });
+    }
+  }
 
-  return rows.slice(0, 10);
+  // Sort by actual timestamp, newest first
+  rows.sort((a, b) => b.ts - a.ts);
+
+  return rows.slice(0, 12).map((r) => r.row);
 }
 
 export default function Home() {
+  const { t } = useT();
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [view, setView] = useState<View>("main");
   const [data, setData] = useState<DashboardData | null>(null);
@@ -224,6 +279,7 @@ export default function Home() {
   const [activeProject, setActiveProject] = useState<ProjectRef | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
 
   const fetchDashboard = useCallback(async (projectId?: string) => {
     try {
@@ -251,63 +307,122 @@ export default function Home() {
       setData(d);
       setActiveProject({ id: d.project.id, name: d.project.name });
       setSavedTokens(d.tokens_saved || 0);
-      setFeedRows(buildFeed(d));
+      setFeedRows(buildFeed(d, t));
       setLastRefresh(new Date());
       setAuthState("ready");
     } catch {
       setAuthState("unauthenticated");
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
 
-  // Real-time SSE connection + fallback polling
+  // Real-time SSE with auto-reconnect + exponential backoff
+  const sseRef = useRef<{ es: EventSource | null; retries: number; timer: ReturnType<typeof setTimeout> | null }>({
+    es: null, retries: 0, timer: null,
+  });
+
   useEffect(() => {
     if (authState !== "ready" || !activeProject?.id) return;
 
-    let es: EventSource | null = null;
-    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+    const projectId = activeProject.id;
+    const state = sseRef.current;
+    let disposed = false;
 
-    try {
-      es = new EventSource(`/api/stream?project=${activeProject.id}`);
+    function connect() {
+      if (disposed) return;
 
-      es.addEventListener("sync", () => {
-        // Server notified us of a sync — refresh immediately
-        fetchDashboard(activeProject.id);
+      // Clean previous
+      state.es?.close();
+      state.es = null;
+
+      const es = new EventSource(`/api/stream?project=${projectId}`);
+      state.es = es;
+
+      es.addEventListener("connected", () => {
+        // Connection established — reset backoff
+        state.retries = 0;
+        setIsLive(true);
       });
 
-      es.addEventListener("event", () => {
-        fetchDashboard(activeProject.id);
+      es.addEventListener("heartbeat", () => {
+        // Keep-alive received — connection is healthy
+        setIsLive(true);
+      });
+
+      es.addEventListener("sync", (e) => {
+        // Full sync happened — refresh all data
+        setIsLive(true);
+        fetchDashboard(projectId);
+      });
+
+      es.addEventListener("event", (e) => {
+        // Inline event update — update tokens without full refetch
+        try {
+          const payload = JSON.parse(e.data);
+          if (payload.tokens_saved) {
+            setSavedTokens((prev) => prev + payload.tokens_saved);
+          }
+          // Add to feed inline
+          if (payload.action) {
+            setFeedRows((prev) => {
+              const row: FeedRow = {
+                id: `sse-${Date.now()}`,
+                kind: "claude",
+                who: "Claude",
+                verb: payload.action?.replace(/_/g, " ") || "event",
+                obj: payload.module || "",
+                detail: "",
+                ago: t("common.now"),
+                badges: payload.tokens_saved
+                  ? [{ t: `-${(payload.tokens_saved / 1000).toFixed(1)}k tokens`, c: "accent" }]
+                  : [],
+                fresh: true,
+              };
+              return [row, ...prev].slice(0, 10);
+            });
+          }
+        } catch {
+          // Fallback: full refetch
+          fetchDashboard(projectId);
+        }
       });
 
       es.addEventListener("decision", () => {
-        fetchDashboard(activeProject.id);
+        fetchDashboard(projectId);
+      });
+
+      es.addEventListener("session", () => {
+        // Session start/end — refresh
+        fetchDashboard(projectId);
       });
 
       es.onerror = () => {
-        // SSE failed, fall back to polling
-        es?.close();
-        es = null;
-        if (!fallbackInterval) {
-          fallbackInterval = setInterval(() => {
-            fetchDashboard(activeProject.id);
-          }, 30000);
-        }
+        setIsLive(false);
+        es.close();
+        state.es = null;
+
+        if (disposed) return;
+
+        // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
+        const delay = Math.min(1000 * Math.pow(2, state.retries), 30000);
+        state.retries++;
+        state.timer = setTimeout(connect, delay);
       };
-    } catch {
-      // SSE not supported, fall back to polling
-      fallbackInterval = setInterval(() => {
-        fetchDashboard(activeProject.id);
-      }, 30000);
     }
 
+    connect();
+
     return () => {
-      es?.close();
-      if (fallbackInterval) clearInterval(fallbackInterval);
+      disposed = true;
+      state.es?.close();
+      state.es = null;
+      if (state.timer) clearTimeout(state.timer);
+      state.retries = 0;
     };
-  }, [authState, fetchDashboard, activeProject]);
+  }, [authState, fetchDashboard, activeProject, t]);
 
   const switchProject = useCallback((p: ProjectRef) => {
     setActiveProject(p);
@@ -336,7 +451,7 @@ export default function Home() {
         projects={projects}
         activeProject={activeProject}
         onSwitchProject={switchProject}
-        isLive={true}
+        isLive={isLive}
         lastRefresh={lastRefresh}
         onRefresh={() => fetchDashboard(activeProject?.id)}
       />

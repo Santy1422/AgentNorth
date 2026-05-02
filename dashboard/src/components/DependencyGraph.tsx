@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import type { ModuleData } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 interface Node {
   id: string;
@@ -43,6 +44,7 @@ function nodeRadius(loc: number, maxLoc: number): number {
 }
 
 export function DependencyGraph({ modules }: { modules: ModuleData[] }) {
+  const { t } = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selected, setSelected] = useState<Node | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -199,15 +201,15 @@ export function DependencyGraph({ modules }: { modules: ModuleData[] }) {
     ctx.font = "10px system-ui, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.5)";
     const lx = w - 130;
-    ctx.fillText("Size = LOC", lx, 20);
+    ctx.fillText(t("graph.sizeLoc"), lx, 20);
     ctx.fillStyle = "#4ade80"; ctx.fillRect(lx, 28, 8, 8);
-    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText("Health > 80", lx + 14, 36);
+    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(t("graph.healthGood"), lx + 14, 36);
     ctx.fillStyle = "#fbbf24"; ctx.fillRect(lx, 42, 8, 8);
-    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText("Health > 50", lx + 14, 50);
+    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(t("graph.healthMed"), lx + 14, 50);
     ctx.fillStyle = "#f87171"; ctx.fillRect(lx, 56, 8, 8);
-    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText("Health < 50", lx + 14, 64);
+    ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(t("graph.healthBad"), lx + 14, 64);
     ctx.restore();
-  }, [cam, hovered, selected]);
+  }, [cam, hovered, selected, t]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -320,7 +322,7 @@ export function DependencyGraph({ modules }: { modules: ModuleData[] }) {
           </div>
           {(selected.mod.dependencies?.internal?.length ?? 0) > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>Internal deps</div>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{t("graph.internalDeps")}</div>
               {selected.mod.dependencies!.internal.map((d) => (
                 <div key={d} style={{
                   fontSize: 12, fontFamily: "monospace", padding: "2px 0",
@@ -335,7 +337,7 @@ export function DependencyGraph({ modules }: { modules: ModuleData[] }) {
           )}
           {(selected.mod.dependencies?.external?.length ?? 0) > 0 && (
             <div>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>External deps</div>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{t("graph.externalDeps")}</div>
               {selected.mod.dependencies!.external.map((d) => (
                 <div key={d} style={{ fontSize: 12, fontFamily: "monospace", padding: "2px 0", color: "#60a5fa" }}>{d}</div>
               ))}

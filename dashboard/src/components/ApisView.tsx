@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { ModuleData, FileData } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 function shortName(path: string): string {
   return path.split("/").pop() || path;
@@ -49,6 +50,7 @@ interface ApiRoute {
 }
 
 export function ApisView({ modules }: { modules: ModuleData[] }) {
+  const { t } = useT();
   const [selectedRoute, setSelectedRoute] = useState<ApiRoute | null>(null);
   const [filterMethod, setFilterMethod] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -114,13 +116,13 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
     return (
       <section className="risks-view">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-          <h2>API Catalog</h2>
+          <h2>{t("apis.title")}</h2>
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F310;</div>
-          <div className="empty-title">Sin API routes detectadas</div>
+          <div className="empty-title">{t("apis.noData")}</div>
           <div className="empty-desc">
-            API routes are auto-detected from <code>route.ts</code> files in <code>app/api/</code>
+            {t("apis.noDataDesc")}
           </div>
         </div>
       </section>
@@ -130,16 +132,16 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
   return (
     <section className="risks-view">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-        <h2>API Catalog</h2>
+        <h2>{t("apis.title")}</h2>
         <span className="meta">
-          {routes.length} endpoints · {allMethods.length} metodos · auto-detectado
+          {t("apis.subtitle", { n: routes.length, methods: allMethods.length })}
         </span>
       </div>
 
       <div className="risks-summary">
         <div className="rs-card total">
           <div className="rs-num">{routes.length}</div>
-          <div className="rs-label">endpoints</div>
+          <div className="rs-label">{t("apis.endpoints")}</div>
         </div>
         {allMethods.map((m) => (
           <div key={m} className="rs-card" style={{ borderLeft: `3px solid ${METHOD_COLORS[m] || "#71717a"}` }}>
@@ -157,7 +159,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
             className={"cov-filter" + (filterMethod === "all" ? " active" : "")}
             onClick={() => setFilterMethod("all")}
           >
-            Todos ({routes.length})
+            {t("apis.all")} ({routes.length})
           </button>
           {allMethods.map((m) => (
             <button
@@ -174,7 +176,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
           <span className="search-icon">&#x2315;</span>
           <input
             type="text"
-            placeholder="search endpoint..."
+            placeholder={t("apis.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -206,13 +208,13 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
             {selectedRoute?.file.path === route.file.path && (
               <div className="api-detail" onClick={(e) => e.stopPropagation()}>
                 <div className="api-detail-section">
-                  <div className="api-detail-label">File</div>
+                  <div className="api-detail-label">{t("apis.file")}</div>
                   <div className="api-detail-value mono">{route.file.path}</div>
                 </div>
 
                 {route.file.exports.length > 0 && (
                   <div className="api-detail-section">
-                    <div className="api-detail-label">Exports</div>
+                    <div className="api-detail-label">{t("apis.exports")}</div>
                     <div className="fd-chips">
                       {route.file.exports.map((e) => (
                         <span key={e} className="fd-chip mono">{e}</span>
@@ -224,7 +226,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
                 {route.internalDeps.length > 0 && (
                   <div className="api-detail-section">
                     <div className="api-detail-label">
-                      Internal dependencies ({route.internalDeps.length})
+                      {t("apis.internalDeps")} ({route.internalDeps.length})
                     </div>
                     <div className="api-dep-list">
                       {route.internalDeps.map((dep) => (
@@ -244,7 +246,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
 
                 {route.externalDeps.length > 0 && (
                   <div className="api-detail-section">
-                    <div className="api-detail-label">Paquetes externos</div>
+                    <div className="api-detail-label">{t("apis.extPackages")}</div>
                     <div className="fd-chips">
                       {route.externalDeps.map((d) => (
                         <span key={d} className="fd-chip ext mono">{d}</span>
@@ -270,7 +272,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
                   if (callers.length === 0) return null;
                   return (
                     <div className="api-detail-section">
-                      <div className="api-detail-label">Usado por ({callers.length})</div>
+                      <div className="api-detail-label">{t("apis.usedBy")} ({callers.length})</div>
                       <div className="api-dep-list">
                         {callers.map((c) => (
                           <div key={c.path} className="api-dep-item">
@@ -290,7 +292,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
 
                 {route.file.summary && (
                   <div className="api-detail-section">
-                    <div className="api-detail-label">Summary</div>
+                    <div className="api-detail-label">{t("apis.summary")}</div>
                     <div className="api-detail-value">{route.file.summary}</div>
                   </div>
                 )}
@@ -299,7 +301,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
           </button>
         ))}
         {filtered.length === 0 && (
-          <div className="risks-empty"><span>Sin resultados</span></div>
+          <div className="risks-empty"><span>{t("apis.noResults")}</span></div>
         )}
       </div>
     </section>

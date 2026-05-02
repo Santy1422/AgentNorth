@@ -2,16 +2,17 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { View, ProjectRef } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
-const NAV_ITEMS: { view: View; label: string; shortcut: string }[] = [
-  { view: "main", label: "Inicio", shortcut: "1" },
-  { view: "map", label: "Mapa", shortcut: "2" },
-  { view: "graph", label: "Grafo", shortcut: "3" },
-  { view: "deps", label: "Deps", shortcut: "4" },
-  { view: "coverage", label: "Cobertura", shortcut: "5" },
-  { view: "risks", label: "Decisions", shortcut: "6" },
-  { view: "apis", label: "APIs", shortcut: "7" },
-  { view: "onboarding", label: "Guia", shortcut: "8" },
+const NAV_ITEMS: { view: View; key: string; shortcut: string }[] = [
+  { view: "main", key: "nav.home", shortcut: "1" },
+  { view: "map", key: "nav.map", shortcut: "2" },
+  { view: "graph", key: "nav.graph", shortcut: "3" },
+  { view: "deps", key: "nav.deps", shortcut: "4" },
+  { view: "coverage", key: "nav.coverage", shortcut: "5" },
+  { view: "risks", key: "nav.decisions", shortcut: "6" },
+  { view: "apis", key: "nav.apis", shortcut: "7" },
+  { view: "onboarding", key: "nav.guide", shortcut: "8" },
 ];
 
 function formatTime(d: Date): string {
@@ -39,6 +40,7 @@ export function Header({
   lastRefresh?: Date | null;
   onRefresh?: () => void;
 }) {
+  const { t, locale, setLocale } = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -88,7 +90,7 @@ export function Header({
 
         {open && hasMultiple && (
           <div className="project-switcher">
-            <div className="ps-label">Proyectos</div>
+            <div className="ps-label">{t("nav.projects")}</div>
             {projects.map((p) => (
               <button
                 key={p.id}
@@ -113,28 +115,31 @@ export function Header({
             key={item.view}
             className={"nav-btn" + (view === item.view ? " active" : "")}
             onClick={() => setView(item.view)}
-            title={`${item.label} (Alt+${item.shortcut})`}
+            title={`${t(item.key)} (Alt+${item.shortcut})`}
           >
-            {item.label}
+            {t(item.key)}
           </button>
         ))}
       </nav>
 
       <div className="header-right">
         {onRefresh && (
-          <button className="refresh-btn" onClick={onRefresh} title="Refresh now">
+          <button className="refresh-btn" onClick={onRefresh} title={t("status.refresh")}>
             {"\u21BB"}
           </button>
         )}
         <div className="status-pill">
           <span className={"dot" + (isLive ? " live" : "")}></span>
-          {isLive ? "Conectado" : "Demo mode"}
+          {isLive ? t("status.connected") : t("status.demo")}
           {lastRefresh && (
             <span className="last-refresh">
               · {formatTime(lastRefresh)}
             </span>
           )}
         </div>
+        <button className="lang-toggle" onClick={() => setLocale(locale === "en" ? "es" : "en")}>
+          {locale === "en" ? "ES" : "EN"}
+        </button>
       </div>
     </header>
   );

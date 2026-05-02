@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import type { DashboardData, View, FileData } from "@/app/page";
+import { useT } from "@/i18n/provider";
 
 interface SearchResult {
   type: "file" | "decision" | "change" | "api" | "dep";
@@ -35,6 +36,7 @@ export function GlobalSearch({
   data: DashboardData | null;
   onNavigate: (view: View) => void;
 }) {
+  const { t } = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -192,7 +194,7 @@ export function GlobalSearch({
     return (
       <button className="global-search-trigger" onClick={() => setIsOpen(true)}>
         <span className="gst-icon">{"\u2315"}</span>
-        <span className="gst-text">Search...</span>
+        <span className="gst-text">{t("search.placeholder")}</span>
         <span className="gst-shortcut">{"\u2318"}K</span>
       </button>
     );
@@ -208,7 +210,7 @@ export function GlobalSearch({
             ref={inputRef}
             className="gs-input"
             type="text"
-            placeholder="Search files, decisions, APIs, dependencies..."
+            placeholder={t("search.hint")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleInputKeyDown}
@@ -243,19 +245,19 @@ export function GlobalSearch({
                   </button>
                 ))}
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 12px", fontSize: "11px", color: "var(--text-3, #888)", borderTop: "1px solid var(--border, #333)" }}>
-                  <span>{totalCount} resultado{totalCount !== 1 ? "s" : ""}</span>
-                  {totalCount > 15 && <span>...y {totalCount - 15} m\u00e1s</span>}
+                  <span>{t("search.results", { n: totalCount, s: totalCount !== 1 ? "s" : "" })}</span>
+                  {totalCount > 15 && <span>{t("search.more", { n: totalCount - 15 })}</span>}
                 </div>
               </>
             ) : (
-              <div className="gs-no-results">Sin resultados para &ldquo;{query}&rdquo;</div>
+              <div className="gs-no-results">{t("search.noResults", { query })}</div>
             )}
           </div>
         )}
 
         {!query.trim() && (
           <div className="gs-hints">
-            <span>Type to search files, decisions, APIs, and dependencies</span>
+            <span>{t("search.typeToSearch")}</span>
           </div>
         )}
       </div>
