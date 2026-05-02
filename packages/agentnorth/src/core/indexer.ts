@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { AgentNorthConfig, ContextBundle, FileRef, Contributor } from "./types.js";
 import { scanModule } from "./scanner.js";
 import { parseFile, type ParsedFile } from "./parser.js";
-import { getRecentChanges, getFileLastModified, getFileAuthors, getFileChangeFrequency, getContributors } from "./git.js";
+import { getRecentChanges, getFilesLastModified, getFilesAuthors, getFileChangeFrequency, getContributors } from "./git.js";
 import { loadDecisions } from "./decisions.js";
 import { extractSchemas } from "./schema-extractor.js";
 import { getBundlesDir } from "./config.js";
@@ -18,15 +18,17 @@ export async function indexModule(
     throw new Error(`Module "${moduleName}" not found in config`);
   }
 
+  console.error(`[agentnorth] Indexing module "${moduleName}"...`);
   const files = await scanModule(rootDir, moduleConfig, config.ignore);
+  console.error(`[agentnorth] Found ${files.length} file(s) in "${moduleName}"`);
   const parsed: ParsedFile[] = [];
 
   for (const file of files) {
     try {
       const result = await parseFile(file);
       parsed.push(result);
-    } catch {
-      // Skip files that fail to parse
+    } catch (err) {
+      console.error(`[agentnorth] Warning: failed to parse ${file.path}:`, err instanceof Error ? err.message : err);
     }
   }
 
@@ -34,16 +36,26 @@ export async function indexModule(
   const changeFreq = await getFileChangeFrequency(rootDir, moduleConfig.paths);
 
   // Get contributors for the module
+  console.error(`[agentnorth] Collecting git metadata for "${moduleName}"...`);
   let contributors: Contributor[] = [];
   try {
     contributors = await getContributors(rootDir, moduleConfig.paths);
-  } catch {}
+  } catch (err) {
+    console.error(`[agentnorth] Warning: failed to get contributors for "${moduleName}":`, err instanceof Error ? err.message : err);
+  }
+
+  // Batch git metadata: single git log call for all files instead of N+1
+  const allPaths = parsed.map((p) => p.path);
+  const [lastModMap, authorsMap] = await Promise.all([
+    getFilesLastModified(rootDir, allPaths),
+    getFilesAuthors(rootDir, allPaths),
+  ]);
 
   // Build FileRef[] with enriched data
   const fileRefs: FileRef[] = [];
   for (const p of parsed) {
-    const lastMod = await getFileLastModified(rootDir, p.path);
-    const authors = await getFileAuthors(rootDir, p.path);
+    const lastMod = lastModMap.get(p.path) ?? "";
+    const authors = authorsMap.get(p.path) ?? [];
 
     fileRefs.push({
       path: p.path,
@@ -102,7 +114,12 @@ export async function indexAll(
 
   const bundles: ContextBundle[] = [];
 
-  for (const moduleName of Object.keys(config.modules)) {
+  const moduleNames = Object.keys(config.modules);
+  console.error(`[agentnorth] Indexing ${moduleNames.length} module(s)...`);
+
+  for (let i = 0; i < moduleNames.length; i++) {
+    const moduleName = moduleNames[i]!;
+    console.error(`[agentnorth] [${i + 1}/${moduleNames.length}] Processing "${moduleName}"...`);
     const bundle = await indexModule(rootDir, moduleName, config);
     bundles.push(bundle);
 

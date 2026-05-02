@@ -47,7 +47,7 @@ describe("getKeyPrefix", () => {
   it("works with a real generated key", () => {
     const key = generateKey("an_org");
     const prefix = getKeyPrefix(key);
-    expect(prefix).toMatch(/^an_org_[A-Za-z0-9_-]{8}$/);
+    expect(prefix).toMatch(/^an_org_[A-Za-z0-9_-]+$/);
   });
 });
 

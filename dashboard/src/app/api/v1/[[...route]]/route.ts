@@ -1,9 +1,72 @@
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import type { Context, Next } from "hono";
+import { z } from "zod";
+import { rateLimit } from "@/lib/rate-limit";
+import { notifyProject } from "@/lib/sse-notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// ── Zod validation schemas ──
+
+const sessionStartSchema = z.object({
+  repo: z.string().max(500).optional(),
+  branch: z.string().max(200).optional(),
+  model: z.string().max(100).optional(),
+  conversation_id: z.string().max(200).optional(),
+}).passthrough();
+
+const sessionEndSchema = z.object({
+  files_changed: z.number().optional(),
+  files_touched: z.array(z.string()).max(100).optional(),
+  tokens_saved: z.number().optional(),
+  commit_shas: z.array(z.string()).max(50).optional(),
+  changes_logged: z.number().optional(),
+  errors_count: z.number().optional(),
+  tokens_input: z.number().optional(),
+  tokens_output: z.number().optional(),
+}).passthrough();
+
+const eventsSchema = z.object({
+  action: z.string().max(200),
+  module: z.string().max(200).optional(),
+  tokens_saved_estimate: z.number().max(10000000).optional(),
+  timestamp: z.string().optional(),
+  file: z.string().optional(),
+  tokens_input: z.number().optional(),
+  tokens_output: z.number().optional(),
+}).passthrough();
+
+const syncSchema = z.object({
+  project: z.string().max(200),
+  modules: z.array(z.unknown()).optional(),
+  decisions: z.array(z.unknown()).optional(),
+  deps: z.array(z.unknown()).optional(),
+  changes: z.array(z.unknown()).optional(),
+  github_url: z.string().optional(),
+  audit: z.array(z.unknown()).optional(),
+}).passthrough();
+
+/** Trim all string values in an object (shallow, top-level only) */
+function trimStrings<T extends Record<string, unknown>>(obj: T): T {
+  const result = { ...obj };
+  for (const key of Object.keys(result)) {
+    if (typeof result[key] === "string") {
+      (result as Record<string, unknown>)[key] = (result[key] as string).trim();
+    }
+  }
+  return result;
+}
+
+/** Extract client IP from request headers */
+function getClientIp(c: Context): string {
+  return (
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+    c.req.header("x-real-ip") ||
+    "unknown"
+  );
+}
 
 interface AuthEnv {
   Variables: {
@@ -29,6 +92,14 @@ async function models() {
 }
 
 const authMiddleware = async (c: Context<AuthEnv>, next: Next) => {
+  const ip = getClientIp(c);
+
+  // Rate limit: 30 requests per minute per IP for authenticated endpoints
+  const rl = rateLimit(`auth:${ip}`, 30, 60000);
+  if (!rl.ok) {
+    return c.json({ error: "Too many requests. Try again later." }, 429);
+  }
+
   const orgKey = c.req.header("X-Org-Key");
   const devKey = c.req.header("X-Dev-Key");
 
@@ -57,12 +128,22 @@ const authMiddleware = async (c: Context<AuthEnv>, next: Next) => {
     const org = await mdb.collection("organizations").findOne({ org_key_prefix: getPrefix(orgKey) });
     if (!org || !(await compare(orgKey, org.org_key_hash as string))) {
       await client.close();
+      // Rate limit failed auth: 10 per minute per IP
+      const failRl = rateLimit(`auth-fail:${ip}`, 10, 60000);
+      if (!failRl.ok) {
+        return c.json({ error: "Too many failed attempts. Try again later." }, 429);
+      }
       return c.json({ error: "Invalid API keys" }, 401);
     }
 
     const dev = await mdb.collection("developers").findOne({ dev_key_prefix: getPrefix(devKey), org_id: org._id });
     if (!dev || !(await compare(devKey, dev.dev_key_hash as string))) {
       await client.close();
+      // Rate limit failed auth: 10 per minute per IP
+      const failRl = rateLimit(`auth-fail:${ip}`, 10, 60000);
+      if (!failRl.ok) {
+        return c.json({ error: "Too many failed attempts. Try again later." }, 429);
+      }
       return c.json({ error: "Invalid API keys" }, 401);
     }
 
@@ -84,7 +165,12 @@ app.get("/health", (c) => c.json({ status: "ok", service: "agentnorth" }));
 app.post("/sessions/start", authMiddleware, async (c) => {
   await db();
   const { Project, Session } = await models();
-  const body = await c.req.json();
+  const raw = await c.req.json();
+  const parsed = sessionStartSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.message }, 400);
+  }
+  const body = trimStrings(parsed.data);
   const org = c.get("org");
   const dev = c.get("dev");
 
@@ -95,7 +181,9 @@ app.post("/sessions/start", authMiddleware, async (c) => {
       { org_id: org._id, dev_id: dev._id, ended_at: null, started_at: { $lt: twoHoursAgo } },
       { $set: { ended_at: new Date() } },
     );
-  } catch {}
+  } catch (err) {
+    console.error("[api/v1] session cleanup error:", err instanceof Error ? err.message : err);
+  }
 
   // Find project by name first, then by github_url, then by most recent
   let project = await Project.findOne({ org_id: org._id, name: body.repo });
@@ -144,16 +232,10 @@ app.post("/sessions/start", authMiddleware, async (c) => {
   }
 
   // Notify SSE — session started
-  try {
-    const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
-      ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
-    if (notify) {
-      notify(project._id.toString(), {
-        type: "session",
-        data: { action: "start", dev: dev.name, branch: body.branch || "", at: new Date().toISOString() },
-      });
-    }
-  } catch {}
+  notifyProject(project._id.toString(), {
+    type: "session",
+    data: { action: "start", dev: dev.name, branch: body.branch || "", at: new Date().toISOString() },
+  });
 
   return c.json({ session_id: session._id });
 });
@@ -161,7 +243,12 @@ app.post("/sessions/start", authMiddleware, async (c) => {
 app.post("/sessions/end", authMiddleware, async (c) => {
   await db();
   const { Session } = await models();
-  const body = await c.req.json();
+  const raw = await c.req.json();
+  const parsed = sessionEndSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.message }, 400);
+  }
+  const body = trimStrings(parsed.data);
   const org = c.get("org");
   const dev = c.get("dev");
 
@@ -197,27 +284,23 @@ app.post("/sessions/end", authMiddleware, async (c) => {
     await session.save();
 
     // Notify SSE — session ended
-    try {
-      const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
-        ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
-      if (notify && session.project_id) {
-        notify(session.project_id.toString(), {
-          type: "session",
-          data: {
-            action: "end",
-            dev: dev.name,
-            branch: session.branch,
-            files_changed: session.files_changed_count,
-            tokens_saved: session.tokens_saved_total,
-            duration_mins: session.duration_mins,
-            modules_visited: session.modules_visited,
-            tools_used: session.tools_used,
-            events_count: session.events_count,
-            at: new Date().toISOString(),
-          },
-        });
-      }
-    } catch {}
+    if (session.project_id) {
+      notifyProject(session.project_id.toString(), {
+        type: "session",
+        data: {
+          action: "end",
+          dev: dev.name,
+          branch: session.branch,
+          files_changed: session.files_changed_count,
+          tokens_saved: session.tokens_saved_total,
+          duration_mins: session.duration_mins,
+          modules_visited: session.modules_visited,
+          tools_used: session.tools_used,
+          events_count: session.events_count,
+          at: new Date().toISOString(),
+        },
+      });
+    }
   }
 
   return c.json({ ok: true });
@@ -226,7 +309,12 @@ app.post("/sessions/end", authMiddleware, async (c) => {
 app.post("/events", authMiddleware, async (c) => {
   await db();
   const { Project, Session, UsageEvent } = await models();
-  const body = await c.req.json();
+  const raw = await c.req.json();
+  const parsed = eventsSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.message }, 400);
+  }
+  const body = trimStrings(parsed.data);
   const org = c.get("org");
   const dev = c.get("dev");
 
@@ -270,26 +358,22 @@ app.post("/events", authMiddleware, async (c) => {
       { $inc: incFields, $addToSet: addToSetFields },
       { sort: { started_at: -1 } },
     );
-  } catch { /* session update is non-critical */ }
+  } catch (err) {
+    console.error("[api/v1] session update error:", err instanceof Error ? err.message : err);
+  }
 
   // Notify SSE
   if (project?._id) {
-    try {
-      const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
-        ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
-      if (notify) {
-        notify(project._id.toString(), {
-          type: "event",
-          data: {
-            action: body.action,
-            module: body.module,
-            tokens_saved: body.tokens_saved_estimate || 0,
-            dev: dev.name,
-            at: new Date().toISOString(),
-          },
-        });
-      }
-    } catch {}
+    notifyProject(project._id.toString(), {
+      type: "event",
+      data: {
+        action: body.action,
+        module: body.module,
+        tokens_saved: body.tokens_saved_estimate || 0,
+        dev: dev.name,
+        at: new Date().toISOString(),
+      },
+    });
   }
 
   return c.json({ ok: true });
@@ -380,7 +464,12 @@ app.get("/orgs/:orgId/stats", async (c) => {
 app.post("/sync", authMiddleware, async (c) => {
   await db();
   const { Project, Decision, AgentChange, Session } = await models();
-  const body = await c.req.json();
+  const raw = await c.req.json();
+  const parsed = syncSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.message }, 400);
+  }
+  const body = trimStrings(parsed.data);
   const org = c.get("org");
   const dev = c.get("dev");
 
@@ -394,15 +483,15 @@ app.post("/sync", authMiddleware, async (c) => {
   }
 
   if (body.modules || body.deps || body.audit) {
-    if (body.modules) project.modules = body.modules;
-    if (body.deps) project.deps = body.deps;
-    if (body.audit) project.audit = body.audit;
+    if (body.modules) project.modules = body.modules as any;
+    if (body.deps) project.deps = body.deps as any;
+    if (body.audit) project.audit = body.audit as any;
     project.last_synced_at = new Date();
     await project.save();
   }
 
   if (body.decisions) {
-    for (const d of body.decisions) {
+    for (const d of body.decisions as any[]) {
       await Decision.findOneAndUpdate(
         { org_id: org._id, project_id: project._id, title: d.title },
         {
@@ -422,7 +511,7 @@ app.post("/sync", authMiddleware, async (c) => {
   }
 
   if (body.changes) {
-    for (const ch of body.changes) {
+    for (const ch of body.changes as any[]) {
       await AgentChange.create({
         org_id: org._id,
         project_id: project._id,
@@ -450,7 +539,9 @@ app.post("/sync", authMiddleware, async (c) => {
       },
       { $set: { ended_at: new Date() } },
     );
-  } catch {}
+  } catch (err) {
+    console.error("[api/v1] stale session cleanup error:", err instanceof Error ? err.message : err);
+  }
 
   // Auto-create/refresh agent session on sync
   try {
@@ -467,13 +558,15 @@ app.post("/sync", authMiddleware, async (c) => {
         project_id: project._id,
       });
     }
-  } catch {}
+  } catch (err) {
+    console.error("[api/v1] session refresh error:", err instanceof Error ? err.message : err);
+  }
 
   // ── Health snapshot (one per day per project) ──
   try {
     const { HealthSnapshot } = await models();
-    const mods = body.modules || project.modules || [];
-    const audit = body.audit || project.audit || [];
+    const mods: any[] = body.modules || project.modules || [];
+    const audit: any[] = body.audit || project.audit || [];
 
     // Calculate health checks
     const checks: { name: string; status: "pass" | "warn" | "fail"; detail: string }[] = [];
@@ -557,19 +650,15 @@ app.post("/sync", authMiddleware, async (c) => {
         vuln_count: vulnCount,
       });
     }
-  } catch { /* health snapshot is non-critical */ }
+  } catch (err) {
+    console.error("[api/v1] health snapshot error:", err instanceof Error ? err.message : err);
+  }
 
   // Notify SSE listeners of the update
-  try {
-    const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
-      ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
-    if (notify) {
-      notify(project._id.toString(), {
-        type: "sync",
-        data: { modules: (body.modules || []).length, decisions: (body.decisions || []).length, at: new Date().toISOString() },
-      });
-    }
-  } catch { /* non-critical */ }
+  notifyProject(project._id.toString(), {
+    type: "sync",
+    data: { modules: (body.modules || []).length, decisions: (body.decisions || []).length, at: new Date().toISOString() },
+  });
 
   return c.json({ ok: true, project_id: project._id });
 });
@@ -660,16 +749,10 @@ app.post("/decisions", authMiddleware, async (c) => {
   );
 
   // Notify SSE
-  try {
-    const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
-      ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
-    if (notify) {
-      notify(project._id.toString(), {
-        type: "decision",
-        data: { title: body.title, module: body.module, at: new Date().toISOString() },
-      });
-    }
-  } catch {}
+  notifyProject(project._id.toString(), {
+    type: "decision",
+    data: { title: body.title, module: body.module, at: new Date().toISOString() },
+  });
 
   return c.json({ ok: true, decision_id: decision._id });
 });

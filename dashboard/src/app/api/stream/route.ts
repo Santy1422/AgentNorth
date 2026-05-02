@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { setSSENotify } from "@/lib/sse-notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,14 +13,12 @@ function notifyProjectUpdate(projectId: string, event: { type: string; data: unk
   if (!listeners) return;
   const msg = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
   for (const send of listeners) {
-    try { send(msg); } catch { /* listener disconnected */ }
+    try { send(msg); } catch (err) { console.error("[sse] listener send error:", err instanceof Error ? err.message : err); }
   }
 }
 
-// Global reference so other routes can call notifyProjectUpdate
-if (typeof globalThis !== "undefined") {
-  (globalThis as Record<string, unknown>).__anStreamNotify = notifyProjectUpdate;
-}
+// Register the notify function so other routes can use it via the sse-notify module
+setSSENotify(notifyProjectUpdate);
 
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("project");
@@ -36,7 +35,8 @@ export async function GET(req: NextRequest) {
     if (!resolved) {
       return new Response("Unauthorized", { status: 401 });
     }
-  } catch {
+  } catch (err) {
+    console.error("[sse] auth error:", err instanceof Error ? err.message : err);
     return new Response("Auth failed", { status: 401 });
   }
 
@@ -64,7 +64,8 @@ export async function GET(req: NextRequest) {
       const heartbeat = setInterval(() => {
         try {
           send(`event: heartbeat\ndata: ${JSON.stringify({ t: Date.now(), listeners: projectListeners.get(projectId)?.size || 0 })}\n\n`);
-        } catch {
+        } catch (err) {
+          console.error("[sse] heartbeat error:", err instanceof Error ? err.message : err);
           clearInterval(heartbeat);
         }
       }, 15000);

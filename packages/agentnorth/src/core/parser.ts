@@ -34,6 +34,7 @@ const EXT_TO_LANG: Record<string, Lang> = {
 export async function parseFile(file: ScannedFile): Promise<ParsedFile> {
   const lang = EXT_TO_LANG[file.extension];
   if (!lang) {
+    console.error(`[agentnorth] Warning: unsupported file extension "${file.extension}" for ${file.path}, skipping AST parse`);
     return {
       path: file.path,
       imports: [],
@@ -230,14 +231,16 @@ function extractComplexity(root: SgNode, lang: Lang): number {
   for (const kind of branchKinds) {
     try {
       complexity += root.findAll({ rule: { kind } }).length;
-    } catch { /* skip invalid kind */ }
+    } catch (err) { console.error(`[agentnorth] Warning: complexity check failed for kind "${kind}":`, err instanceof Error ? err.message : err); }
   }
 
   // Count && and || in binary expressions
   let binaryExprs: SgNode[] = [];
   try {
     binaryExprs = root.findAll({ rule: { kind: "binary_expression" } });
-  } catch {}
+  } catch (err) {
+    console.error("[agentnorth] Warning: binary_expression search failed:", err instanceof Error ? err.message : err);
+  }
   for (const node of binaryExprs) {
     const children = node.children();
     for (const child of children) {
