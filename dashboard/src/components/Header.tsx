@@ -9,7 +9,7 @@ const NAV_ITEMS: { view: View; label: string; shortcut: string }[] = [
   { view: "graph", label: "Grafo", shortcut: "3" },
   { view: "deps", label: "Deps", shortcut: "4" },
   { view: "coverage", label: "Cobertura", shortcut: "5" },
-  { view: "risks", label: "Decisiones", shortcut: "6" },
+  { view: "risks", label: "Decisions", shortcut: "6" },
   { view: "apis", label: "APIs", shortcut: "7" },
   { view: "onboarding", label: "Guia", shortcut: "8" },
 ];
@@ -122,7 +122,7 @@ export function Header({
 
       <div className="header-right">
         {onRefresh && (
-          <button className="refresh-btn" onClick={onRefresh} title="Actualizar ahora">
+          <button className="refresh-btn" onClick={onRefresh} title="Refresh now">
             {"\u21BB"}
           </button>
         )}

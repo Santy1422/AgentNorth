@@ -144,38 +144,38 @@ function generateWarnings(files: FileRef[], internalDeps: string[], externalDeps
   // Large files
   const largeFiles = files.filter((f) => f.loc > 500);
   if (largeFiles.length > 0) {
-    warnings.push(`${largeFiles.length} archivo(s) con >500 LOC: ${largeFiles.map((f) => f.path.split("/").pop()).join(", ")}`);
+    warnings.push(`${largeFiles.length} file(s) with >500 LOC: ${largeFiles.map((f) => f.path.split("/").pop()).join(", ")}`);
   }
 
   // High complexity
   const complexFiles = files.filter((f) => (f.complexity || 0) > 15);
   if (complexFiles.length > 0) {
-    warnings.push(`${complexFiles.length} archivo(s) con complejidad alta: ${complexFiles.map((f) => f.path.split("/").pop()).join(", ")}`);
+    warnings.push(`${complexFiles.length} file(s) with high complexity: ${complexFiles.map((f) => f.path.split("/").pop()).join(", ")}`);
   }
 
   // Files with many imports (high coupling)
   const highCoupling = files.filter((f) => f.imports.length > 10);
   if (highCoupling.length > 0) {
-    warnings.push(`${highCoupling.length} archivo(s) con >10 imports (alto acoplamiento)`);
+    warnings.push(`${highCoupling.length} file(s) with >10 imports (high coupling)`);
   }
 
   // Hot files (changed frequently)
   const hotFiles = files.filter((f) => (f.change_frequency || 0) > 5);
   if (hotFiles.length > 0) {
-    warnings.push(`${hotFiles.length} archivo(s) cambiados >5 veces en 3 meses (hot files)`);
+    warnings.push(`${hotFiles.length} file(s) changed >5 times in 3 months (hot files)`);
   }
 
   // No exports (potential dead code)
   const noExports = files.filter((f) => f.exports.length === 0 && !["page", "route", "test", "config"].includes(f.kind));
   if (noExports.length > 0) {
-    warnings.push(`${noExports.length} archivo(s) sin exports (posible codigo muerto)`);
+    warnings.push(`${noExports.length} file(s) with no exports (possible dead code)`);
   }
 
   // Missing documentation
   const undocumented = files.filter((f) => !f.jsdoc || f.jsdoc.length === 0);
   const docPct = files.length > 0 ? Math.round(((files.length - undocumented.length) / files.length) * 100) : 0;
   if (docPct < 30 && files.length > 3) {
-    warnings.push(`Solo ${docPct}% de archivos tienen JSDoc — considerar documentar funciones publicas`);
+    warnings.push(`Only ${docPct}% of files have JSDoc — consider documenting public functions`);
   }
 
   return warnings;

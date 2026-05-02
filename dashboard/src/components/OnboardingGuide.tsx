@@ -279,8 +279,8 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {/* Module guide */}
       <div className="card-simple" style={{ marginBottom: 16 }}>
         <div className="card-simple-head">
-          <h2>Modulos del proyecto</h2>
-          <span className="meta">cada modulo y su responsabilidad</span>
+          <h2>Project modules</h2>
+          <span className="meta">each module and its responsibility</span>
         </div>
         <div className="onb-modules">
           {modules.map((m) => (
@@ -363,7 +363,7 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
       {/* Security status */}
       <div className="card-simple">
         <div className="card-simple-head">
-          <h2>Estado de seguridad</h2>
+          <h2>Security status</h2>
         </div>
         <div className="onb-security">
           <div className={"onb-sec-badge " + (audit.length === 0 ? "ok" : "warn")}>

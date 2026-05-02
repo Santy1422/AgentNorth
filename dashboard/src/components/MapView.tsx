@@ -17,7 +17,7 @@ const KIND_COLORS: Record<string, string> = {
 };
 
 const KIND_LABELS: Record<string, string> = {
-  page: "Pantalla",
+  page: "Screen",
   component: "Componente",
   hook: "Hook",
   lib: "Libreria",
@@ -169,7 +169,7 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
         </h2>
         <span className="meta">
           {!selectedScreen && `${screens.length} screens · ${routes.length} APIs · ${uniqueFiles.length} files`}
-          {selectedScreen && !selectedNode && "Flujo de dependencias de esta pantalla"}
+          {selectedScreen && !selectedNode && "Dependency flow for this screen"}
           {selectedNode && `${selectedNode.exports.length} exports · ${selectedNode.imports.length} imports`}
         </span>
       </div>
@@ -347,7 +347,7 @@ function ArchitectureOverview({
                 <button key={c.path} className={"arch-chip" + (isLarge ? " large" : "")} onClick={() => onSelectFile(c)}>
                   <span className="arch-chip-dot" style={{ background: KIND_COLORS.component }}></span>
                   <span className="arch-chip-name mono">{shortName(c.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
-                  {isLarge && <span className="arch-chip-warn" title="Archivo grande">!</span>}
+                  {isLarge && <span className="arch-chip-warn" title="Large file">!</span>}
                   {usedBy.length > 0 && (
                     <span className="arch-chip-badge">{usedBy.length}</span>
                   )}
@@ -548,7 +548,7 @@ function ScreenFlow({
           <div className="sf-root-stats">
             <span>{screen.loc} LOC</span>
             <span>{screen.exports.length} exports</span>
-            <span>{directDeps.length} dependencias directas</span>
+            <span>{directDeps.length} direct dependencies</span>
           </div>
         </div>
       </div>
@@ -722,7 +722,7 @@ function NodeDetail({
       <div className="fd-sections">
         {file.summary && (
           <div className="fd-section">
-            <div className="fd-section-title">Resumen</div>
+            <div className="fd-section-title">Summary</div>
             <div className="fd-summary">{file.summary}</div>
           </div>
         )}
@@ -757,7 +757,7 @@ function NodeDetail({
                         ))}
                       </div>
                     ) : (
-                      <span className="fd-export-unused">sin uso detectado</span>
+                      <span className="fd-export-unused">unused</span>
                     )}
                   </div>
                 );
@@ -808,7 +808,7 @@ function NodeDetail({
         {deps.length === 0 && usedBy.length === 0 && (
           <div className="fd-section">
             <div className="fd-orphan">
-              &#x26A0; Este archivo no tiene conexiones internas. Posible archivo muerto.
+              &#x26A0; This file has no internal connections. Possibly dead code.
             </div>
           </div>
         )}

@@ -186,7 +186,7 @@ function buildFeed(data: DashboardData): FeedRow[] {
       obj: c.summary,
       detail: `${c.files_changed?.length || 0} files${c.breaking ? " · BREAKING" : ""}`,
       ago: timeAgo(c.created_at),
-      badges: c.breaking ? [{ t: "breaking", c: "accent" }] : [{ t: "cambio", c: "blue" }],
+      badges: c.breaking ? [{ t: "breaking", c: "accent" }] : [{ t: "change", c: "blue" }],
     });
   }
 

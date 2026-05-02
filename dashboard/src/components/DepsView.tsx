@@ -44,11 +44,11 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
     return (
       <section className="risks-view">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-          <h2>Dependencias</h2>
+          <h2>Dependencies</h2>
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4E6;</div>
-          <div className="empty-title">Sin dependencias escaneadas</div>
+          <div className="empty-title">No scanned dependencies</div>
           <div className="empty-desc">
             Ejecuta <code>npx agentnorth sync</code> para escanear los package.json del proyecto
           </div>
@@ -60,7 +60,7 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
   return (
     <section className="risks-view">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-        <h2>Dependencias</h2>
+        <h2>Dependencies</h2>
         <span className="meta">
           {deps.length} paquetes · {sources.length} package.json · npm audit integrado
         </span>

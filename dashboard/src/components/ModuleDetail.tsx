@@ -72,7 +72,7 @@ export function ModuleDetail({
 
     const hasTests = files.some((f) => f.kind === "test");
     if (hasTests) checks.push({ name: "Tests", status: "pass", detail: "Has test files" });
-    else { score -= 20; checks.push({ name: "Tests", status: "fail", detail: "Sin tests" }); }
+    else { score -= 20; checks.push({ name: "Tests", status: "fail", detail: "No tests" }); }
 
     const largeFiles = files.filter((f) => f.loc > 300);
     if (largeFiles.length === 0) checks.push({ name: "Complexity", status: "pass", detail: "No files >300 LOC" });
@@ -80,9 +80,9 @@ export function ModuleDetail({
 
     const documented = files.filter((f) => f.summary && f.summary.trim().length > 0).length;
     const docPct = files.length > 0 ? Math.round((documented / files.length) * 100) : 0;
-    if (docPct >= 80) checks.push({ name: "Documentacion", status: "pass", detail: `${docPct}% documentado` });
-    else if (docPct >= 40) { score -= 10; checks.push({ name: "Documentacion", status: "warn", detail: `${docPct}% documentado` }); }
-    else { score -= 15; checks.push({ name: "Documentacion", status: "fail", detail: `${docPct}% documentado` }); }
+    if (docPct >= 80) checks.push({ name: "Documentation", status: "pass", detail: `${docPct}% documented` });
+    else if (docPct >= 40) { score -= 10; checks.push({ name: "Documentation", status: "warn", detail: `${docPct}% documented` }); }
+    else { score -= 15; checks.push({ name: "Documentation", status: "fail", detail: `${docPct}% documented` }); }
 
     // Dead files in this module
     const deadCount = files.filter((f) => {
@@ -98,10 +98,10 @@ export function ModuleDetail({
       );
     }).length;
     if (deadCount === 0) checks.push({ name: "Dead code", status: "pass", detail: "No orphan files" });
-    else { score -= deadCount * 5; checks.push({ name: "Dead code", status: "warn", detail: `${deadCount} posibles muertos` }); }
+    else { score -= deadCount * 5; checks.push({ name: "Dead code", status: "warn", detail: `${deadCount} possible dead files` }); }
 
     if (moduleDecisions.length >= 2) checks.push({ name: "Decisions", status: "pass", detail: `${moduleDecisions.length} decisions logged` });
-    else if (moduleDecisions.length > 0) { score -= 5; checks.push({ name: "Decisions", status: "warn", detail: `Solo ${moduleDecisions.length} decision` }); }
+    else if (moduleDecisions.length > 0) { score -= 5; checks.push({ name: "Decisions", status: "warn", detail: `Only ${moduleDecisions.length} decision` }); }
     else { score -= 10; checks.push({ name: "Decisions", status: "fail", detail: "No decisions" }); }
 
     score = Math.max(0, Math.min(100, score));
@@ -111,10 +111,10 @@ export function ModuleDetail({
   if (!mod) {
     return (
       <section className="md-page">
-        <button className="btn-simple" onClick={onBack}>&larr; Volver</button>
+        <button className="btn-simple" onClick={onBack}>&larr; Back</button>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4E6;</div>
-          <div className="empty-title">Modulo no encontrado</div>
+          <div className="empty-title">Module not found</div>
         </div>
       </section>
     );
@@ -126,7 +126,7 @@ export function ModuleDetail({
     <section className="md-page">
       {/* Header */}
       <div className="md-header">
-        <button className="btn-simple" onClick={onBack}>&larr; Volver</button>
+        <button className="btn-simple" onClick={onBack}>&larr; Back</button>
         <div className="md-hero">
           <div className="md-score-ring" style={{ borderColor: scoreColor }}>
             <span style={{ color: scoreColor }}>{health.score}</span>
@@ -136,10 +136,10 @@ export function ModuleDetail({
             {mod.description && <p className="md-desc">{mod.description}</p>}
             <div className="md-meta">
               <span>{mod.files_count} files</span>
-              <span>{(mod.loc || 0).toLocaleString("es")} LOC</span>
+              <span>{(mod.loc || 0).toLocaleString("en")} LOC</span>
               <span>{mod.exports_count || 0} exports</span>
               <span>{moduleDecisions.length} decisions</span>
-              <span>{moduleChanges.length} cambios</span>
+              <span>{moduleChanges.length} changes</span>
             </div>
           </div>
         </div>
@@ -153,7 +153,7 @@ export function ModuleDetail({
             className={"md-tab" + (tab === t ? " active" : "")}
             onClick={() => setTab(t)}
           >
-            {t === "overview" ? "Resumen" : t === "files" ? `Archivos (${files.length})` : t === "decisions" ? `Decisiones (${moduleDecisions.length})` : "Dependencias"}
+            {t === "overview" ? "Overview" : t === "files" ? `Files (${files.length})` : t === "decisions" ? `Decisions (${moduleDecisions.length})` : "Dependencies"}
           </button>
         ))}
       </div>
@@ -212,11 +212,11 @@ export function ModuleDetail({
           {mod.dependencies && (
             <div className="card-simple" style={{ marginBottom: 16 }}>
               <div className="card-simple-head">
-                <h2>Dependencias de modulo</h2>
+                <h2>Module dependencies</h2>
               </div>
               {(mod.dependencies.internal || []).length > 0 && (
                 <div className="md-dep-section">
-                  <div className="md-dep-label">Depende de:</div>
+                  <div className="md-dep-label">Depends on:</div>
                   <div className="md-dep-chips">
                     {mod.dependencies.internal.map((d) => (
                       <button key={d} className="md-dep-chip mono" onClick={() => onNavigateModule(d)}>
@@ -335,7 +335,7 @@ export function ModuleDetail({
                   .map((item, i) => (
                     <div key={i} className="md-activity-row">
                       <span className={"md-activity-type " + item.type}>
-                        {item.type === "decision" ? "decision" : "cambio"}
+                        {item.type === "decision" ? "decision" : "change"}
                       </span>
                       <span className="md-activity-title">{item.title}</span>
                       <span className="md-activity-date">{timeAgo(item.date)}</span>
@@ -384,10 +384,10 @@ export function ModuleDetail({
                     <span className="md-file-exports">{f.exports.length} exp</span>
                     <span className="md-file-imports">{f.imports.length} imp</span>
                     {(f.change_frequency || 0) > 3 && (
-                      <span className="cov-file-badge" style={{ background: "var(--accent)", color: "#000" }}>{f.change_frequency} cambios</span>
+                      <span className="cov-file-badge" style={{ background: "var(--accent)", color: "#000" }}>{f.change_frequency} changes</span>
                     )}
-                    {isDead && <span className="cov-file-badge dead">sin uso</span>}
-                    {f.loc > 300 && <span className="cov-file-badge large">grande</span>}
+                    {isDead && <span className="cov-file-badge dead">unused</span>}
+                    {f.loc > 300 && <span className="cov-file-badge large">large</span>}
                     {f.authors && f.authors.length > 0 && (
                       <div style={{ display: "flex", gap: 4, fontSize: 9, color: "var(--text-4)" }}>
                         {f.authors.slice(0, 2).map((a) => (
@@ -442,13 +442,13 @@ export function ModuleDetail({
                     <div className="tl-content">
                       <div className="tl-header">
                         <span className={"tl-type " + item.type}>
-                          {item.type === "decision" ? "decision" : item.status === "breaking" ? "breaking" : "cambio"}
+                          {item.type === "decision" ? "decision" : item.status === "breaking" ? "breaking" : "change"}
                         </span>
                         <span className="tl-date">{timeAgo(item.date)}</span>
                       </div>
                       <div className="tl-title">{item.title}</div>
                       {item.detail && <div className="tl-detail">{item.detail}</div>}
-                      {item.author && <div className="tl-author" style={{ marginTop: 4 }}>por {item.author}</div>}
+                      {item.author && <div className="tl-author" style={{ marginTop: 4 }}>by {item.author}</div>}
                     </div>
                   </div>
                 ))}
@@ -462,7 +462,7 @@ export function ModuleDetail({
         <div className="md-content">
           <div className="card-simple" style={{ marginBottom: 16 }}>
             <div className="card-simple-head">
-              <h2>Grafo de dependencias internas</h2>
+              <h2>Internal dependency graph</h2>
             </div>
             <div className="md-dep-graph">
               {files.map((f) => {

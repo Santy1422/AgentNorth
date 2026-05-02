@@ -206,7 +206,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
             {selectedRoute?.file.path === route.file.path && (
               <div className="api-detail" onClick={(e) => e.stopPropagation()}>
                 <div className="api-detail-section">
-                  <div className="api-detail-label">Archivo</div>
+                  <div className="api-detail-label">File</div>
                   <div className="api-detail-value mono">{route.file.path}</div>
                 </div>
 
@@ -224,7 +224,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
                 {route.internalDeps.length > 0 && (
                   <div className="api-detail-section">
                     <div className="api-detail-label">
-                      Dependencias internas ({route.internalDeps.length})
+                      Internal dependencies ({route.internalDeps.length})
                     </div>
                     <div className="api-dep-list">
                       {route.internalDeps.map((dep) => (
@@ -290,7 +290,7 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
 
                 {route.file.summary && (
                   <div className="api-detail-section">
-                    <div className="api-detail-label">Resumen</div>
+                    <div className="api-detail-label">Summary</div>
                     <div className="api-detail-value">{route.file.summary}</div>
                   </div>
                 )}

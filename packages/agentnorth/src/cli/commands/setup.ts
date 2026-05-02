@@ -14,17 +14,17 @@ const DEFAULT_ENFORCEMENT: EnforcementConfig = {
 function generateSessionStartHook(): string {
   return `#!/bin/bash
 # AgentNorth — SessionStart hook
-# Inyecta contexto inicial cuando Claude arranca una sesion
+# Injects initial context when Claude starts a session
 
 cat << 'EOF'
-[AgentNorth] Sesion iniciada. Modulos disponibles en este proyecto:
-- Usa agentnorth_list_modules() para ver todos los modulos
-- Usa agentnorth_get_context("modulo") ANTES de trabajar en cualquier modulo
-- Usa agentnorth_log_decision() y agentnorth_log_change() DESPUES de hacer cambios
-- NO explores el repo manualmente sin consultar AgentNorth primero
+[AgentNorth] Session started. Modules available in this project:
+- Use agentnorth_list_modules() to see all modules
+- Use agentnorth_get_context("module") BEFORE working on any module
+- Use agentnorth_log_decision() and agentnorth_log_change() AFTER making changes
+- Do NOT explore the repo manually without checking AgentNorth first
 EOF
 
-# Enviar evento de session start al API (si esta configurado)
+# Send session start event to API (if configured)
 if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
   curl -s -X POST "\${AGENTNORTH_API_URL}/api/v1/sessions/start" \\
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
@@ -41,7 +41,7 @@ function generateEnforceContextHook(level: string): string {
   const message =
     level === "audit"
       ? ""
-      : `, "additionalContext": "[AgentNorth] No has consultado el contexto del modulo '$MODULE'. Llama agentnorth_get_context('$MODULE') primero para tener el contexto completo y ahorrar tokens."`;
+      : `, "additionalContext": "[AgentNorth] You have not checked the context for module '$MODULE'. Call agentnorth_get_context('$MODULE') first to get the full context and save tokens."`;
 
   return `#!/bin/bash
 # AgentNorth — PreToolUse hook (Read|Grep|Glob)
@@ -50,19 +50,19 @@ function generateEnforceContextHook(level: string): string {
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.pattern // .tool_input.query // ""' 2>/dev/null)
 
-# Si no hay file_path o no es un path dentro de src/, permitir sin advertencia
+# If no file_path or not within src/, allow without warning
 if [ -z "$FILE_PATH" ] || ! echo "$FILE_PATH" | grep -q "src/"; then
   exit 0
 fi
 
-# Extraer el modulo del path (primer directorio despues de src/)
+# Extract module from path (first directory after src/)
 MODULE=$(echo "$FILE_PATH" | sed 's|.*/src/||' | cut -d'/' -f1)
 
 if [ -z "$MODULE" ]; then
   exit 0
 fi
 
-# Verificar si ya se consulto contexto para este modulo
+# Check if context was already fetched for this module
 CONTEXT_LOG="/tmp/agentnorth-context-$(date +%Y%m%d).log"
 
 if ! grep -q "^\${MODULE}$" "$CONTEXT_LOG" 2>/dev/null; then
@@ -79,26 +79,26 @@ exit 0
 function generateTrackUsageHook(): string {
   return `#!/bin/bash
 # AgentNorth — PostToolUse hook (mcp__agentnorth__*)
-# Trackea uso de tools AgentNorth y envia eventos al API
+# Tracks AgentNorth tool usage and sends events to the API
 
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null)
 ACTION=$(echo "$TOOL_NAME" | sed 's/mcp__agentnorth__//')
 
-# Registrar que se consulto este modulo (para el hook de enforcement)
+# Record that this module's context was fetched (for enforcement hook)
 MODULE=$(echo "$INPUT" | jq -r '.tool_input.module // ""' 2>/dev/null)
 if [ -n "$MODULE" ] && echo "$ACTION" | grep -q "get_context"; then
   CONTEXT_LOG="/tmp/agentnorth-context-$(date +%Y%m%d).log"
   echo "$MODULE" >> "$CONTEXT_LOG"
 fi
 
-# Registrar log_change para el hook de session end
+# Record log_change for session end hook
 if echo "$ACTION" | grep -q "log_change"; then
   CONTEXT_LOG="/tmp/agentnorth-context-$(date +%Y%m%d).log"
   echo "log_change" >> "$CONTEXT_LOG"
 fi
 
-# Enviar evento al API (async, no bloquea a Claude)
+# Send event to API (async, does not block Claude)
 if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
   curl -s -X POST "\${AGENTNORTH_API_URL}/api/v1/events" \\
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
@@ -118,17 +118,17 @@ fi
 function generateSessionEndHook(requireLogChange: boolean): string {
   return `#!/bin/bash
 # AgentNorth — Stop hook
-# Verifica que se llamo log_change si hubo modificaciones
+# Verifies that log_change was called if there were modifications
 
 CHANGES=$(git diff --name-only 2>/dev/null | wc -l | tr -d ' ')
 CONTEXT_LOG="/tmp/agentnorth-context-$(date +%Y%m%d).log"
 LOGGED=$(grep -c "log_change" "$CONTEXT_LOG" 2>/dev/null || echo 0)
 
 ${requireLogChange ? `if [ "$CHANGES" -gt 0 ] && [ "$LOGGED" -eq 0 ]; then
-  echo "[AgentNorth] Hay $CHANGES archivos modificados pero no se registro ningun cambio con agentnorth_log_change(). Considera ejecutar el log antes de cerrar."
+  echo "[AgentNorth] $CHANGES files modified but no changes were logged with agentnorth_log_change(). Consider logging changes before closing."
 fi` : "# log_change not required by enforcement config"}
 
-# Enviar evento de session end al API
+# Send session end event to API
 if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
   curl -s -X POST "\${AGENTNORTH_API_URL}/api/v1/sessions/end" \\
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \\
@@ -195,30 +195,30 @@ function generateSettings(rootDir: string): string {
 function generateClaudeMd(projectName: string): string {
   return `# CLAUDE.md
 
-## AgentNorth — OBLIGATORIO
+## AgentNorth — REQUIRED
 
-Este proyecto usa AgentNorth como Shared Context Layer. El MCP server \`agentnorth\` esta configurado y DEBE usarse.
+This project uses AgentNorth as its Shared Context Layer. The MCP server \`agentnorth\` is configured and MUST be used.
 
-### Antes de trabajar en cualquier modulo:
-1. Llama \`agentnorth_list_modules()\` para ver los modulos disponibles
-2. Llama \`agentnorth_get_context("modulo")\` para el modulo que vas a tocar
-3. Consulta \`agentnorth_get_decisions("modulo")\` antes de tomar decisiones nuevas
+### Before working on any module:
+1. Call \`agentnorth_list_modules()\` to see available modules
+2. Call \`agentnorth_get_context("module")\` for the module you will work on
+3. Check \`agentnorth_get_decisions("module")\` before making new decisions
 
-### Despues de hacer cambios significativos:
-4. Llama \`agentnorth_log_change()\` con un resumen de lo que hiciste
-5. Si tomaste una decision de arquitectura, llama \`agentnorth_log_decision()\`
-6. **OBLIGATORIO**: Despues de cada commit, sincroniza al dashboard:
+### After making significant changes:
+4. Call \`agentnorth_log_change()\` with a summary of what you did
+5. If you made an architecture decision, call \`agentnorth_log_decision()\`
+6. **REQUIRED**: After each commit, sync to the dashboard:
 \`\`\`bash
 npx agentnorth sync
 \`\`\`
-   Esto actualiza el dashboard con los modulos, decisiones y cambios del proyecto.
-   **NUNCA te saltes este paso.** El dashboard debe reflejar siempre el estado actual del repo.
+   This updates the dashboard with the project's modules, decisions, and changes.
+   **NEVER skip this step.** The dashboard must always reflect the current repo state.
 
-### Reglas:
-- NUNCA explores el repo con grep/glob/read sin antes consultar AgentNorth
-- El contexto que necesitas ya esta indexado — usalo
-- Si un modulo no esta indexado, ejecuta \`agentnorth index\` primero
-- Las decisiones previas tienen precedencia — no las contradigas sin justificacion
+### Rules:
+- NEVER explore the repo with grep/glob/read without checking AgentNorth first
+- The context you need is already indexed — use it
+- If a module is not indexed, run \`agentnorth index\` first
+- Previous decisions take precedence — do not contradict them without justification
 `;
 }
 

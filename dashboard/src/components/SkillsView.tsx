@@ -1,11 +1,11 @@
 "use client";
 
 const PLANNED_SKILLS = [
-  { name: "Auto-Review", desc: "Revisa PRs automaticamente con contexto del proyecto", status: "planned" },
-  { name: "Migration Assistant", desc: "Guia migraciones de dependencias paso a paso", status: "planned" },
+  { name: "Auto-Review", desc: "Auto-review PRs with project context", status: "planned" },
+  { name: "Migration Assistant", desc: "Guide dependency migrations step by step", status: "planned" },
   { name: "Test Generator", desc: "Generate unit tests for modules without coverage", status: "planned" },
   { name: "Security Scanner", desc: "Escanea codigo por vulnerabilidades OWASP", status: "planned" },
-  { name: "Refactor Planner", desc: "Sugiere refactors basado en complejidad y deuda tecnica", status: "planned" },
+  { name: "Refactor Planner", desc: "Suggest refactors based on complexity and tech debt", status: "planned" },
   { name: "Onboarding Bot", desc: "Responde preguntas de nuevos devs sobre el codebase", status: "planned" },
 ];
 

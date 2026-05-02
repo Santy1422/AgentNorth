@@ -50,7 +50,7 @@ export function RisksView({
     return (
       <section className="risks-view">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-          <h2>Decisiones y cambios</h2>
+          <h2>Decisions and changes</h2>
         </div>
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4CC;</div>
@@ -66,7 +66,7 @@ export function RisksView({
   return (
     <section className="risks-view">
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
-        <h2>Decisiones y cambios</h2>
+        <h2>Decisions and changes</h2>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span className="meta">
             {decisions.length} decisions · {changes.length} changes
@@ -79,7 +79,7 @@ export function RisksView({
               className="ndf-trigger"
               onClick={() => setShowNewDecision(!showNewDecision)}
             >
-              + Nueva decision
+              + New decision
             </button>
           )}
         </div>
@@ -92,7 +92,7 @@ export function RisksView({
         </div>
         <div className="rs-card med">
           <div className="rs-num">{changes.length}</div>
-          <div className="rs-label">cambios</div>
+          <div className="rs-label">changes</div>
         </div>
         {breakingChanges.length > 0 && (
           <div className="rs-card high">
@@ -106,7 +106,7 @@ export function RisksView({
       {showNewDecision && (
         <div className="new-decision-form">
           <div className="ndf-head">
-            <h3>Nueva decision</h3>
+            <h3>New decision</h3>
             <button className="btn-simple" onClick={() => setShowNewDecision(false)}>cancelar</button>
           </div>
           <input
@@ -167,7 +167,7 @@ export function RisksView({
               setSaving(false);
             }}
           >
-            {saving ? "Guardando..." : "Crear decision"}
+            {saving ? "Saving..." : "Create decision"}
           </button>
           {saveError && (
             <div style={{ color: "var(--red)", fontSize: 11, marginTop: 6 }}>{saveError}</div>
@@ -176,7 +176,7 @@ export function RisksView({
       )}
       {saveSuccess && (
         <div style={{ background: "var(--green)", color: "#000", padding: "8px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, marginBottom: 12 }}>
-          Decision creada exitosamente
+          Decision created successfully
         </div>
       )}
 
@@ -192,13 +192,13 @@ export function RisksView({
             className={"cov-filter" + (tab === "decisions" ? " active" : "")}
             onClick={() => setTab("decisions")}
           >
-            Decisiones ({decisions.length})
+            Decisions ({decisions.length})
           </button>
           <button
             className={"cov-filter" + (tab === "changes" ? " active" : "")}
             onClick={() => setTab("changes")}
           >
-            Cambios ({changes.length})
+            Changes ({changes.length})
           </button>
         </div>
         <div className="map-search" style={{ marginLeft: "auto" }}>
@@ -247,7 +247,7 @@ export function RisksView({
                   <div className="tl-content">
                     <div className="tl-header">
                       <span className={"tl-type " + item.type}>
-                        {isDecision ? "decision" : c?.breaking ? "breaking" : "cambio"}
+                        {isDecision ? "decision" : c?.breaking ? "breaking" : "change"}
                       </span>
                       {(d?.module || c?.module) && (
                         <span className="tl-module mono">{d?.module || c?.module}</span>
@@ -269,7 +269,7 @@ export function RisksView({
                     {d && (
                       <div className="tl-footer">
                         <span className={"tl-status " + d.status}>{d.status}</span>
-                        <span className="tl-author">por {d.author_name}</span>
+                        <span className="tl-author">by {d.author_name}</span>
                       </div>
                     )}
                   </div>
@@ -346,7 +346,7 @@ function ChangeRow({ change }: { change: ChangeData }) {
     <div className={"risk-row" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
       <div className="risk-row-head">
         <span className={"risk-pill " + (change.breaking ? "high" : "low")}>
-          {change.breaking ? "breaking" : "cambio"}
+          {change.breaking ? "breaking" : "change"}
         </span>
         {change.module && <span className="risk-kind mono">{change.module}</span>}
         <div className="risk-title">{change.summary}</div>
@@ -423,7 +423,7 @@ function ActivityHeatmap({
               <div
                 key={day.date}
                 className="heatmap-cell"
-                title={`${day.date}: ${day.count} eventos`}
+                title={`${day.date}: ${day.count} events`}
                 style={{
                   opacity: day.count === 0 ? 0.1 : 0.2 + (day.count / maxCount) * 0.8,
                   background: day.count === 0 ? "var(--bg-4)" : "var(--green)",
