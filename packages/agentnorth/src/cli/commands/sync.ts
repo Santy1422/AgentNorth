@@ -107,6 +107,19 @@ export async function syncCommand(): Promise<void> {
 
     const result = await response.json();
     console.error(`[agentnorth] Synced successfully. Project ID: ${result.project_id}`);
+
+    // Auto-create/refresh agent session so dashboard shows "en vivo"
+    try {
+      await fetch(`${apiUrl}/api/v1/sessions/start`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Org-Key": orgKey,
+          "X-Dev-Key": devKey,
+        },
+        body: JSON.stringify({ repo: config.project.name }),
+      });
+    } catch {}
   } catch (e: unknown) {
     console.error(`[agentnorth] Sync error: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);

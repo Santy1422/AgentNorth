@@ -248,7 +248,7 @@ app.get("/orgs/:orgId/stats", async (c) => {
 
 app.post("/sync", authMiddleware, async (c) => {
   await db();
-  const { Project, Decision, AgentChange } = await models();
+  const { Project, Decision, AgentChange, Session } = await models();
   const body = await c.req.json();
   const org = c.get("org");
   const dev = c.get("dev");
@@ -306,6 +306,23 @@ app.post("/sync", authMiddleware, async (c) => {
       });
     }
   }
+
+  // Auto-create/refresh agent session on sync
+  try {
+    const activeSession = await Session.findOne({
+      org_id: org._id,
+      dev_id: dev._id,
+      project_id: project._id,
+      ended_at: null,
+    });
+    if (!activeSession) {
+      await Session.create({
+        org_id: org._id,
+        dev_id: dev._id,
+        project_id: project._id,
+      });
+    }
+  } catch {}
 
   // Notify SSE listeners of the update
   try {
