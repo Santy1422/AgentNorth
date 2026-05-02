@@ -88,7 +88,14 @@ app.post("/sessions/start", authMiddleware, async (c) => {
   const org = c.get("org");
   const dev = c.get("dev");
 
-  let project = await Project.findOne({ org_id: org._id, github_url: body.repo });
+  // Find project by name first, then by github_url, then by most recent
+  let project = await Project.findOne({ org_id: org._id, name: body.repo });
+  if (!project) {
+    project = await Project.findOne({ org_id: org._id, github_url: body.repo });
+  }
+  if (!project) {
+    project = await Project.findOne({ org_id: org._id }).sort({ last_synced_at: -1 });
+  }
   if (!project) {
     project = await Project.create({
       org_id: org._id,
@@ -97,11 +104,20 @@ app.post("/sessions/start", authMiddleware, async (c) => {
     });
   }
 
-  const session = await Session.create({
+  // Reuse existing active session instead of creating duplicates
+  let session = await Session.findOne({
     org_id: org._id,
     dev_id: dev._id,
     project_id: project._id,
+    ended_at: null,
   });
+  if (!session) {
+    session = await Session.create({
+      org_id: org._id,
+      dev_id: dev._id,
+      project_id: project._id,
+    });
+  }
 
   return c.json({ session_id: session._id });
 });
@@ -439,5 +455,30 @@ app.post("/decisions", authMiddleware, async (c) => {
   return c.json({ ok: true, decision_id: decision._id });
 });
 
+// ── Admin: delete duplicate/orphan projects ──
+app.delete("/projects/:projectId", authMiddleware, async (c) => {
+  await db();
+  const { Project, Decision, AgentChange, Session, UsageEvent } = await models();
+  const org = c.get("org");
+  const projectId = c.req.param("projectId");
+
+  const project = await Project.findOne({ _id: projectId, org_id: org._id });
+  if (!project) {
+    return c.json({ error: "Project not found" }, 404);
+  }
+
+  // Delete all related data
+  await Promise.all([
+    Decision.deleteMany({ project_id: projectId }),
+    AgentChange.deleteMany({ project_id: projectId }),
+    Session.deleteMany({ project_id: projectId }),
+    UsageEvent.deleteMany({ project_id: projectId }),
+    Project.deleteOne({ _id: projectId }),
+  ]);
+
+  return c.json({ ok: true, deleted: project.name });
+});
+
 export const GET = handle(app);
 export const POST = handle(app);
+export const DELETE = handle(app);
