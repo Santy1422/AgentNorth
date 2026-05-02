@@ -1,9 +1,9 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentNorthConfig, ContextBundle, FileRef } from "./types.js";
+import type { AgentNorthConfig, ContextBundle, FileRef, Contributor } from "./types.js";
 import { scanModule } from "./scanner.js";
 import { parseFile, type ParsedFile } from "./parser.js";
-import { getRecentChanges } from "./git.js";
+import { getRecentChanges, getFileLastModified, getFileAuthors, getFileChangeFrequency, getContributors } from "./git.js";
 import { loadDecisions } from "./decisions.js";
 import { extractSchemas } from "./schema-extractor.js";
 import { getBundlesDir } from "./config.js";
@@ -30,15 +30,37 @@ export async function indexModule(
     }
   }
 
-  // Build FileRef[]
-  const fileRefs: FileRef[] = parsed.map((p) => ({
-    path: p.path,
-    summary: buildSummary(p),
-    exports: p.exports,
-    imports: p.imports.map((i) => ({ source: i.source, specifiers: i.specifiers })),
-    kind: classifyFile(p),
-    loc: p.loc,
-  }));
+  // Get change frequency for all paths at once (batch)
+  const changeFreq = await getFileChangeFrequency(rootDir, moduleConfig.paths);
+
+  // Get contributors for the module
+  let contributors: Contributor[] = [];
+  try {
+    contributors = await getContributors(rootDir, moduleConfig.paths);
+  } catch {}
+
+  // Build FileRef[] with enriched data
+  const fileRefs: FileRef[] = [];
+  for (const p of parsed) {
+    const lastMod = await getFileLastModified(rootDir, p.path);
+    const authors = await getFileAuthors(rootDir, p.path);
+
+    fileRefs.push({
+      path: p.path,
+      summary: buildSummary(p),
+      exports: p.exports,
+      imports: p.imports.map((i) => ({ source: i.source, specifiers: i.specifiers })),
+      kind: classifyFile(p),
+      loc: p.loc,
+      complexity: p.complexity,
+      has_default_export: p.hasDefaultExport,
+      type_exports: p.typeExports,
+      jsdoc: p.jsdoc?.length > 0 ? p.jsdoc : undefined,
+      last_modified: lastMod || undefined,
+      authors: authors.length > 0 ? authors : undefined,
+      change_frequency: changeFreq[p.path] || undefined,
+    });
+  }
 
   // Resolve dependencies
   const internal = resolveInternalDeps(parsed, config);
@@ -53,6 +75,9 @@ export async function indexModule(
   // Load decisions for this module
   const decisions = await loadDecisions(rootDir, moduleName);
 
+  // Generate smart warnings
+  const warnings = generateWarnings(fileRefs, internal, external);
+
   const bundle: ContextBundle = {
     module: moduleName,
     files: fileRefs,
@@ -60,8 +85,9 @@ export async function indexModule(
     dependencies: { internal, external },
     decisions,
     recent_changes: recentChanges,
+    contributors,
     conventions: moduleConfig.description ? [moduleConfig.description] : [],
-    warnings: [],
+    warnings,
   };
 
   return bundle;
@@ -95,8 +121,64 @@ function buildSummary(parsed: ParsedFile): string {
   if (parsed.classes.length > 0) {
     parts.push(`classes: ${parsed.classes.join(", ")}`);
   }
+  if (parsed.functions.length > 0 && parsed.functions.length <= 3) {
+    parts.push(`fns: ${parsed.functions.join(", ")}`);
+  } else if (parsed.functions.length > 3) {
+    parts.push(`${parsed.functions.length} functions`);
+  }
+  if (parsed.jsdoc && parsed.jsdoc.length > 0) {
+    // Use first jsdoc comment as primary description
+    const firstDoc = parsed.jsdoc[0]!.slice(0, 120);
+    parts.unshift(firstDoc);
+  }
   parts.push(`${parsed.loc} lines`);
+  if (parsed.complexity > 10) {
+    parts.push(`complexity: ${parsed.complexity}`);
+  }
   return parts.join(" · ");
+}
+
+function generateWarnings(files: FileRef[], internalDeps: string[], externalDeps: string[]): string[] {
+  const warnings: string[] = [];
+
+  // Large files
+  const largeFiles = files.filter((f) => f.loc > 500);
+  if (largeFiles.length > 0) {
+    warnings.push(`${largeFiles.length} archivo(s) con >500 LOC: ${largeFiles.map((f) => f.path.split("/").pop()).join(", ")}`);
+  }
+
+  // High complexity
+  const complexFiles = files.filter((f) => (f.complexity || 0) > 15);
+  if (complexFiles.length > 0) {
+    warnings.push(`${complexFiles.length} archivo(s) con complejidad alta: ${complexFiles.map((f) => f.path.split("/").pop()).join(", ")}`);
+  }
+
+  // Files with many imports (high coupling)
+  const highCoupling = files.filter((f) => f.imports.length > 10);
+  if (highCoupling.length > 0) {
+    warnings.push(`${highCoupling.length} archivo(s) con >10 imports (alto acoplamiento)`);
+  }
+
+  // Hot files (changed frequently)
+  const hotFiles = files.filter((f) => (f.change_frequency || 0) > 5);
+  if (hotFiles.length > 0) {
+    warnings.push(`${hotFiles.length} archivo(s) cambiados >5 veces en 3 meses (hot files)`);
+  }
+
+  // No exports (potential dead code)
+  const noExports = files.filter((f) => f.exports.length === 0 && !["page", "route", "test", "config"].includes(f.kind));
+  if (noExports.length > 0) {
+    warnings.push(`${noExports.length} archivo(s) sin exports (posible codigo muerto)`);
+  }
+
+  // Missing documentation
+  const undocumented = files.filter((f) => !f.jsdoc || f.jsdoc.length === 0);
+  const docPct = files.length > 0 ? Math.round(((files.length - undocumented.length) / files.length) * 100) : 0;
+  if (docPct < 30 && files.length > 3) {
+    warnings.push(`Solo ${docPct}% de archivos tienen JSDoc — considerar documentar funciones publicas`);
+  }
+
+  return warnings;
 }
 
 function classifyFile(parsed: ParsedFile): FileRef["kind"] {

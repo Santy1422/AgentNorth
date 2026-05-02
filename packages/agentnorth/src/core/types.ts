@@ -7,11 +7,25 @@ export interface FileRef {
   imports: { source: string; specifiers: string[] }[];
   kind: "page" | "component" | "hook" | "lib" | "model" | "route" | "schema" | "test" | "config" | "unknown";
   loc: number;
+  // Enriched data
+  complexity?: number;
+  has_default_export?: boolean;
+  type_exports?: string[];
+  jsdoc?: string[];
+  last_modified?: string;
+  authors?: { author: string; lines: number }[];
+  change_frequency?: number;
 }
 
 export interface TableDef {
   name: string;
   columns: { name: string; type: string; nullable?: boolean }[];
+}
+
+export interface Contributor {
+  name: string;
+  commits: number;
+  last_active: string;
 }
 
 export interface ContextBundle {
@@ -27,6 +41,7 @@ export interface ContextBundle {
   };
   decisions: Decision[];
   recent_changes: RecentChange[];
+  contributors: Contributor[];
   conventions: string[];
   warnings: string[];
 }

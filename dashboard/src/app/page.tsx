@@ -29,6 +29,19 @@ export interface FileData {
   kind: string;
   loc: number;
   summary: string;
+  complexity?: number;
+  has_default_export?: boolean;
+  type_exports?: string[];
+  jsdoc?: string[];
+  last_modified?: string;
+  authors?: { author: string; lines: number }[];
+  change_frequency?: number;
+}
+
+export interface ContributorData {
+  name: string;
+  commits: number;
+  last_active: string;
 }
 
 export interface ModuleData {
@@ -43,6 +56,9 @@ export interface ModuleData {
     internal: string[];
     external: string[];
   };
+  contributors?: ContributorData[];
+  warnings?: string[];
+  recent_changes?: { commit: string; date: string; author: string; summary: string; files_changed: string[] }[];
 }
 
 export interface DecisionData {

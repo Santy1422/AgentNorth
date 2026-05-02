@@ -306,6 +306,16 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
             metric={(f) => `${f.loc} LOC`}
           />
           <HotspotSection
+            title="Mayor complejidad"
+            files={[...allFiles].filter((f) => (f.complexity || 0) > 0).sort((a, b) => (b.complexity || 0) - (a.complexity || 0)).slice(0, 5)}
+            metric={(f) => `complexity: ${f.complexity || 0}`}
+          />
+          <HotspotSection
+            title="Hot files (mas cambios 3m)"
+            files={[...allFiles].filter((f) => (f.change_frequency || 0) > 0).sort((a, b) => (b.change_frequency || 0) - (a.change_frequency || 0)).slice(0, 5)}
+            metric={(f) => `${f.change_frequency} cambios`}
+          />
+          <HotspotSection
             title="Mas importados"
             files={(() => {
               const importCounts = allFiles.map((f) => {
@@ -326,14 +336,6 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
                 .map((x) => ({ ...x.file, _metricValue: `${x.count} dependientes` }));
             })()}
             metric={(f) => (f as FileData & { _metricValue?: string })._metricValue || ""}
-          />
-          <HotspotSection
-            title="Mas dependencias"
-            files={[...allFiles]
-              .filter((f) => f.imports.length > 0)
-              .sort((a, b) => b.imports.length - a.imports.length)
-              .slice(0, 5)}
-            metric={(f) => `${f.imports.length} imports`}
           />
         </div>
       </div>

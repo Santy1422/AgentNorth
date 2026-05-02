@@ -258,6 +258,68 @@ export function ModuleDetail({
             </div>
           )}
 
+          {/* Warnings */}
+          {mod.warnings && mod.warnings.length > 0 && (
+            <div className="card-simple" style={{ marginBottom: 16, borderLeft: "3px solid var(--yellow)" }}>
+              <div className="card-simple-head">
+                <h2>Warnings</h2>
+                <span className="meta">{mod.warnings.length} alertas</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 4 }}>
+                {mod.warnings.map((w, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-2)" }}>
+                    <span style={{ color: "var(--yellow)" }}>{"\u26A0"}</span>
+                    {w}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Contributors */}
+          {mod.contributors && mod.contributors.length > 0 && (
+            <div className="card-simple" style={{ marginBottom: 16 }}>
+              <div className="card-simple-head">
+                <h2>Contribuidores</h2>
+                <span className="meta">ultimos 6 meses</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 4 }}>
+                {mod.contributors.slice(0, 5).map((c, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                    <span style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--bg-4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600 }}>
+                      {c.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span style={{ flex: 1, color: "var(--text-1)" }}>{c.name}</span>
+                    <span className="mono" style={{ fontSize: 11, color: "var(--text-3)" }}>{c.commits} commits</span>
+                    {c.last_active && (
+                      <span style={{ fontSize: 10, color: "var(--text-4)" }}>{c.last_active.slice(0, 10)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Git recent changes for this module */}
+          {mod.recent_changes && mod.recent_changes.length > 0 && (
+            <div className="card-simple" style={{ marginBottom: 16 }}>
+              <div className="card-simple-head">
+                <h2>Git commits recientes</h2>
+                <span className="meta">{mod.recent_changes.length} commits</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 4 }}>
+                {mod.recent_changes.slice(0, 8).map((ch, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, padding: "3px 0" }}>
+                    <span className="mono" style={{ color: "var(--accent)", fontSize: 10, minWidth: 60 }}>{ch.commit}</span>
+                    <span style={{ flex: 1, color: "var(--text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ch.summary}</span>
+                    <span style={{ fontSize: 10, color: "var(--text-4)", minWidth: 55, textAlign: "right" }}>{ch.author}</span>
+                    <span style={{ fontSize: 10, color: "var(--text-4)", minWidth: 75, textAlign: "right" }}>{ch.date?.slice(0, 10)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Recent activity */}
           {(moduleDecisions.length > 0 || moduleChanges.length > 0) && (
             <div className="card-simple">
@@ -314,10 +376,28 @@ export function ModuleDetail({
                       <span className="md-file-path mono">{f.path}</span>
                     </div>
                     <span className="md-file-loc">{f.loc} LOC</span>
+                    {(f.complexity || 0) > 0 && (
+                      <span className="md-file-exports" style={{ color: (f.complexity || 0) > 15 ? "var(--red)" : (f.complexity || 0) > 8 ? "var(--yellow)" : "var(--text-3)" }}>
+                        C:{f.complexity}
+                      </span>
+                    )}
                     <span className="md-file-exports">{f.exports.length} exp</span>
                     <span className="md-file-imports">{f.imports.length} imp</span>
+                    {(f.change_frequency || 0) > 3 && (
+                      <span className="cov-file-badge" style={{ background: "var(--accent)", color: "#000" }}>{f.change_frequency} cambios</span>
+                    )}
                     {isDead && <span className="cov-file-badge dead">sin uso</span>}
                     {f.loc > 300 && <span className="cov-file-badge large">grande</span>}
+                    {f.authors && f.authors.length > 0 && (
+                      <div style={{ display: "flex", gap: 4, fontSize: 9, color: "var(--text-4)" }}>
+                        {f.authors.slice(0, 2).map((a) => (
+                          <span key={a.author}>{a.author}</span>
+                        ))}
+                      </div>
+                    )}
+                    {f.last_modified && (
+                      <span style={{ fontSize: 9, color: "var(--text-4)" }}>{f.last_modified.slice(0, 10)}</span>
+                    )}
                     {f.summary && (
                       <div className="md-file-summary">{f.summary}</div>
                     )}

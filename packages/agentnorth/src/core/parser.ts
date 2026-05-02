@@ -9,6 +9,11 @@ export interface ParsedFile {
   functions: string[];
   classes: string[];
   loc: number;
+  complexity: number;
+  jsdoc: string[];
+  typeExports: string[];
+  hasDefaultExport: boolean;
+  topLevelStatements: number;
 }
 
 export interface ImportInfo {
@@ -36,6 +41,11 @@ export async function parseFile(file: ScannedFile): Promise<ParsedFile> {
       functions: [],
       classes: [],
       loc: 0,
+      complexity: 0,
+      jsdoc: [],
+      typeExports: [],
+      hasDefaultExport: false,
+      topLevelStatements: 0,
     };
   }
 
@@ -48,8 +58,25 @@ export async function parseFile(file: ScannedFile): Promise<ParsedFile> {
   const exports = extractExports(root, lang);
   const functions = extractFunctions(root, lang);
   const classes = extractClasses(root, lang);
+  const complexity = extractComplexity(root, lang);
+  const jsdoc = extractJSDoc(root, lang);
+  const typeExports = extractTypeExports(root, lang);
+  const hasDefaultExport = checkDefaultExport(root, lang);
+  const topLevelStatements = countTopLevelStatements(root, lang);
 
-  return { path: file.path, imports, exports, functions, classes, loc };
+  return {
+    path: file.path,
+    imports,
+    exports,
+    functions,
+    classes,
+    loc,
+    complexity,
+    jsdoc,
+    typeExports,
+    hasDefaultExport,
+    topLevelStatements,
+  };
 }
 
 function extractImports(root: SgNode, lang: Lang): ImportInfo[] {
@@ -180,4 +207,141 @@ function extractClasses(root: SgNode, lang: Lang): string[] {
   }
 
   return classes;
+}
+
+function extractComplexity(root: SgNode, lang: Lang): number {
+  if (lang !== Lang.TypeScript && lang !== Lang.Tsx && lang !== Lang.JavaScript) {
+    return 0;
+  }
+
+  // Base complexity of 1 for the file itself
+  let complexity = 1;
+
+  const branchKinds = [
+    "if_statement",
+    "for_statement",
+    "for_in_statement",
+    "while_statement",
+    "do_statement",
+    "switch_case",
+    "catch_clause",
+  ];
+
+  for (const kind of branchKinds) {
+    try {
+      complexity += root.findAll({ rule: { kind } }).length;
+    } catch { /* skip invalid kind */ }
+  }
+
+  // Count && and || in binary expressions
+  let binaryExprs: SgNode[] = [];
+  try {
+    binaryExprs = root.findAll({ rule: { kind: "binary_expression" } });
+  } catch {}
+  for (const node of binaryExprs) {
+    const children = node.children();
+    for (const child of children) {
+      const k = child.kind();
+      if (k === "&&" || k === "||") {
+        complexity++;
+      }
+    }
+  }
+
+  return complexity;
+}
+
+function extractJSDoc(root: SgNode, lang: Lang): string[] {
+  if (lang !== Lang.TypeScript && lang !== Lang.Tsx && lang !== Lang.JavaScript) {
+    return [];
+  }
+
+  const jsdocs: string[] = [];
+  const comments = root.findAll({ rule: { kind: "comment" } });
+
+  for (const node of comments) {
+    const text = node.text();
+    if (text.startsWith("/**")) {
+      // Strip comment markers: leading /**, trailing */, and leading * on each line
+      const cleaned = text
+        .replace(/^\/\*\*\s*/, "")
+        .replace(/\s*\*\/$/, "")
+        .split("\n")
+        .map((line) => line.replace(/^\s*\*\s?/, ""))
+        .join("\n")
+        .trim();
+      if (cleaned) jsdocs.push(cleaned);
+    }
+  }
+
+  return jsdocs;
+}
+
+function extractTypeExports(root: SgNode, lang: Lang): string[] {
+  if (lang !== Lang.TypeScript && lang !== Lang.Tsx && lang !== Lang.JavaScript) {
+    return [];
+  }
+
+  const typeExports: string[] = [];
+
+  const exportStatements = root.findAll({
+    rule: { kind: "export_statement" },
+  });
+
+  for (const node of exportStatements) {
+    // export interface X
+    const typeDecl = node.find({ rule: { kind: "interface_declaration" } });
+    if (typeDecl) {
+      const name = typeDecl.find({ rule: { kind: "type_identifier" } });
+      if (name) typeExports.push(name.text());
+      continue;
+    }
+
+    // export type X = ...
+    const typeAlias = node.find({ rule: { kind: "type_alias_declaration" } });
+    if (typeAlias) {
+      const name = typeAlias.find({ rule: { kind: "type_identifier" } });
+      if (name) typeExports.push(name.text());
+    }
+  }
+
+  return typeExports;
+}
+
+function checkDefaultExport(root: SgNode, lang: Lang): boolean {
+  if (lang !== Lang.TypeScript && lang !== Lang.Tsx && lang !== Lang.JavaScript) {
+    return false;
+  }
+
+  const exportStatements = root.findAll({
+    rule: { kind: "export_statement" },
+  });
+
+  for (const node of exportStatements) {
+    const text = node.text();
+    if (text.includes("export default")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function countTopLevelStatements(root: SgNode, lang: Lang): number {
+  if (lang !== Lang.TypeScript && lang !== Lang.Tsx && lang !== Lang.JavaScript) {
+    return 0;
+  }
+
+  // Top-level statements are direct children of the root (program) node
+  let count = 0;
+  const children = root.children();
+  for (const child of children) {
+    const kind = child.kind();
+    // Skip comment nodes — they are not statements
+    if (kind !== "comment") {
+      count++;
+    }
+  }
+
+  return count;
 }

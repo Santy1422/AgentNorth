@@ -28,7 +28,10 @@ export async function syncCommand(): Promise<void> {
       const bundle = JSON.parse(await readFile(bundlePath, "utf-8"));
       const files = (bundle.files || []).map((f: {
         path?: string; exports?: string[]; imports?: { source: string; specifiers: string[] }[];
-        kind?: string; loc?: number; summary?: string;
+        kind?: string; loc?: number; summary?: string; complexity?: number;
+        has_default_export?: boolean; type_exports?: string[]; jsdoc?: string[];
+        last_modified?: string; authors?: { author: string; lines: number }[];
+        change_frequency?: number;
       }) => ({
         path: f.path || "",
         exports: f.exports || [],
@@ -36,6 +39,13 @@ export async function syncCommand(): Promise<void> {
         kind: f.kind || "unknown",
         loc: f.loc || 0,
         summary: f.summary || "",
+        complexity: f.complexity || 0,
+        has_default_export: f.has_default_export || false,
+        type_exports: f.type_exports || [],
+        jsdoc: f.jsdoc || [],
+        last_modified: f.last_modified || "",
+        authors: f.authors || [],
+        change_frequency: f.change_frequency || 0,
       }));
 
       modules.push({
@@ -47,6 +57,9 @@ export async function syncCommand(): Promise<void> {
         loc: files.reduce((sum: number, f: { loc: number }) => sum + f.loc, 0),
         exports_count: files.reduce((sum: number, f: { exports: string[] }) => sum + f.exports.length, 0),
         dependencies: bundle.dependencies || { internal: [], external: [] },
+        contributors: bundle.contributors || [],
+        warnings: bundle.warnings || [],
+        recent_changes: bundle.recent_changes || [],
         last_indexed_at: new Date().toISOString(),
       });
     }
