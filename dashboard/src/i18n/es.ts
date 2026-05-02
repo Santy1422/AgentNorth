@@ -11,6 +11,7 @@ export const es: Record<TranslationKey, string> = {
   "nav.apis": "APIs",
   "nav.guide": "Guia",
   "nav.projects": "Proyectos",
+  "nav.logout": "Cerrar sesión",
   "status.connected": "Conectado",
   "status.demo": "Modo demo",
   "status.refresh": "Actualizar",

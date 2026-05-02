@@ -9,6 +9,7 @@ export const en = {
   "nav.apis": "APIs",
   "nav.guide": "Guide",
   "nav.projects": "Projects",
+  "nav.logout": "Sign out",
   "status.connected": "Connected",
   "status.demo": "Demo mode",
   "status.refresh": "Refresh now",

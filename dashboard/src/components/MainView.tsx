@@ -189,24 +189,33 @@ export function MainView({
         <span>{t("main.freeBanner")}</span>
       </div>
 
-      <section className="hero">
-        <div className="hero-label">{t("main.tokensSaved")}</div>
-        <div className="hero-num">{savedTokens.toLocaleString("en")}</div>
-        <div className="hero-sub">
-          {"\u2248"} <span className="hero-money">${dollars}</span> {t("main.inCosts")}
+      <section className="hero-v2">
+        <div className="hero-v2-left">
+          <div className="hero-v2-label">{t("main.tokensSaved")}</div>
+          <div className="hero-v2-num">{savedTokens.toLocaleString("en")}</div>
+          <div className="hero-v2-sub">
+            {"\u2248"} <span className="hero-money">${dollars}</span> {t("main.inCosts")}
+          </div>
         </div>
-        <div className="hero-stats">
-          <div className="hero-stat">
-            <span className="hero-stat-num">{modulesCount}</span>
-            <span className="hero-stat-label">{t("main.modules")}</span>
+        <div className="hero-v2-stats">
+          <div className="hero-v2-stat">
+            <span className="hero-v2-stat-num">{modulesCount}</span>
+            <span className="hero-v2-stat-label">{t("main.modules")}</span>
           </div>
-          <div className="hero-stat">
-            <span className="hero-stat-num">{decisionsCount}</span>
-            <span className="hero-stat-label">{t("main.decisions")}</span>
+          <div className="hero-v2-divider" />
+          <div className="hero-v2-stat">
+            <span className="hero-v2-stat-num">{decisionsCount}</span>
+            <span className="hero-v2-stat-label">{t("main.decisions")}</span>
           </div>
-          <div className="hero-stat">
-            <span className="hero-stat-num">{totalEvents}</span>
-            <span className="hero-stat-label">{t("main.events")}</span>
+          <div className="hero-v2-divider" />
+          <div className="hero-v2-stat">
+            <span className="hero-v2-stat-num">{totalEvents}</span>
+            <span className="hero-v2-stat-label">{t("main.events")}</span>
+          </div>
+          <div className="hero-v2-divider" />
+          <div className="hero-v2-stat">
+            <span className="hero-v2-stat-num">{allFiles.length}</span>
+            <span className="hero-v2-stat-label">{t("main.files")}</span>
           </div>
         </div>
       </section>
@@ -429,12 +438,22 @@ export function MainView({
         <div className="card-simple">
           <div className="card-simple-head">
             <h2>{t("main.sessions")}</h2>
-            <span className="meta">{t("main.live")}</span>
+            {data?.sessions?.some((s) => !s.ended_at) && (
+              <span className="live-indicator">
+                <span className="live-dot" />
+                {t("main.live")}
+              </span>
+            )}
           </div>
           {data?.sessions && data.sessions.length > 0 ? (
             data.sessions.slice(0, 6).map((s) => {
               const isActive = !s.ended_at;
               const duration = (() => {
+                if (s.duration_mins) {
+                  const mins = s.duration_mins;
+                  if (mins < 60) return `${mins}m`;
+                  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+                }
                 const start = new Date(s.started_at).getTime();
                 const end = s.ended_at ? new Date(s.ended_at).getTime() : Date.now();
                 const mins = Math.floor((end - start) / 60000);
@@ -442,22 +461,32 @@ export function MainView({
                 return `${Math.floor(mins / 60)}h ${mins % 60}m`;
               })();
               return (
-                <div key={s._id} className="simple-session">
-                  <div className="claude-avatar sm" style={{ background: isActive ? "var(--green)" : "var(--bg-3)", color: isActive ? "#000" : "var(--text-3)" }}>C</div>
-                  <div className="ss-body">
-                    <div className="ss-task">
-                      {s.dev_id?.name || t("main.claudeAgent")}
-                      {isActive && <span style={{ fontSize: 9, marginLeft: 6, color: "var(--green)", fontWeight: 600 }}>{t("main.liveLabel")}</span>}
+                <div key={s._id} className={"session-card" + (isActive ? " active" : "")}>
+                  <div className="session-card-top">
+                    <div className="session-avatar" style={{ background: isActive ? "var(--green)" : "var(--bg-4)" }}>
+                      {(s.dev_id?.name || "A").charAt(0).toUpperCase()}
                     </div>
-                    <div className="ss-meta">
-                      <span className="ss-dot" style={{ background: isActive ? "var(--green)" : "var(--text-4)" }}></span>
-                      <span>{isActive ? t("main.active") : t("main.ended")}</span>
-                      <span>{"\u00B7"}</span>
-                      <span>{duration}</span>
-                      <span>{"\u00B7"}</span>
-                      <span>{timeAgo(s.started_at)}</span>
+                    <div className="session-card-info">
+                      <div className="session-card-name">
+                        {s.dev_id?.name || t("main.claudeAgent")}
+                        {isActive && <span className="session-live-badge">{t("main.liveLabel")}</span>}
+                      </div>
+                      <div className="session-card-meta">
+                        {s.branch && <span className="session-branch">{s.branch}</span>}
+                        <span>{duration}</span>
+                        <span className="session-ago">{timeAgo(s.started_at)}</span>
+                      </div>
                     </div>
                   </div>
+                  {(s.events_count || s.modules_visited?.length || s.files_touched?.length || s.claude_model) ? (
+                    <div className="session-card-stats">
+                      {s.events_count ? <span className="session-stat">{s.events_count} {t("main.events")}</span> : null}
+                      {s.modules_visited && s.modules_visited.length > 0 ? <span className="session-stat">{s.modules_visited.length} {t("main.modules")}</span> : null}
+                      {s.files_touched && s.files_touched.length > 0 ? <span className="session-stat">{s.files_touched.length} {t("main.files")}</span> : null}
+                      {s.tokens_saved_total ? <span className="session-stat accent">{(s.tokens_saved_total / 1000).toFixed(1)}k saved</span> : null}
+                      {s.claude_model ? <span className="session-stat model">{s.claude_model}</span> : null}
+                    </div>
+                  ) : null}
                 </div>
               );
             })
