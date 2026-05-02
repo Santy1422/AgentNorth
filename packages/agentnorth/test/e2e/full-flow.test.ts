@@ -137,7 +137,9 @@ export async function cancelSubscription(subscriptionId: string) {
       expect(existsSync(join(FIXTURE_DIR, ".claude", "settings.json"))).toBe(true);
       expect(existsSync(join(FIXTURE_DIR, ".claude", "hooks", "agentnorth-session-start.sh"))).toBe(true);
       expect(existsSync(join(FIXTURE_DIR, ".claude", "hooks", "agentnorth-enforce-context.sh"))).toBe(true);
+      expect(existsSync(join(FIXTURE_DIR, ".claude", "hooks", "agentnorth-enforce-edit.sh"))).toBe(true);
       expect(existsSync(join(FIXTURE_DIR, ".claude", "hooks", "agentnorth-track-usage.sh"))).toBe(true);
+      expect(existsSync(join(FIXTURE_DIR, ".claude", "hooks", "agentnorth-track-edits.sh"))).toBe(true);
       expect(existsSync(join(FIXTURE_DIR, ".claude", "hooks", "agentnorth-session-end.sh"))).toBe(true);
       expect(existsSync(join(FIXTURE_DIR, "CLAUDE.md"))).toBe(true);
 

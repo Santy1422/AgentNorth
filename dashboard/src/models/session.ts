@@ -26,6 +26,8 @@ export interface ISession extends Document {
   decisions_logged: number;
   errors_count: number;
   commit_shas: string[];
+  edits_count: number;
+  bash_commands_count: number;
 
   // Claude metadata
   claude_model: string;
@@ -61,6 +63,8 @@ const SessionSchema = new Schema<ISession>({
   decisions_logged: { type: Number, default: 0 },
   errors_count: { type: Number, default: 0 },
   commit_shas: { type: [String], default: [] },
+  edits_count: { type: Number, default: 0 },
+  bash_commands_count: { type: Number, default: 0 },
 
   // Claude metadata
   claude_model: { type: String, default: "" },

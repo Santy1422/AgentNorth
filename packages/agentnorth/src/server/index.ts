@@ -95,6 +95,9 @@ REGLAS:
           module: moduleName,
           tokens_saved_estimate: tokenEstimate,
           timestamp: new Date().toISOString(),
+          files_count: bundle.files?.length || 0,
+          decisions_count: bundle.decisions?.length || 0,
+          warnings_count: bundle.warnings?.length || 0,
         });
 
         return {

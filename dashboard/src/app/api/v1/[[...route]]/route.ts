@@ -23,9 +23,12 @@ const sessionEndSchema = z.object({
   tokens_saved: z.number().optional(),
   commit_shas: z.array(z.string()).max(50).optional(),
   changes_logged: z.number().optional(),
+  decisions_logged: z.number().optional(),
   errors_count: z.number().optional(),
   tokens_input: z.number().optional(),
   tokens_output: z.number().optional(),
+  edits_count: z.number().optional(),
+  bash_commands_count: z.number().optional(),
 }).passthrough();
 
 const eventsSchema = z.object({
@@ -33,9 +36,12 @@ const eventsSchema = z.object({
   module: z.string().max(200).optional(),
   tokens_saved_estimate: z.number().max(10000000).optional(),
   timestamp: z.string().optional(),
-  file: z.string().optional(),
+  file: z.string().max(500).optional(),
   tokens_input: z.number().optional(),
   tokens_output: z.number().optional(),
+  files_count: z.number().optional(),
+  decisions_count: z.number().optional(),
+  warnings_count: z.number().optional(),
 }).passthrough();
 
 const syncSchema = z.object({
@@ -263,7 +269,10 @@ app.post("/sessions/end", authMiddleware, async (c) => {
     session.duration_mins = Math.round((Date.now() - new Date(session.started_at).getTime()) / 60000);
     session.files_changed_count = body.files_changed || 0;
     session.changes_logged = body.changes_logged || 0;
+    session.decisions_logged = body.decisions_logged || 0;
     session.errors_count = body.errors_count || 0;
+    session.edits_count = body.edits_count || 0;
+    session.bash_commands_count = body.bash_commands_count || 0;
     if (Array.isArray(body.files_touched)) {
       // Merge with any files already accumulated via events
       const merged = new Set([...(session.files_touched || []), ...body.files_touched]);

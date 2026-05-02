@@ -36,7 +36,7 @@ After AgentNorth:   Agent calls 1 tool    →  2,100 tokens → $0.006/session
 
 ```bash
 npx agentnorth init      # Detect modules, create config
-npx agentnorth index     # Scan & analyze your codebase
+npx agentnorth index     # Scan & analyze your codebase (AST + git metadata)
 npx agentnorth setup     # Wire into Claude Code (hooks + MCP)
 npx agentnorth sync      # Push to live dashboard
 ```
@@ -71,7 +71,7 @@ That's it. Your agents now use AgentNorth automatically via Claude Code hooks.
 
 ### Intelligent Codebase Indexing
 
-The indexer goes beyond simple file listing. It uses **AST parsing** (via ast-grep) to extract:
+The indexer goes beyond simple file listing. It uses **AST parsing** (via ast-grep) and **batch git operations** to extract:
 
 - **Exports & Imports** — full dependency graph with specifiers
 - **Cyclomatic Complexity** — per-file complexity scoring
@@ -80,6 +80,7 @@ The indexer goes beyond simple file listing. It uses **AST parsing** (via ast-gr
 - **JSDoc Extraction** — pulls documentation from `/** */` comments
 - **Schema Detection** — Prisma, SQL, Mongoose schemas auto-detected
 - **Smart Warnings** — large files, high coupling, dead code, missing docs
+- **Batch Git Metadata** — 2 git calls per module instead of 2N (one per file)
 
 ```json
 {
@@ -137,26 +138,54 @@ A full-featured codebase intelligence dashboard inspired by **Backstage**, **Sou
 | **Keyboard Shortcuts** | Alt+1-8 for view navigation, Cmd+K for search |
 | **Contributors** | Per-module contributor tracking from git history |
 | **Smart Warnings** | Auto-generated alerts for complexity, coupling, hot files |
+| **Session Tracking** | Full session lifecycle: model, branch, tokens, files touched, decisions made |
 
 ### Enforcement via Claude Code Hooks
 
-AgentNorth hooks into Claude Code to ensure agents always check context before exploring:
+AgentNorth hooks into Claude Code's lifecycle to enforce context-first behavior and track every action:
 
 ```bash
 npx agentnorth setup
 # Creates:
-#   .claude/settings.json  — MCP server config
+#   .claude/settings.json  — MCP server + hooks config
 #   .claude/hooks/         — SessionStart, PreToolUse, PostToolUse, Stop
 #   CLAUDE.md              — Agent instructions
+#   .git/hooks/post-commit — Auto index + sync
 ```
 
-Three enforcement levels:
+**Five hook integration points:**
+
+| Hook | Trigger | What it does |
+|------|---------|--------------|
+| **SessionStart** | Claude session begins | Injects instructions, sends session start event with model/branch/repo |
+| **PreToolUse (Read\|Grep\|Glob)** | Agent tries to explore files | Warns or blocks if module context not fetched first |
+| **PreToolUse (Edit\|Write)** | Agent tries to modify files | Warns or blocks edits to modules without prior context check |
+| **PostToolUse (mcp__agentnorth__*)** | Agent uses any AgentNorth MCP tool | Tracks tool usage, tokens saved, modules visited |
+| **PostToolUse (Edit\|Write\|Bash)** | Agent modifies files or runs commands | Tracks every file edit and command execution |
+| **Stop** | Claude session ends | Sends full session summary: files changed, commits, tokens, decisions |
+
+**Three enforcement levels:**
 
 | Level | Behavior |
 |-------|----------|
 | `soft` | Warns agents to check context first |
-| `strict` | Blocks file reads without prior context check |
-| `audit` | Silently tracks agent behavior for analysis |
+| `strict` | **Blocks** file reads AND edits without prior context check |
+| `audit` | Silently tracks all agent behavior for analysis |
+
+### Session Telemetry
+
+Every Claude session is tracked end-to-end:
+
+```
+Session Start                    During Session                     Session End
+─────────────                    ──────────────                     ───────────
+• claude_model                   • events_count                     • files_changed_count
+• conversation_id                • modules_visited[]                • commit_shas[]
+• branch                         • tools_used[]                     • changes_logged
+• repo_url                       • files_touched[]                  • decisions_logged
+                                 • tokens_saved_total               • duration_mins
+                                 • tokens_input/output              • errors_count
+```
 
 ### Bidirectional Sync
 
@@ -171,6 +200,13 @@ Three enforcement levels:
 - **Post-commit hook**: Automatically runs `pull → index → sync` after every commit
 - **Watch mode**: `npx agentnorth watch` — live file watching with debounced sync
 - **SSE**: Dashboard updates in real-time without polling
+
+### API Security
+
+- **Zod validation** on all POST endpoints (session start/end, events, sync)
+- **Rate limiting** — sliding window (30 req/min general, 10 failed auth/min)
+- **Input sanitization** — string trimming, array length limits
+- **bcrypt key hashing** — API keys are never stored in plain text
 
 ## CLI Commands
 
@@ -208,8 +244,10 @@ modules:
     description: "Stripe integration"
 
 enforcement:
-  level: soft
+  level: strict          # soft | strict | audit
   track_sessions: true
+  require_log_change: true
+  require_log_decision: true
 ```
 
 ## Architecture
@@ -219,12 +257,14 @@ packages/agentnorth/        — npm package
   src/core/                 — Parser, indexer, git, scanner
   src/server/               — MCP server (6 tools)
   src/cli/                  — CLI commands
+  test/                     — 194 tests (Vitest)
 dashboard/                  — Next.js 15 (agentnorth.io)
-  src/app/api/v1/           — Hono.js REST API
+  src/app/api/v1/           — Hono.js REST API (Zod + rate limiting)
   src/app/api/stream/       — SSE real-time endpoint
   src/app/api/badge/        — Embeddable SVG badges
   src/components/           — React dashboard components
-  src/models/               — MongoDB schemas
+  src/models/               — MongoDB schemas (8 models)
+  test/                     — 63 tests (Vitest)
 ```
 
 ## Tech Stack
@@ -234,9 +274,10 @@ dashboard/                  — Next.js 15 (agentnorth.io)
 - **Dashboard**: Next.js 15, React 19, Hono.js
 - **Database**: MongoDB with Mongoose
 - **Auth**: NextAuth.js with GitHub OAuth
+- **Validation**: Zod schemas on all API inputs
 - **Build**: tsup (CLI), pnpm monorepo
 - **Lint**: Biome
-- **Test**: Vitest
+- **Test**: Vitest (257 tests across both packages)
 - **Deploy**: Vercel
 
 ## License
