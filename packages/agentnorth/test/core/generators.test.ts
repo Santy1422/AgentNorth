@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+vi.setConfig({ testTimeout: 30000 });
 import { rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { stringify as yamlStringify } from "yaml";

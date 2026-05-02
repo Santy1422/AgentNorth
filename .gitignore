@@ -36,3 +36,4 @@ out/
 coverage/
 info.md
 .vercel
+packages/agentnorth/test/fixtures/.tmp-*

@@ -181,7 +181,7 @@ function generateWarnings(files: FileRef[], internalDeps: string[], externalDeps
   return warnings;
 }
 
-function classifyFile(parsed: ParsedFile): FileRef["kind"] {
+export function classifyFile(parsed: ParsedFile): FileRef["kind"] {
   const p = parsed.path.toLowerCase();
   const name = p.split("/").pop() || "";
 
