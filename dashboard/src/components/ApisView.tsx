@@ -47,6 +47,10 @@ interface ApiRoute {
   imports: { source: string; specifiers: string[] }[];
   internalDeps: FileData[];
   externalDeps: string[];
+  middleware: string[];
+  hasAuth: boolean;
+  hasValidation: boolean;
+  hasRateLimit: boolean;
 }
 
 export function ApisView({ modules }: { modules: ModuleData[] }) {
@@ -83,6 +87,29 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
         .filter((imp) => !imp.source.startsWith(".") && !imp.source.startsWith("@/") && !imp.source.startsWith("~"))
         .map((imp) => imp.source);
 
+      // Detect middleware patterns from imports
+      const allImportSpecs = f.imports.flatMap((imp) => imp.specifiers);
+      const allImportSources = f.imports.map((imp) => imp.source);
+
+      const middlewarePatterns = [
+        { pattern: /auth|session|getServerSession|getToken/, name: "auth" },
+        { pattern: /zod|validate|schema|parse/, name: "validation" },
+        { pattern: /rateLimit|rate.limit|throttle/, name: "rate-limit" },
+        { pattern: /cors/, name: "cors" },
+        { pattern: /cache|revalidate/, name: "cache" },
+        { pattern: /log|logger|analytics/, name: "logging" },
+      ];
+
+      const middleware: string[] = [];
+      const combinedText = [...allImportSpecs, ...allImportSources].join(" ");
+      for (const { pattern, name } of middlewarePatterns) {
+        if (pattern.test(combinedText)) middleware.push(name);
+      }
+
+      const hasAuth = middleware.includes("auth");
+      const hasValidation = middleware.includes("validation");
+      const hasRateLimit = middleware.includes("rate-limit");
+
       return {
         file: f,
         path: extractApiPath(f.path),
@@ -90,6 +117,10 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
         imports: f.imports,
         internalDeps,
         externalDeps,
+        middleware,
+        hasAuth,
+        hasValidation,
+        hasRateLimit,
       };
     }).sort((a, b) => a.path.localeCompare(b.path));
   }, [allFiles]);
@@ -151,6 +182,14 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
             <div className="rs-label">{m}</div>
           </div>
         ))}
+        <div className="rs-card" style={{ borderLeft: "3px solid var(--green)" }}>
+          <div className="rs-num" style={{ color: "var(--green)" }}>{routes.filter((r) => r.hasAuth).length}</div>
+          <div className="rs-label">with auth</div>
+        </div>
+        <div className="rs-card" style={{ borderLeft: "3px solid var(--yellow)" }}>
+          <div className="rs-num" style={{ color: "var(--yellow)" }}>{routes.filter((r) => !r.hasAuth).length}</div>
+          <div className="rs-label">unprotected</div>
+        </div>
       </div>
 
       <div className="risks-toolbar">
@@ -203,6 +242,15 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
               </div>
               <span className="api-path mono">{route.path}</span>
               <span className="api-loc">{route.file.loc} LOC</span>
+              <div className="api-middleware">
+                {route.hasAuth && <span className="api-mw-badge auth" title="Has authentication">auth</span>}
+                {route.hasValidation && <span className="api-mw-badge validation" title="Has input validation">zod</span>}
+                {route.hasRateLimit && <span className="api-mw-badge rate-limit" title="Has rate limiting">rate</span>}
+                {route.middleware.filter(m => !["auth","validation","rate-limit"].includes(m)).map(m => (
+                  <span key={m} className="api-mw-badge other" title={m}>{m}</span>
+                ))}
+                {route.middleware.length === 0 && <span className="api-mw-badge none" title="No middleware detected">none</span>}
+              </div>
             </div>
 
             {selectedRoute?.file.path === route.file.path && (
@@ -211,6 +259,32 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
                   <div className="api-detail-label">{t("apis.file")}</div>
                   <div className="api-detail-value mono">{route.file.path}</div>
                 </div>
+
+                {route.middleware.length > 0 && (
+                  <div className="api-detail-section">
+                    <div className="api-detail-label">Middleware & Protection</div>
+                    <div className="api-mw-list">
+                      {route.middleware.map((m) => (
+                        <div key={m} className={"api-mw-item " + m}>
+                          <span className="api-mw-icon">{m === "auth" ? "\u1F512" : m === "validation" ? "\u2713" : m === "rate-limit" ? "\u23F1" : "\u2699"}</span>
+                          <span>{m}</span>
+                        </div>
+                      ))}
+                      {!route.hasAuth && (
+                        <div className="api-mw-item warning">
+                          <span className="api-mw-icon">\u26A0</span>
+                          <span>No auth detected</span>
+                        </div>
+                      )}
+                      {!route.hasValidation && (
+                        <div className="api-mw-item warning">
+                          <span className="api-mw-icon">\u26A0</span>
+                          <span>No input validation detected</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {route.file.exports.length > 0 && (
                   <div className="api-detail-section">
