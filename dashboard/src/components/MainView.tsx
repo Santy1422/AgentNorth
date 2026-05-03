@@ -478,15 +478,15 @@ export function MainView({
                       </div>
                     </div>
                   </div>
-                  {(s.events_count || s.modules_visited?.length || s.files_touched?.length || s.claude_model) ? (
-                    <div className="session-card-stats">
-                      {s.events_count ? <span className="session-stat">{s.events_count} {t("main.events")}</span> : null}
+                  <div className="session-card-stats">
+                      {(s.tokens_input || 0) > 0 && <span className="session-stat">{((s.tokens_input || 0) / 1000).toFixed(1)}K in</span>}
+                      {(s.tokens_output || 0) > 0 && <span className="session-stat">{((s.tokens_output || 0) / 1000).toFixed(1)}K out</span>}
+                      {(s.files_changed_count || 0) > 0 && <span className="session-stat">{s.files_changed_count} {t("main.files")}</span>}
+                      {(s.commit_shas?.length || 0) > 0 && <span className="session-stat">{s.commit_shas?.length} commits</span>}
                       {s.modules_visited && s.modules_visited.length > 0 ? <span className="session-stat">{s.modules_visited.length} {t("main.modules")}</span> : null}
-                      {s.files_touched && s.files_touched.length > 0 ? <span className="session-stat">{s.files_touched.length} {t("main.files")}</span> : null}
                       {s.tokens_saved_total ? <span className="session-stat accent">{(s.tokens_saved_total / 1000).toFixed(1)}k saved</span> : null}
-                      {s.claude_model ? <span className="session-stat model">{s.claude_model}</span> : null}
+                      {s.claude_model ? <span className="session-stat model">{s.claude_model.replace("claude-", "")}</span> : null}
                     </div>
-                  ) : null}
                 </div>
               );
             })

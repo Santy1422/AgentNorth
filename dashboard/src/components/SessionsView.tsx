@@ -1,8 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import type { SessionData } from "@/app/page";
 
-// Pricing per 1M tokens (Opus 4.6 as default)
 const PRICING: Record<string, { input: number; output: number; cacheRead: number }> = {
   "claude-opus-4-6": { input: 15, output: 75, cacheRead: 1.5 },
   "claude-sonnet-4-6": { input: 3, output: 15, cacheRead: 0.3 },
@@ -25,7 +25,6 @@ function formatTokens(n: number): string {
 
 function formatCost(usd: number): string {
   if (usd < 0.01) return "<$0.01";
-  if (usd < 1) return `$${usd.toFixed(2)}`;
   return `$${usd.toFixed(2)}`;
 }
 
@@ -33,25 +32,49 @@ function calcCost(s: SessionData): number {
   const p = getPrice(s.claude_model || "");
   const input = (s.tokens_input || 0) / 1_000_000 * p.input;
   const output = (s.tokens_output || 0) / 1_000_000 * p.output;
-  const cache = ((s as any).tokens_cache_read || 0) / 1_000_000 * p.cacheRead;
+  const cache = (s.tokens_cache_read || 0) / 1_000_000 * p.cacheRead;
   return input + output + cache;
 }
 
-function timeAgo(dateStr: string): string {
+function formatDate(dateStr: string): string {
   if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+
+  // Show relative + absolute
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const isToday = d.toDateString() === now.toDateString();
+  const isYesterday = new Date(now.getTime() - 86400000).toDateString() === d.toDateString();
+
+  if (mins < 1) return `now · ${time}`;
+  if (mins < 60) return `${mins}m ago · ${time}`;
+  if (isToday) return `${Math.floor(mins / 60)}h ago · ${time}`;
+  if (isYesterday) return `yesterday · ${time}`;
+  return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} · ${time}`;
+}
+
+function formatDuration(s: SessionData): string {
+  if (s.duration_mins) {
+    const m = s.duration_mins;
+    if (m < 60) return `${m}m`;
+    return `${Math.floor(m / 60)}h ${m % 60}m`;
+  }
+  const start = new Date(s.started_at).getTime();
+  const end = s.ended_at ? new Date(s.ended_at).getTime() : Date.now();
+  const m = Math.floor((end - start) / 60000);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
 function ToolBar({ tools }: { tools: Record<string, number> }) {
   if (!tools || Object.keys(tools).length === 0) return null;
-  const sorted = Object.entries(tools).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const sorted = Object.entries(tools)
+    .filter(([name]) => name !== "_progress")
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+  if (sorted.length === 0) return null;
   const max = sorted[0]?.[1] || 1;
   return (
     <div className="tool-bar-chart">
@@ -68,35 +91,70 @@ function ToolBar({ tools }: { tools: Record<string, number> }) {
   );
 }
 
+function Metric({ val, label, accent }: { val: string | number; label: string; accent?: boolean }) {
+  return (
+    <div className={"session-metric" + (accent ? " accent" : "")}>
+      <span className="session-metric-val">{val}</span>
+      <span className="session-metric-lbl">{label}</span>
+    </div>
+  );
+}
+
+function ErrorMetric({ val }: { val: number }) {
+  return (
+    <div className="session-metric error">
+      <span className="session-metric-val">{val}</span>
+      <span className="session-metric-lbl">errors</span>
+    </div>
+  );
+}
+
 export function SessionsView({ sessions }: { sessions: SessionData[] }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
   const totalCost = sessions.reduce((sum, s) => sum + calcCost(s), 0);
   const totalInput = sessions.reduce((sum, s) => sum + (s.tokens_input || 0), 0);
   const totalOutput = sessions.reduce((sum, s) => sum + (s.tokens_output || 0), 0);
-  const totalCacheRead = sessions.reduce((sum, s) => sum + ((s as any).tokens_cache_read || 0), 0);
+  const totalCacheRead = sessions.reduce((sum, s) => sum + (s.tokens_cache_read || 0), 0);
   const totalSaved = sessions.reduce((sum, s) => sum + (s.tokens_saved_total || 0), 0);
   const activeSessions = sessions.filter(s => !s.ended_at);
-  const avgDuration = sessions.filter(s => s.duration_mins).reduce((sum, s) => sum + (s.duration_mins || 0), 0) / (sessions.filter(s => s.duration_mins).length || 1);
+  const completedSessions = sessions.filter(s => s.duration_mins && s.duration_mins > 0);
+  const avgDuration = completedSessions.length > 0
+    ? Math.round(completedSessions.reduce((sum, s) => sum + (s.duration_mins || 0), 0) / completedSessions.length)
+    : 0;
+  const totalCommits = sessions.reduce((sum, s) => sum + (s.commit_shas?.length || 0), 0);
+  const totalFiles = sessions.reduce((sum, s) => sum + (s.files_changed_count || 0), 0);
+  const hasTokenData = totalInput > 0 || totalOutput > 0 || totalCacheRead > 0;
 
   return (
     <div className="sessions-view">
       {/* Summary cards */}
       <div className="sessions-summary">
-        <div className="session-stat-card">
-          <div className="session-stat-value">{formatCost(totalCost)}</div>
-          <div className="session-stat-label">Total Cost</div>
-        </div>
-        <div className="session-stat-card">
-          <div className="session-stat-value">{formatTokens(totalInput + totalOutput)}</div>
-          <div className="session-stat-label">Tokens Used</div>
-        </div>
-        <div className="session-stat-card">
-          <div className="session-stat-value">{formatTokens(totalCacheRead)}</div>
-          <div className="session-stat-label">Cache Read</div>
-        </div>
-        <div className="session-stat-card">
-          <div className="session-stat-value">{formatTokens(totalSaved)}</div>
-          <div className="session-stat-label">Tokens Saved</div>
-        </div>
+        {hasTokenData ? (
+          <>
+            <div className="session-stat-card highlight">
+              <div className="session-stat-value">{formatCost(totalCost)}</div>
+              <div className="session-stat-label">Total Cost</div>
+            </div>
+            <div className="session-stat-card">
+              <div className="session-stat-value">{formatTokens(totalInput)}</div>
+              <div className="session-stat-label">Input Tokens</div>
+            </div>
+            <div className="session-stat-card">
+              <div className="session-stat-value">{formatTokens(totalOutput)}</div>
+              <div className="session-stat-label">Output Tokens</div>
+            </div>
+            <div className="session-stat-card">
+              <div className="session-stat-value">{formatTokens(totalCacheRead)}</div>
+              <div className="session-stat-label">Cache Hits</div>
+            </div>
+          </>
+        ) : (
+          <div className="session-stat-card highlight">
+            <div className="session-stat-value">{formatTokens(totalSaved)}</div>
+            <div className="session-stat-label">Tokens Saved</div>
+          </div>
+        )}
         <div className="session-stat-card">
           <div className="session-stat-value">{sessions.length}</div>
           <div className="session-stat-label">Sessions</div>
@@ -106,127 +164,126 @@ export function SessionsView({ sessions }: { sessions: SessionData[] }) {
           <div className="session-stat-label">Active Now</div>
         </div>
         <div className="session-stat-card">
-          <div className="session-stat-value">{Math.round(avgDuration)}m</div>
+          <div className="session-stat-value">{avgDuration > 0 ? `${avgDuration}m` : "-"}</div>
           <div className="session-stat-label">Avg Duration</div>
         </div>
+        <div className="session-stat-card">
+          <div className="session-stat-value">{totalCommits || "-"}</div>
+          <div className="session-stat-label">Commits</div>
+        </div>
+        <div className="session-stat-card">
+          <div className="session-stat-value">{totalFiles || "-"}</div>
+          <div className="session-stat-label">Files Changed</div>
+        </div>
       </div>
+
+      {!hasTokenData && sessions.length > 0 && (
+        <div className="sessions-hint">
+          Token usage data appears after sessions end with the transcript collector enabled.
+          Restart Claude Code to activate the updated hooks.
+        </div>
+      )}
 
       {/* Session list */}
       <div className="sessions-list">
         {sessions.map((s) => {
           const cost = calcCost(s);
           const isActive = !s.ended_at;
-          const toolCalls = (s as any).tool_calls as Record<string, number> | undefined;
-          const assistantTurns = (s as any).assistant_turns as number | undefined;
-          const userTurns = (s as any).user_turns as number | undefined;
-          const cacheRead = (s as any).tokens_cache_read as number | undefined;
+          const isExpanded = expanded === s._id;
+          const hasCost = cost > 0.001;
+          const duration = formatDuration(s);
 
           return (
-            <div key={s._id} className={"session-detail-card" + (isActive ? " active" : "")}>
+            <div
+              key={s._id}
+              className={"session-detail-card" + (isActive ? " active" : "") + (isExpanded ? " expanded" : "")}
+              onClick={() => setExpanded(isExpanded ? null : s._id)}
+            >
               <div className="session-detail-header">
                 <div className="session-detail-left">
-                  <span className="session-detail-dev">
-                    {s.dev_id?.name || "agent"}
-                  </span>
-                  {isActive && <span className="session-live-dot" />}
-                  {s.claude_model && (
-                    <span className="session-model-badge">{s.claude_model.replace("claude-", "")}</span>
-                  )}
-                  {s.branch && (
-                    <span className="session-branch-badge">{s.branch}</span>
-                  )}
+                  <div className="session-detail-avatar" style={{ background: isActive ? "#22c55e" : "var(--bg-4)" }}>
+                    {(s.dev_id?.name || "A").charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="session-detail-dev">
+                      {s.dev_id?.name || "agent"}
+                      {isActive && <span className="session-live-dot" />}
+                    </div>
+                    <div className="session-detail-sub">
+                      {s.claude_model && (
+                        <span className="session-model-badge">{s.claude_model.replace("claude-", "")}</span>
+                      )}
+                      {s.branch && <span className="session-branch-badge">{s.branch}</span>}
+                      <span className="session-duration-badge">{duration}</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="session-detail-right">
-                  <span className="session-detail-cost">{formatCost(cost)}</span>
-                  <span className="session-detail-time">{timeAgo(s.started_at)}</span>
+                  {hasCost && <span className="session-detail-cost">{formatCost(cost)}</span>}
+                  <span className="session-detail-time">{formatDate(s.started_at)}</span>
                 </div>
               </div>
 
+              {/* Always-visible metrics row */}
               <div className="session-detail-metrics">
-                <div className="session-metric">
-                  <span className="session-metric-val">{formatTokens(s.tokens_input || 0)}</span>
-                  <span className="session-metric-lbl">in</span>
-                </div>
-                <div className="session-metric">
-                  <span className="session-metric-val">{formatTokens(s.tokens_output || 0)}</span>
-                  <span className="session-metric-lbl">out</span>
-                </div>
-                {cacheRead ? (
-                  <div className="session-metric">
-                    <span className="session-metric-val">{formatTokens(cacheRead)}</span>
-                    <span className="session-metric-lbl">cache</span>
-                  </div>
-                ) : null}
-                {assistantTurns ? (
-                  <div className="session-metric">
-                    <span className="session-metric-val">{assistantTurns}</span>
-                    <span className="session-metric-lbl">turns</span>
-                  </div>
-                ) : null}
-                {userTurns ? (
-                  <div className="session-metric">
-                    <span className="session-metric-val">{userTurns}</span>
-                    <span className="session-metric-lbl">prompts</span>
-                  </div>
-                ) : null}
-                {s.duration_mins ? (
-                  <div className="session-metric">
-                    <span className="session-metric-val">{s.duration_mins}m</span>
-                    <span className="session-metric-lbl">duration</span>
-                  </div>
-                ) : null}
-                {(s.files_changed_count || 0) > 0 && (
-                  <div className="session-metric">
-                    <span className="session-metric-val">{s.files_changed_count}</span>
-                    <span className="session-metric-lbl">files</span>
-                  </div>
-                )}
-                {(s.decisions_logged || 0) > 0 && (
-                  <div className="session-metric">
-                    <span className="session-metric-val">{s.decisions_logged}</span>
-                    <span className="session-metric-lbl">decisions</span>
-                  </div>
-                )}
-                {(s.changes_logged || 0) > 0 && (
-                  <div className="session-metric">
-                    <span className="session-metric-val">{s.changes_logged}</span>
-                    <span className="session-metric-lbl">changes</span>
-                  </div>
-                )}
-                {(s.commit_shas?.length || 0) > 0 && (
-                  <div className="session-metric">
-                    <span className="session-metric-val">{s.commit_shas?.length}</span>
-                    <span className="session-metric-lbl">commits</span>
-                  </div>
-                )}
-                {(s.errors_count || 0) > 0 && (
-                  <div className="session-metric error">
-                    <span className="session-metric-val">{s.errors_count}</span>
-                    <span className="session-metric-lbl">errors</span>
-                  </div>
+                {(s.tokens_input || 0) > 0 && <Metric val={formatTokens(s.tokens_input || 0)} label="in" />}
+                {(s.tokens_output || 0) > 0 && <Metric val={formatTokens(s.tokens_output || 0)} label="out" />}
+                {(s.tokens_cache_read || 0) > 0 && <Metric val={formatTokens(s.tokens_cache_read || 0)} label="cache" />}
+                {(s.assistant_turns || 0) > 0 && <Metric val={s.assistant_turns || 0} label="turns" />}
+                {(s.user_turns || 0) > 0 && <Metric val={s.user_turns || 0} label="prompts" />}
+                {(s.files_changed_count || 0) > 0 && <Metric val={s.files_changed_count || 0} label="files" />}
+                {(s.commit_shas?.length || 0) > 0 && <Metric val={s.commit_shas?.length || 0} label="commits" />}
+                {(s.decisions_logged || 0) > 0 && <Metric val={s.decisions_logged || 0} label="decisions" />}
+                {(s.changes_logged || 0) > 0 && <Metric val={s.changes_logged || 0} label="changes" />}
+                {(s.tokens_saved_total || 0) > 0 && <Metric val={formatTokens(s.tokens_saved_total)} label="saved" accent />}
+                {(s.errors_count || 0) > 0 && <ErrorMetric val={s.errors_count || 0} />}
+                {/* Show something when no metrics available */}
+                {!(s.tokens_input || s.tokens_output || s.assistant_turns || s.files_changed_count || s.tokens_saved_total) && (
+                  <span className="session-no-data">Awaiting session end for telemetry</span>
                 )}
               </div>
 
-              {/* Modules visited */}
-              {s.modules_visited && s.modules_visited.length > 0 && (
-                <div className="session-detail-modules">
-                  {s.modules_visited.map(m => (
-                    <span key={m} className="session-module-tag">{m}</span>
-                  ))}
-                </div>
-              )}
+              {/* Expanded details */}
+              {isExpanded && (
+                <div className="session-expanded">
+                  {s.modules_visited && s.modules_visited.length > 0 && (
+                    <div className="session-detail-modules">
+                      <span className="session-section-label">Modules</span>
+                      {s.modules_visited.map(m => (
+                        <span key={m} className="session-module-tag">{m}</span>
+                      ))}
+                    </div>
+                  )}
 
-              {/* Tool calls breakdown */}
-              {toolCalls && <ToolBar tools={toolCalls} />}
+                  {s.tool_calls && Object.keys(s.tool_calls).length > 0 && (
+                    <div>
+                      <span className="session-section-label">Tool Usage</span>
+                      <ToolBar tools={s.tool_calls} />
+                    </div>
+                  )}
 
-              {/* Files touched */}
-              {s.files_touched && s.files_touched.length > 0 && (
-                <div className="session-detail-files">
-                  <span className="session-files-label">{s.files_touched.length} files touched:</span>
-                  <span className="session-files-list">
-                    {s.files_touched.slice(0, 5).map(f => f.split("/").pop()).join(", ")}
-                    {s.files_touched.length > 5 ? ` +${s.files_touched.length - 5} more` : ""}
-                  </span>
+                  {s.files_touched && s.files_touched.length > 0 && (
+                    <div className="session-detail-files">
+                      <span className="session-section-label">{s.files_touched.length} files touched</span>
+                      <div className="session-files-grid">
+                        {s.files_touched.slice(0, 10).map(f => (
+                          <span key={f} className="session-file-tag">{f.split("/").pop()}</span>
+                        ))}
+                        {s.files_touched.length > 10 && (
+                          <span className="session-file-tag muted">+{s.files_touched.length - 10} more</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {s.commit_shas && s.commit_shas.length > 0 && (
+                    <div className="session-detail-commits">
+                      <span className="session-section-label">Commits</span>
+                      {s.commit_shas.map(sha => (
+                        <span key={sha} className="session-commit-sha">{sha.slice(0, 7)}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -235,7 +292,9 @@ export function SessionsView({ sessions }: { sessions: SessionData[] }) {
 
         {sessions.length === 0 && (
           <div className="sessions-empty">
-            No sessions yet. Sessions are tracked automatically when Claude Code connects via hooks.
+            <div style={{ fontSize: 14, marginBottom: 6 }}>No sessions yet</div>
+            <div>Sessions are tracked automatically when Claude Code connects via hooks.</div>
+            <div style={{ marginTop: 8 }}>Run <code>npx agentnorth setup</code> to enable session tracking.</div>
           </div>
         )}
       </div>
