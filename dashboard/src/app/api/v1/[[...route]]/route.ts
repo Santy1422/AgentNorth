@@ -29,6 +29,13 @@ const sessionEndSchema = z.object({
   tokens_output: z.number().optional(),
   edits_count: z.number().optional(),
   bash_commands_count: z.number().optional(),
+  // Real token usage from transcript JSONL
+  tokens_cache_read: z.number().optional(),
+  tokens_cache_creation: z.number().optional(),
+  assistant_turns: z.number().optional(),
+  user_turns: z.number().optional(),
+  claude_model: z.string().max(100).optional(),
+  tool_calls: z.record(z.number()).optional(),
 }).passthrough();
 
 const eventsSchema = z.object({
@@ -273,6 +280,13 @@ app.post("/sessions/end", authMiddleware, async (c) => {
     session.errors_count = body.errors_count || 0;
     session.edits_count = body.edits_count || 0;
     session.bash_commands_count = body.bash_commands_count || 0;
+    // Real token usage from transcript JSONL
+    if (body.tokens_cache_read) session.tokens_cache_read = body.tokens_cache_read;
+    if (body.tokens_cache_creation) session.tokens_cache_creation = body.tokens_cache_creation;
+    if (body.assistant_turns) session.assistant_turns = body.assistant_turns;
+    if (body.user_turns) session.user_turns = body.user_turns;
+    if (body.tool_calls) session.tool_calls = body.tool_calls;
+    if (body.claude_model) session.claude_model = body.claude_model;
     if (Array.isArray(body.files_touched)) {
       // Merge with any files already accumulated via events
       const merged = new Set([...(session.files_touched || []), ...body.files_touched]);

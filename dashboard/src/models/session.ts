@@ -33,6 +33,13 @@ export interface ISession extends Document {
   claude_model: string;
   conversation_id: string;
 
+  // Real token usage (from transcript JSONL)
+  tokens_cache_read: number;
+  tokens_cache_creation: number;
+  assistant_turns: number;
+  user_turns: number;
+  tool_calls: Record<string, number>;
+
   // Duration helper (virtual or computed on end)
   duration_mins: number;
 }
@@ -65,6 +72,13 @@ const SessionSchema = new Schema<ISession>({
   commit_shas: { type: [String], default: [] },
   edits_count: { type: Number, default: 0 },
   bash_commands_count: { type: Number, default: 0 },
+
+  // Real token usage (from transcript JSONL parsing)
+  tokens_cache_read: { type: Number, default: 0 },
+  tokens_cache_creation: { type: Number, default: 0 },
+  assistant_turns: { type: Number, default: 0 },
+  user_turns: { type: Number, default: 0 },
+  tool_calls: { type: Schema.Types.Mixed, default: {} },
 
   // Claude metadata
   claude_model: { type: String, default: "" },
