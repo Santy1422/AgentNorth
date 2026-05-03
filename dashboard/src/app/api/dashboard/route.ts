@@ -64,14 +64,11 @@ export async function POST(req: NextRequest) {
 
     // Notify SSE
     try {
-      const notify = (globalThis as Record<string, unknown>).__anStreamNotify as
-        ((id: string, evt: { type: string; data: unknown }) => void) | undefined;
-      if (notify) {
-        notify(project._id.toString(), {
-          type: "decision",
-          data: { title: body.title, module: body.module, at: new Date().toISOString() },
-        });
-      }
+      const { notifyProject } = await import("@/lib/sse-notify");
+      notifyProject(project._id.toString(), {
+        type: "decision",
+        data: { title: body.title, module: body.module, at: new Date().toISOString() },
+      });
     } catch {}
 
     return NextResponse.json({ ok: true, decision_id: decision._id });
@@ -124,8 +121,7 @@ export async function GET(req: NextRequest) {
       AgentChange.find({ project_id: project._id }).sort({ created_at: -1 }).limit(20).lean(),
       Session.find({ project_id: project._id })
         .sort({ started_at: -1 })
-        .limit(10)
-        .select("org_id dev_id project_id started_at ended_at actions_count tokens_total tokens_saved_total")
+        .limit(20)
         .populate("dev_id", "name email")
         .lean(),
       UsageEvent.find({ project_id: project._id })
