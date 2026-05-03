@@ -424,17 +424,21 @@ function ActivityHeatmap({
       <div className="heatmap-grid">
         {weeks.map((week, wi) => (
           <div key={wi} className="heatmap-col">
-            {week.map((day) => (
-              <div
-                key={day.date}
-                className="heatmap-cell"
-                title={t("risks.heatmapDay", { date: day.date, count: day.count })}
-                style={{
-                  opacity: day.count === 0 ? 0.1 : 0.2 + (day.count / maxCount) * 0.8,
-                  background: day.count === 0 ? "var(--bg-4)" : "var(--green)",
-                }}
-              ></div>
-            ))}
+            {week.map((day) => {
+              const dayDate = new Date(day.date);
+              const dayLabel = dayDate.toLocaleDateString([], { month: "short", day: "numeric" });
+              return (
+                <div
+                  key={day.date}
+                  className="heatmap-cell"
+                  title={`${dayLabel}: ${day.count} events`}
+                  style={{
+                    opacity: day.count === 0 ? 0.1 : 0.2 + (day.count / maxCount) * 0.8,
+                    background: day.count === 0 ? "var(--bg-4)" : "var(--green)",
+                  }}
+                ></div>
+              );
+            })}
           </div>
         ))}
       </div>
@@ -444,12 +448,17 @@ function ActivityHeatmap({
 
 function timeAgo(dateStr: string): string {
   if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const isToday = d.toDateString() === now.toDateString();
+  const isYesterday = new Date(now.getTime() - 86400000).toDateString() === d.toDateString();
+
+  if (mins < 1) return `now · ${time}`;
+  if (mins < 60) return `${mins}m ago · ${time}`;
+  if (isToday) return `${Math.floor(mins / 60)}h ago · ${time}`;
+  if (isYesterday) return `yesterday · ${time}`;
+  return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} · ${time}`;
 }

@@ -138,26 +138,26 @@ export function OnboardingGuide({ data }: { data: DashboardData | null }) {
     // File structure convention
     const hasAppDir = allFiles.some((f) => f.path.includes("/app/"));
     const hasPagesDir = allFiles.some((f) => f.path.includes("/pages/"));
-    if (hasAppDir) conv.push({ title: "Next.js App Router", detail: "El proyecto usa el directorio app/ de Next.js 13+" });
-    else if (hasPagesDir) conv.push({ title: "Next.js Pages Router", detail: "El proyecto usa pages/ de Next.js" });
+    if (hasAppDir) conv.push({ title: t("guide.convAppRouter"), detail: t("guide.convAppRouterDesc") });
+    else if (hasPagesDir) conv.push({ title: t("guide.convPagesRouter"), detail: t("guide.convPagesRouterDesc") });
 
     // TypeScript
     const hasTsx = allFiles.some((f) => f.path.endsWith(".tsx") || f.path.endsWith(".ts"));
-    if (hasTsx) conv.push({ title: "TypeScript", detail: "El proyecto usa TypeScript para type-safety" });
+    if (hasTsx) conv.push({ title: t("guide.convTypeScript"), detail: t("guide.convTypeScriptDesc") });
 
     // Has tests
     if (stats.tests.length > 0) {
-      conv.push({ title: "Testing", detail: `${stats.tests.length} test files detected` });
+      conv.push({ title: t("guide.convTesting"), detail: t("guide.convTestingDesc", { n: stats.tests.length }) });
     }
 
     // API routes
     if (stats.routes.length > 0) {
-      conv.push({ title: "API Routes", detail: `${stats.routes.length} endpoints API en app/api/` });
+      conv.push({ title: t("guide.convApiRoutes"), detail: t("guide.convApiRoutesDesc", { n: stats.routes.length }) });
     }
 
     // Component patterns
     if (stats.hooks.length > 0) {
-      conv.push({ title: "Custom Hooks", detail: `${stats.hooks.length} hooks custom para reusar logica` });
+      conv.push({ title: t("guide.convHooks"), detail: t("guide.convHooksDesc", { n: stats.hooks.length }) });
     }
 
     // Decisions as conventions

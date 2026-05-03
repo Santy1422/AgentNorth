@@ -293,53 +293,53 @@ export function DependencyGraph({ modules }: { modules: ModuleData[] }) {
         />
       </div>
       {selected && (
-        <div style={{
-          width: 260, padding: 16, background: "rgba(255,255,255,0.04)",
-          borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)",
-          fontSize: 13, color: "#e5e5e5", flexShrink: 0,
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <strong style={{ fontSize: 15 }}>{selected.mod.name}</strong>
-            <button onClick={() => setSelected(null)} style={{
-              background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 16,
-            }}>x</button>
+        <div className="graph-detail-panel">
+          <div className="graph-detail-header">
+            <strong className="graph-detail-name">{selected.mod.name}</strong>
+            <button className="graph-detail-close" onClick={() => setSelected(null)}>x</button>
           </div>
           {selected.mod.description && (
-            <p style={{ color: "#aaa", fontSize: 12, margin: "0 0 12px" }}>{selected.mod.description}</p>
+            <p className="graph-detail-desc">{selected.mod.description}</p>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+          <div className="graph-detail-grid">
             {[
-              ["Files", String(selected.mod.files_count)],
-              ["LOC", String(selected.mod.loc)],
-              ["Exports", String(selected.mod.exports_count)],
-              ["Health", `${selected.score}`],
-            ].map(([label, val]) => (
-              <div key={label} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: "8px 10px" }}>
-                <div style={{ fontSize: 11, color: "#888" }}>{label}</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: label === "Health" ? selected.color : "#fff" }}>{val}</div>
+              [t("graph.files"), String(selected.mod.files_count), ""],
+              ["LOC", String(selected.mod.loc), ""],
+              [t("graph.exports"), String(selected.mod.exports_count), ""],
+              [t("graph.health"), String(selected.score), selected.color],
+            ].map(([label, val, color]) => (
+              <div key={label} className="graph-detail-stat">
+                <div className="graph-detail-stat-label">{label}</div>
+                <div className="graph-detail-stat-value" style={color ? { color } : undefined}>{val}</div>
               </div>
             ))}
           </div>
-          {(selected.mod.dependencies?.internal?.length ?? 0) > 0 && (
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{t("graph.internalDeps")}</div>
-              {selected.mod.dependencies!.internal.map((d) => (
-                <div key={d} style={{
-                  fontSize: 12, fontFamily: "monospace", padding: "2px 0",
-                  color: nodesRef.current.find((n) => n.id === d) ? "#a78bfa" : "#888",
-                  cursor: nodesRef.current.find((n) => n.id === d) ? "pointer" : "default",
-                }} onClick={() => {
-                  const node = nodesRef.current.find((n) => n.id === d);
-                  if (node) setSelected(node);
-                }}>{d}</div>
+          {selected.mod.warnings && selected.mod.warnings.length > 0 && (
+            <div className="graph-detail-section">
+              <div className="graph-detail-section-label">{t("graph.warnings")}</div>
+              {selected.mod.warnings.map((w, i) => (
+                <div key={i} className="graph-detail-warning">{w}</div>
               ))}
             </div>
           )}
+          {(selected.mod.dependencies?.internal?.length ?? 0) > 0 && (
+            <div className="graph-detail-section">
+              <div className="graph-detail-section-label">{t("graph.internalDeps")}</div>
+              {selected.mod.dependencies!.internal.map((d) => {
+                const exists = nodesRef.current.find((n) => n.id === d);
+                return (
+                  <div key={d} className={"graph-dep-item" + (exists ? " clickable" : "")}
+                    onClick={() => { if (exists) setSelected(exists); }}
+                  >{d}</div>
+                );
+              })}
+            </div>
+          )}
           {(selected.mod.dependencies?.external?.length ?? 0) > 0 && (
-            <div>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{t("graph.externalDeps")}</div>
+            <div className="graph-detail-section">
+              <div className="graph-detail-section-label">{t("graph.externalDeps")}</div>
               {selected.mod.dependencies!.external.map((d) => (
-                <div key={d} style={{ fontSize: 12, fontFamily: "monospace", padding: "2px 0", color: "#60a5fa" }}>{d}</div>
+                <div key={d} className="graph-dep-item external">{d}</div>
               ))}
             </div>
           )}

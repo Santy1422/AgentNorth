@@ -370,6 +370,18 @@ export const en = {
   "guide.vulnsDetected": "{n} vulnerabilities detected",
   "guide.prodDeps": "{n} production deps",
   "guide.devDeps": "{n} development deps",
+  "guide.convAppRouter": "Next.js App Router",
+  "guide.convAppRouterDesc": "Uses the app/ directory (Next.js 13+)",
+  "guide.convPagesRouter": "Next.js Pages Router",
+  "guide.convPagesRouterDesc": "Uses the pages/ directory",
+  "guide.convTypeScript": "TypeScript",
+  "guide.convTypeScriptDesc": "TypeScript for type-safety",
+  "guide.convTesting": "Testing",
+  "guide.convTestingDesc": "{n} test files detected",
+  "guide.convApiRoutes": "API Routes",
+  "guide.convApiRoutesDesc": "{n} API endpoints in app/api/",
+  "guide.convHooks": "Custom Hooks",
+  "guide.convHooksDesc": "{n} custom hooks for reusable logic",
 
   // GlobalSearch
   "search.placeholder": "Search...",
@@ -386,6 +398,10 @@ export const en = {
   "graph.healthBad": "Health < 50",
   "graph.internalDeps": "Internal deps",
   "graph.externalDeps": "External deps",
+  "graph.files": "Files",
+  "graph.exports": "Exports",
+  "graph.health": "Health",
+  "graph.warnings": "Warnings",
 
   // Feed
   "feed.loggedDecision": "logged decision",

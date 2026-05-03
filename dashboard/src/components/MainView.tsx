@@ -299,7 +299,7 @@ export function MainView({
               }
               const maxTokens = Math.max(1, ...days.map((d) => d.tokens));
               return days.map((d) => (
-                <div key={d.date} className="spark-bar-wrap" title={`${d.date}: ${d.events} events, ${d.tokens.toLocaleString("en")} tokens`}>
+                <div key={d.date} className="spark-bar-wrap" title={`${new Date(d.date).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}: ${d.events} events · ${d.tokens.toLocaleString("en")} tokens saved`}>
                   <div
                     className="spark-bar"
                     style={{
@@ -366,7 +366,7 @@ export function MainView({
               return (
                 <div
                   key={snap.created_at + i}
-                  title={`${snap.created_at.slice(0, 10)}: ${snap.score}/100 · ${snap.modules_count} mods · ${snap.files_count} files · ${snap.loc} LOC`}
+                  title={`${new Date(snap.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}: Score ${snap.score}/100 · ${snap.modules_count} modules · ${snap.files_count} files · ${snap.loc.toLocaleString("en")} LOC`}
                   style={{
                     flex: 1,
                     height: `${Math.max(4, snap.score)}%`,
@@ -527,14 +527,19 @@ export function MainView({
 
 function timeAgo(dateStr: string): string {
   if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "now";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const isToday = d.toDateString() === now.toDateString();
+  const isYesterday = new Date(now.getTime() - 86400000).toDateString() === d.toDateString();
+
+  if (mins < 1) return `now · ${time}`;
+  if (mins < 60) return `${mins}m ago · ${time}`;
+  if (isToday) return `${Math.floor(mins / 60)}h ago · ${time}`;
+  if (isYesterday) return `yesterday · ${time}`;
+  return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} · ${time}`;
 }
 
 function FeedRowComponent({ row, isNew }: { row: FeedRow; isNew: boolean }) {

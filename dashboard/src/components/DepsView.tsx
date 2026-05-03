@@ -8,8 +8,7 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
   const { t } = useT();
   const [filter, setFilter] = useState<"all" | "prod" | "dev" | "vuln">("all");
   const [search, setSearch] = useState("");
-  const [showLicenseView, setShowLicenseView] = useState(false);
-
+  
   const vulnMap = useMemo(() => {
     const map = new Map<string, AuditVuln>();
     for (const v of audit) map.set(v.name, v);

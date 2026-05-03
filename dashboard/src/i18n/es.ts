@@ -372,6 +372,18 @@ export const es: Record<TranslationKey, string> = {
   "guide.vulnsDetected": "{n} vulnerabilidades detectadas",
   "guide.prodDeps": "{n} deps de produccion",
   "guide.devDeps": "{n} deps de desarrollo",
+  "guide.convAppRouter": "Next.js App Router",
+  "guide.convAppRouterDesc": "Usa el directorio app/ (Next.js 13+)",
+  "guide.convPagesRouter": "Next.js Pages Router",
+  "guide.convPagesRouterDesc": "Usa el directorio pages/",
+  "guide.convTypeScript": "TypeScript",
+  "guide.convTypeScriptDesc": "TypeScript para type-safety",
+  "guide.convTesting": "Testing",
+  "guide.convTestingDesc": "{n} archivos de test detectados",
+  "guide.convApiRoutes": "API Routes",
+  "guide.convApiRoutesDesc": "{n} endpoints API en app/api/",
+  "guide.convHooks": "Custom Hooks",
+  "guide.convHooksDesc": "{n} custom hooks para reusar logica",
 
   // GlobalSearch
   "search.placeholder": "Buscar...",
@@ -388,6 +400,10 @@ export const es: Record<TranslationKey, string> = {
   "graph.healthBad": "Salud < 50",
   "graph.internalDeps": "Deps internas",
   "graph.externalDeps": "Deps externas",
+  "graph.files": "Archivos",
+  "graph.exports": "Exports",
+  "graph.health": "Salud",
+  "graph.warnings": "Advertencias",
 
   // Feed
   "feed.loggedDecision": "registro decision",
