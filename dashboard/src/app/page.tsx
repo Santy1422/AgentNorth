@@ -493,6 +493,7 @@ export default function Home() {
           <RisksView
             decisions={data?.decisions || []}
             changes={data?.changes || []}
+            sessions={data?.sessions || []}
             projectName={activeProject?.name}
             onRefresh={() => fetchDashboard(activeProject?.id)}
           />

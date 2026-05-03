@@ -1,21 +1,23 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { DecisionData, ChangeData } from "@/app/page";
+import type { DecisionData, ChangeData, SessionData } from "@/app/page";
 import { useT } from "@/i18n/provider";
 
 export function RisksView({
   decisions,
   changes,
+  sessions,
   projectName,
   onRefresh,
 }: {
   decisions: DecisionData[];
   changes: ChangeData[];
+  sessions?: SessionData[];
   projectName?: string;
   onRefresh?: () => void;
 }) {
-  const [tab, setTab] = useState<"timeline" | "decisions" | "changes">("timeline");
+  const [tab, setTab] = useState<"log" | "decisions" | "changes">("log");
   const [search, setSearch] = useState("");
   const [showNewDecision, setShowNewDecision] = useState(false);
   const [newDecision, setNewDecision] = useState({ module: "", title: "", context: "", decision: "" });
@@ -25,15 +27,82 @@ export function RisksView({
   const { t } = useT();
   const breakingChanges = changes.filter((c) => c.breaking);
 
+  // Unified log: merge decisions + changes + session events into chronological feed
+  const logItems = useMemo(() => {
+    const items: LogItem[] = [];
+
+    for (const d of decisions) {
+      items.push({
+        type: "decision",
+        id: d._id,
+        date: d.created_at,
+        title: d.title,
+        module: d.module,
+        detail: d.decision || d.context || "",
+        author: d.author_name,
+        status: d.status,
+        sessionId: null,
+      });
+    }
+
+    for (const c of changes) {
+      items.push({
+        type: c.breaking ? "breaking" : "change",
+        id: c._id,
+        date: c.created_at,
+        title: c.summary,
+        module: c.module,
+        detail: c.files_changed?.join(", ") || "",
+        author: "agent",
+        status: null,
+        sessionId: null,
+        filesCount: c.files_changed?.length || 0,
+      });
+    }
+
+    // Add session milestones (start/end with decisions made)
+    if (sessions) {
+      for (const s of sessions) {
+        if (s.decisions_logged && s.decisions_logged > 0) {
+          items.push({
+            type: "session-decisions",
+            id: `session-dec-${s._id}`,
+            date: s.ended_at || s.started_at,
+            title: `Session logged ${s.decisions_logged} decision${s.decisions_logged > 1 ? "s" : ""}`,
+            module: s.modules_visited?.[0] || "",
+            detail: `Branch: ${s.branch || "unknown"} · Model: ${s.claude_model || "unknown"} · Duration: ${formatDuration(s)}`,
+            author: s.dev_id?.name || "agent",
+            status: null,
+            sessionId: s._id,
+            sessionData: s,
+          });
+        }
+        if (s.changes_logged && s.changes_logged > 0 && !(s.decisions_logged && s.decisions_logged > 0)) {
+          items.push({
+            type: "session-changes",
+            id: `session-chg-${s._id}`,
+            date: s.ended_at || s.started_at,
+            title: `Session made ${s.changes_logged} change${s.changes_logged > 1 ? "s" : ""} · ${s.files_changed_count || 0} files`,
+            module: s.modules_visited?.[0] || "",
+            detail: `Branch: ${s.branch || "unknown"} · ${s.commit_shas?.length || 0} commits`,
+            author: s.dev_id?.name || "agent",
+            status: null,
+            sessionId: s._id,
+            sessionData: s,
+          });
+        }
+      }
+    }
+
+    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return items;
+  }, [decisions, changes, sessions]);
+
   const filteredDecisions = useMemo(() => {
     if (!search.trim()) return decisions;
     const q = search.toLowerCase();
     return decisions.filter(
-      (d) =>
-        d.title.toLowerCase().includes(q) ||
-        d.module?.toLowerCase().includes(q) ||
-        d.decision?.toLowerCase().includes(q) ||
-        d.author_name?.toLowerCase().includes(q)
+      (d) => d.title.toLowerCase().includes(q) || d.module?.toLowerCase().includes(q) || d.decision?.toLowerCase().includes(q) || d.author_name?.toLowerCase().includes(q)
     );
   }, [decisions, search]);
 
@@ -41,12 +110,15 @@ export function RisksView({
     if (!search.trim()) return changes;
     const q = search.toLowerCase();
     return changes.filter(
-      (c) =>
-        c.summary.toLowerCase().includes(q) ||
-        c.module?.toLowerCase().includes(q) ||
-        c.files_changed?.some((f) => f.toLowerCase().includes(q))
+      (c) => c.summary.toLowerCase().includes(q) || c.module?.toLowerCase().includes(q) || c.files_changed?.some((f) => f.toLowerCase().includes(q))
     );
   }, [changes, search]);
+
+  const filteredLog = useMemo(() => {
+    if (!search.trim()) return logItems;
+    const q = search.toLowerCase();
+    return logItems.filter((item) => item.title.toLowerCase().includes(q) || item.module?.toLowerCase().includes(q) || item.detail?.toLowerCase().includes(q));
+  }, [logItems, search]);
 
   if (decisions.length === 0 && changes.length === 0) {
     return (
@@ -57,8 +129,10 @@ export function RisksView({
         <div className="empty-state-lg">
           <div className="empty-icon">&#x1F4CC;</div>
           <div className="empty-title">{t("risks.noData")}</div>
-          <div className="empty-desc">
-            {t("risks.noDataDesc")}
+          <div className="empty-desc">{t("risks.noDataDesc")}</div>
+          <div className="empty-hint">
+            Decisions are logged automatically when Claude uses <code>agentnorth_log_decision()</code>.
+            They also sync from local <code>.agentnorth/decisions/</code> files via <code>agentnorth sync</code>.
           </div>
         </div>
       </section>
@@ -77,16 +151,14 @@ export function RisksView({
             )}
           </span>
           {projectName && (
-            <button
-              className="ndf-trigger"
-              onClick={() => setShowNewDecision(!showNewDecision)}
-            >
+            <button className="ndf-trigger" onClick={() => setShowNewDecision(!showNewDecision)}>
               {t("risks.newDecision")}
             </button>
           )}
         </div>
       </div>
 
+      {/* Summary cards */}
       <div className="risks-summary">
         <div className="rs-card total">
           <div className="rs-num">{decisions.length}</div>
@@ -102,6 +174,12 @@ export function RisksView({
             <div className="rs-label">{t("risks.breakingLabel")}</div>
           </div>
         )}
+        {sessions && sessions.filter((s) => (s.decisions_logged || 0) > 0).length > 0 && (
+          <div className="rs-card" style={{ borderLeft: "3px solid var(--accent)" }}>
+            <div className="rs-num">{sessions.filter((s) => (s.decisions_logged || 0) > 0).length}</div>
+            <div className="rs-label">Sessions with decisions</div>
+          </div>
+        )}
       </div>
 
       {/* New Decision Form */}
@@ -111,69 +189,27 @@ export function RisksView({
             <h3>{t("risks.newDecisionTitle")}</h3>
             <button className="btn-simple" onClick={() => setShowNewDecision(false)}>&times;</button>
           </div>
-          <input
-            className="ndf-input"
-            placeholder={t("risks.decisionTitle")}
-            value={newDecision.title}
-            onChange={(e) => setNewDecision({ ...newDecision, title: e.target.value })}
-          />
-          <input
-            className="ndf-input"
-            placeholder={t("risks.module")}
-            value={newDecision.module}
-            onChange={(e) => setNewDecision({ ...newDecision, module: e.target.value })}
-          />
-          <textarea
-            className="ndf-textarea"
-            placeholder={t("risks.context")}
-            value={newDecision.context}
-            onChange={(e) => setNewDecision({ ...newDecision, context: e.target.value })}
-            rows={3}
-          />
-          <textarea
-            className="ndf-textarea"
-            placeholder={t("risks.decision")}
-            value={newDecision.decision}
-            onChange={(e) => setNewDecision({ ...newDecision, decision: e.target.value })}
-            rows={3}
-          />
+          <input className="ndf-input" placeholder={t("risks.decisionTitle")} value={newDecision.title} onChange={(e) => setNewDecision({ ...newDecision, title: e.target.value })} />
+          <input className="ndf-input" placeholder={t("risks.module")} value={newDecision.module} onChange={(e) => setNewDecision({ ...newDecision, module: e.target.value })} />
+          <textarea className="ndf-textarea" placeholder={t("risks.context")} value={newDecision.context} onChange={(e) => setNewDecision({ ...newDecision, context: e.target.value })} rows={3} />
+          <textarea className="ndf-textarea" placeholder={t("risks.decision")} value={newDecision.decision} onChange={(e) => setNewDecision({ ...newDecision, decision: e.target.value })} rows={3} />
           <button
             className="ndf-submit"
             disabled={saving || !newDecision.title.trim()}
             onClick={async () => {
               if (!newDecision.title.trim() || !projectName) return;
-              setSaving(true);
-              setSaveError(null);
+              setSaving(true); setSaveError(null);
               try {
-                const res = await fetch("/api/dashboard", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    project: projectName,
-                    ...newDecision,
-                  }),
-                });
-                if (res.ok) {
-                  setShowNewDecision(false);
-                  setNewDecision({ module: "", title: "", context: "", decision: "" });
-                  setSaveSuccess(true);
-                  setTimeout(() => setSaveSuccess(false), 3000);
-                  onRefresh?.();
-                } else {
-                  const text = await res.text();
-                  setSaveError(`Error (${res.status}): ${text}`);
-                }
-              } catch (err) {
-                setSaveError(`${t("risks.networkError")} ${err instanceof Error ? err.message : "unknown"}`);
-              }
+                const res = await fetch("/api/dashboard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ project: projectName, ...newDecision }) });
+                if (res.ok) { setShowNewDecision(false); setNewDecision({ module: "", title: "", context: "", decision: "" }); setSaveSuccess(true); setTimeout(() => setSaveSuccess(false), 3000); onRefresh?.(); }
+                else { const text = await res.text(); setSaveError(`Error (${res.status}): ${text}`); }
+              } catch (err) { setSaveError(`${t("risks.networkError")} ${err instanceof Error ? err.message : "unknown"}`); }
               setSaving(false);
             }}
           >
             {saving ? t("risks.saving") : t("risks.create")}
           </button>
-          {saveError && (
-            <div style={{ color: "var(--red)", fontSize: 11, marginTop: 6 }}>{saveError}</div>
-          )}
+          {saveError && <div style={{ color: "var(--red)", fontSize: 11, marginTop: 6 }}>{saveError}</div>}
         </div>
       )}
       {saveSuccess && (
@@ -182,135 +218,155 @@ export function RisksView({
         </div>
       )}
 
+      {/* Tabs */}
       <div className="risks-toolbar">
         <div className="cov-filters">
-          <button
-            className={"cov-filter" + (tab === "timeline" ? " active" : "")}
-            onClick={() => setTab("timeline")}
-          >
-            {t("risks.timeline")}
+          <button className={"cov-filter" + (tab === "log" ? " active" : "")} onClick={() => setTab("log")}>
+            Activity Log ({logItems.length})
           </button>
-          <button
-            className={"cov-filter" + (tab === "decisions" ? " active" : "")}
-            onClick={() => setTab("decisions")}
-          >
+          <button className={"cov-filter" + (tab === "decisions" ? " active" : "")} onClick={() => setTab("decisions")}>
             {t("risks.decisionsTab")} ({decisions.length})
           </button>
-          <button
-            className={"cov-filter" + (tab === "changes" ? " active" : "")}
-            onClick={() => setTab("changes")}
-          >
+          <button className={"cov-filter" + (tab === "changes" ? " active" : "")} onClick={() => setTab("changes")}>
             {t("risks.changesTab")} ({changes.length})
           </button>
         </div>
         <div className="map-search" style={{ marginLeft: "auto" }}>
           <span className="search-icon">&#x2315;</span>
-          <input
-            type="text"
-            placeholder={t("risks.search")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className="search-clear" onClick={() => setSearch("")}>
-              x
-            </button>
-          )}
+          <input type="text" placeholder={t("risks.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
+          {search && <button className="search-clear" onClick={() => setSearch("")}>x</button>}
         </div>
       </div>
 
       {/* Activity heatmap */}
-      {tab === "timeline" && <ActivityHeatmap decisions={decisions} changes={changes} />}
+      {tab === "log" && <ActivityHeatmap decisions={decisions} changes={changes} />}
 
-      {/* Timeline view */}
-      {tab === "timeline" && (
-        <div className="timeline-view">
-          {(() => {
-            // Merge decisions and changes into a single timeline
-            const items: { type: "decision" | "change"; date: string; data: DecisionData | ChangeData }[] = [];
-            for (const d of decisions) items.push({ type: "decision", date: d.created_at, data: d });
-            for (const c of changes) items.push({ type: "change", date: c.created_at, data: c });
-            items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-            if (items.length === 0) {
-              return <div className="risks-empty"><span>{t("risks.noActivity")}</span></div>;
-            }
-
-            return items.slice(0, 20).map((item, i) => {
-              const isDecision = item.type === "decision";
-              const d = isDecision ? (item.data as DecisionData) : null;
-              const c = !isDecision ? (item.data as ChangeData) : null;
-              return (
-                <div key={`${item.type}-${i}`} className="tl-item">
-                  <div className="tl-line">
-                    <div className={"tl-dot " + (isDecision ? "decision" : c?.breaking ? "breaking" : "change")}></div>
-                    {i < Math.min(items.length, 20) - 1 && <div className="tl-connector"></div>}
-                  </div>
-                  <div className="tl-content">
-                    <div className="tl-header">
-                      <span className={"tl-type " + item.type}>
-                        {isDecision ? t("risks.decisionLabel") : c?.breaking ? t("risks.breakingLabel") : t("risks.changeLabel")}
-                      </span>
-                      {(d?.module || c?.module) && (
-                        <span className="tl-module mono">{d?.module || c?.module}</span>
-                      )}
-                      <span className="tl-date">{timeAgo(item.date)}</span>
-                    </div>
-                    <div className="tl-title">{d?.title || c?.summary}</div>
-                    {d?.decision && <div className="tl-detail">{d.decision}</div>}
-                    {c?.files_changed && c.files_changed.length > 0 && (
-                      <div className="tl-files">
-                        {c.files_changed.slice(0, 3).map((f) => (
-                          <span key={f} className="tl-file mono">{f.split("/").pop()}</span>
-                        ))}
-                        {c.files_changed.length > 3 && (
-                          <span className="tl-file muted">+{c.files_changed.length - 3}</span>
-                        )}
-                      </div>
-                    )}
-                    {d && (
-                      <div className="tl-footer">
-                        <span className={"tl-status " + d.status}>{d.status}</span>
-                        <span className="tl-author">{t("risks.by", { author: d.author_name })}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            });
-          })()}
+      {/* Activity Log - chronological feed */}
+      {tab === "log" && (
+        <div className="activity-log">
+          {filteredLog.length === 0 && (
+            <div className="risks-empty"><span>{t("risks.noActivity")}</span></div>
+          )}
+          {filteredLog.map((item) => (
+            <LogItemRow key={item.id} item={item} />
+          ))}
         </div>
       )}
 
-      <div className="risks-list">
-        {tab === "decisions" &&
-          filteredDecisions.map((d) => <DecisionRow key={d._id} decision={d} />)}
-        {tab === "changes" &&
-          filteredChanges.map((c) => <ChangeRow key={c._id} change={c} />)}
-        {tab === "decisions" && filteredDecisions.length === 0 && (
-          <div className="risks-empty">
-            <span>{search ? t("risks.noResults") : t("risks.noDecisions")}</span>
-          </div>
-        )}
-        {tab === "changes" && filteredChanges.length === 0 && (
-          <div className="risks-empty">
-            <span>{search ? t("risks.noResults") : t("risks.noChanges")}</span>
-          </div>
-        )}
-      </div>
+      {/* Decisions tab */}
+      {tab === "decisions" && (
+        <div className="risks-list">
+          {filteredDecisions.length === 0 && <div className="risks-empty"><span>{search ? t("risks.noResults") : t("risks.noDecisions")}</span></div>}
+          {filteredDecisions.map((d) => <DecisionRow key={d._id} decision={d} />)}
+        </div>
+      )}
+
+      {/* Changes tab */}
+      {tab === "changes" && (
+        <div className="risks-list">
+          {filteredChanges.length === 0 && <div className="risks-empty"><span>{search ? t("risks.noResults") : t("risks.noChanges")}</span></div>}
+          {filteredChanges.map((c) => <ChangeRow key={c._id} change={c} />)}
+        </div>
+      )}
     </section>
   );
 }
 
+// ─── Types ───
+interface LogItem {
+  type: "decision" | "change" | "breaking" | "session-decisions" | "session-changes";
+  id: string;
+  date: string;
+  title: string;
+  module: string;
+  detail: string;
+  author: string;
+  status: string | null;
+  sessionId: string | null;
+  filesCount?: number;
+  sessionData?: SessionData;
+}
+
+// ─── Log Item Row (the main feed entry) ───
+function LogItemRow({ item }: { item: LogItem }) {
+  const [open, setOpen] = useState(false);
+
+  const typeConfig = {
+    decision: { icon: "\u2713", color: "var(--green)", label: "DECISION" },
+    change: { icon: "\u270E", color: "var(--accent)", label: "CHANGE" },
+    breaking: { icon: "\u26A0", color: "var(--red)", label: "BREAKING" },
+    "session-decisions": { icon: "\u2726", color: "#a78bfa", label: "SESSION" },
+    "session-changes": { icon: "\u2726", color: "#60a5fa", label: "SESSION" },
+  };
+
+  const cfg = typeConfig[item.type];
+
+  return (
+    <div className={"log-item" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
+      <div className="log-item-left">
+        <div className="log-item-icon" style={{ background: cfg.color }}>{cfg.icon}</div>
+        <div className="log-item-line"></div>
+      </div>
+      <div className="log-item-content">
+        <div className="log-item-header">
+          <span className="log-item-badge" style={{ color: cfg.color }}>{cfg.label}</span>
+          {item.module && <span className="log-item-module mono">{item.module}</span>}
+          <span className="log-item-time">{formatDate(item.date)}</span>
+        </div>
+        <div className="log-item-title">{item.title}</div>
+        {item.author && <span className="log-item-author">by {item.author}</span>}
+
+        {/* Expanded details */}
+        {open && item.detail && (
+          <div className="log-item-detail">
+            {item.type === "change" || item.type === "breaking" ? (
+              <div className="log-item-files">
+                {item.detail.split(", ").slice(0, 8).map((f) => (
+                  <span key={f} className="log-item-file mono">{f.split("/").pop()}</span>
+                ))}
+                {(item.filesCount || 0) > 8 && <span className="log-item-file muted">+{(item.filesCount || 0) - 8} more</span>}
+              </div>
+            ) : (
+              <div className="log-item-text">{item.detail}</div>
+            )}
+          </div>
+        )}
+
+        {/* Session link */}
+        {open && item.sessionData && (
+          <div className="log-item-session">
+            <span className="log-item-session-label">Session context:</span>
+            <div className="log-item-session-meta">
+              {item.sessionData.claude_model && <span className="lis-tag model">{item.sessionData.claude_model.replace("claude-", "")}</span>}
+              {item.sessionData.branch && <span className="lis-tag branch">{item.sessionData.branch}</span>}
+              {item.sessionData.modules_visited && item.sessionData.modules_visited.map((m) => (
+                <span key={m} className="lis-tag module">{m}</span>
+              ))}
+              {(item.sessionData.tokens_input || 0) > 0 && (
+                <span className="lis-tag">{((item.sessionData.tokens_input || 0) / 1000).toFixed(0)}K in</span>
+              )}
+              {(item.sessionData.commit_shas?.length || 0) > 0 && (
+                <span className="lis-tag">{item.sessionData.commit_shas?.length} commits</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {open && item.status && (
+          <div className="log-item-status">
+            <span className={"log-status-badge " + item.status}>{item.status}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Decision Row (expanded view) ───
 function DecisionRow({ decision }: { decision: DecisionData }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
-  const statusColor =
-    decision.status === "active"
-      ? "var(--green)"
-      : decision.status === "deprecated"
-        ? "var(--red)"
-        : "var(--text-4)";
+  const statusColor = decision.status === "active" ? "var(--green)" : decision.status === "deprecated" ? "var(--red)" : "var(--text-4)";
 
   return (
     <div className={"risk-row" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
@@ -318,9 +374,7 @@ function DecisionRow({ decision }: { decision: DecisionData }) {
         <span className="risk-pill med">{t("risks.decisionLabel")}</span>
         {decision.module && <span className="risk-kind mono">{decision.module}</span>}
         <div className="risk-title">{decision.title}</div>
-        <span className="risk-status" style={{ color: statusColor }}>
-          {decision.status}
-        </span>
+        <span className="risk-status" style={{ color: statusColor }}>{decision.status}</span>
         <span className="risk-caret">{open ? "-" : "+"}</span>
       </div>
       {open && (
@@ -334,7 +388,7 @@ function DecisionRow({ decision }: { decision: DecisionData }) {
           )}
           <div className="risk-foot">
             <span className="risk-by mono">{t("risks.by", { author: decision.author_name })}</span>
-            <span className="risk-by mono">· {timeAgo(decision.created_at)}</span>
+            <span className="risk-by mono">· {formatDate(decision.created_at)}</span>
           </div>
         </div>
       )}
@@ -342,6 +396,7 @@ function DecisionRow({ decision }: { decision: DecisionData }) {
   );
 }
 
+// ─── Change Row ───
 function ChangeRow({ change }: { change: ChangeData }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
@@ -361,13 +416,11 @@ function ChangeRow({ change }: { change: ChangeData }) {
         <div className="risk-row-body" onClick={(e) => e.stopPropagation()}>
           <div className="risk-detail">
             {change.files_changed.map((f) => (
-              <div key={f} className="mono" style={{ fontSize: 12, padding: "2px 0" }}>
-                {f}
-              </div>
+              <div key={f} className="mono" style={{ fontSize: 12, padding: "2px 0" }}>{f}</div>
             ))}
           </div>
           <div className="risk-foot">
-            <span className="risk-by mono">{timeAgo(change.created_at)}</span>
+            <span className="risk-by mono">{formatDate(change.created_at)}</span>
           </div>
         </div>
       )}
@@ -375,15 +428,9 @@ function ChangeRow({ change }: { change: ChangeData }) {
   );
 }
 
-function ActivityHeatmap({
-  decisions,
-  changes,
-}: {
-  decisions: DecisionData[];
-  changes: ChangeData[];
-}) {
+// ─── Activity Heatmap ───
+function ActivityHeatmap({ decisions, changes }: { decisions: DecisionData[]; changes: ChangeData[] }) {
   const { t } = useT();
-  // Build 12-week heatmap
   const weeks = useMemo(() => {
     const now = new Date();
     const dayMs = 86400000;
@@ -399,9 +446,7 @@ function ActivityHeatmap({
     }
 
     const weeks: { date: string; count: number }[][] = [];
-    // Go back 12 weeks
     const startDay = new Date(now.getTime() - 84 * dayMs);
-    // Align to Sunday
     startDay.setDate(startDay.getDate() - startDay.getDay());
 
     for (let w = 0; w < 12; w++) {
@@ -446,7 +491,8 @@ function ActivityHeatmap({
   );
 }
 
-function timeAgo(dateStr: string): string {
+// ─── Helpers ───
+function formatDate(dateStr: string): string {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   const now = new Date();
@@ -461,4 +507,17 @@ function timeAgo(dateStr: string): string {
   if (isToday) return `${Math.floor(mins / 60)}h ago · ${time}`;
   if (isYesterday) return `yesterday · ${time}`;
   return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} · ${time}`;
+}
+
+function formatDuration(s: SessionData): string {
+  if (s.duration_mins) {
+    const m = s.duration_mins;
+    if (m < 60) return `${m}m`;
+    return `${Math.floor(m / 60)}h ${m % 60}m`;
+  }
+  const start = new Date(s.started_at).getTime();
+  const end = s.ended_at ? new Date(s.ended_at).getTime() : Date.now();
+  const m = Math.floor((end - start) / 60000);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
