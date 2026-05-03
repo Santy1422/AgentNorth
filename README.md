@@ -37,11 +37,23 @@ After AgentNorth:   Agent calls 1 tool    →  2,100 tokens → $0.006/session
 ```bash
 npx agentnorth init      # Detect modules, create config
 npx agentnorth index     # Scan & analyze your codebase (AST + git metadata)
-npx agentnorth setup     # Wire into Claude Code (hooks + MCP)
+npx agentnorth setup     # Wire into Claude Code (6 hooks + MCP)
+```
+
+Then add your API keys (generated at [agentnorth.io](https://www.agentnorth.io)):
+
+```bash
+# .agentnorth/.env
+AGENTNORTH_API_URL=https://www.agentnorth.io
+AGENTNORTH_ORG_KEY=an_org_...
+AGENTNORTH_DEV_KEY=an_dev_...
+```
+
+```bash
 npx agentnorth sync      # Push to live dashboard
 ```
 
-That's it. Your agents now use AgentNorth automatically via Claude Code hooks.
+That's it. Every Claude Code session is now tracked automatically — tokens, tool calls, files, decisions — all enforced by hooks, not instructions.
 
 ## How It Works
 

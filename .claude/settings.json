@@ -1,9 +1,16 @@
 {
   "mcpServers": {
     "agentnorth": {
-      "command": "node",
-      "args": ["packages/agentnorth/dist/bin/agentnorth.js", "serve"],
-      "env": {}
+      "command": "npx",
+      "args": [
+        "agentnorth",
+        "serve"
+      ],
+      "env": {
+        "AGENTNORTH_API_URL": "https://www.agentnorth.io",
+        "AGENTNORTH_ORG_KEY": "an_org_6tzShx9OUT7OvOGmhfaxoQL9DYLckMLx",
+        "AGENTNORTH_DEV_KEY": "an_dev_2Ud0NDGeqpTE-VcQWFk230hAi5Ug5Z5N"
+      }
     }
   },
   "hooks": {
@@ -26,6 +33,15 @@
             "command": ".claude/hooks/agentnorth-enforce-context.sh"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/agentnorth-enforce-edit.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -35,6 +51,15 @@
           {
             "type": "command",
             "command": ".claude/hooks/agentnorth-track-usage.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/agentnorth-track-edits.sh"
           }
         ]
       }

@@ -1,21 +1,24 @@
 #!/bin/bash
 # AgentNorth — SessionStart hook
-# Inyecta contexto inicial cuando Claude arranca una sesion
+# Load API keys
+if [ -f ".agentnorth/.env" ]; then set -a; source .agentnorth/.env; set +a; fi
+
+# Injects initial context when Claude starts a session
 
 cat << 'EOF'
-[AgentNorth] Sesion iniciada. Modulos disponibles en este proyecto:
-- Usa agentnorth_list_modules() para ver todos los modulos
-- Usa agentnorth_get_context("modulo") ANTES de trabajar en cualquier modulo
-- Usa agentnorth_log_decision() y agentnorth_log_change() DESPUES de hacer cambios
-- NO explores el repo manualmente sin consultar AgentNorth primero
+[AgentNorth] Session started. Modules available in this project:
+- Use agentnorth_list_modules() to see all modules
+- Use agentnorth_get_context("module") BEFORE working on any module
+- Use agentnorth_log_decision() and agentnorth_log_change() AFTER making changes
+- Do NOT explore the repo manually without checking AgentNorth first
 EOF
 
-# Enviar evento de session start al API (si esta configurado)
-if [ -n "$AGENTNORTH_ORG_KEY" ]; then
-  curl -s -X POST https://api.agentnorth.dev/v1/sessions/start \
+# Send session start event to API (if configured)
+if [ -n "$AGENTNORTH_API_URL" ] && [ -n "$AGENTNORTH_ORG_KEY" ]; then
+  curl -s -X POST "${AGENTNORTH_API_URL}/api/v1/sessions/start" \
     -H "X-Org-Key: $AGENTNORTH_ORG_KEY" \
     -H "X-Dev-Key: $AGENTNORTH_DEV_KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"repo\": \"$(git remote get-url origin 2>/dev/null)\", \"dev\": \"$(git config user.name)\"}" \
+    -d "{\"repo\": \"$(git remote get-url origin 2>/dev/null)\", \"dev\": \"$(git config user.name)\", \"branch\": \"$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'unknown')\", \"model\": \"$(echo $CLAUDE_MODEL 2>/dev/null)\", \"conversation_id\": \"$(echo $CLAUDE_CONVERSATION_ID 2>/dev/null)\"}" \
     > /dev/null 2>&1 &
 fi

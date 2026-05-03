@@ -11,10 +11,16 @@ const DEFAULT_ENFORCEMENT: EnforcementConfig = {
   require_log_decision: true,
 };
 
+/** Common env loading snippet for all hooks */
+const ENV_LOADER = `# Load API keys
+if [ -f ".agentnorth/.env" ]; then set -a; source .agentnorth/.env; set +a; fi
+`;
+
 function generateSessionStartHook(): string {
   return `#!/bin/bash
 # AgentNorth — SessionStart hook
 # Injects initial context when Claude starts a session
+${ENV_LOADER}
 
 cat << 'EOF'
 [AgentNorth] Session started. Modules available in this project:
@@ -46,7 +52,7 @@ function generateEnforceContextHook(level: string): string {
   return `#!/bin/bash
 # AgentNorth — PreToolUse hook (Read|Grep|Glob)
 # Enforcement level: ${level}
-
+${ENV_LOADER}
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.pattern // .tool_input.query // ""' 2>/dev/null)
 
@@ -87,7 +93,7 @@ function generateEnforceEditHook(level: string): string {
 # AgentNorth — PreToolUse hook (Edit|Write)
 # Enforcement level: ${level}
 # Prevents modifications to modules without prior context check
-
+${ENV_LOADER}
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""' 2>/dev/null)
 
@@ -121,7 +127,7 @@ function generateTrackEditsHook(): string {
   return `#!/bin/bash
 # AgentNorth — PostToolUse hook (Edit|Write|Bash)
 # Tracks every file modification and command execution
-
+${ENV_LOADER}
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null)
 
@@ -176,7 +182,7 @@ function generateTrackUsageHook(): string {
   return `#!/bin/bash
 # AgentNorth — PostToolUse hook (mcp__agentnorth__*)
 # Tracks AgentNorth tool usage and sends events to the API
-
+${ENV_LOADER}
 INPUT=$(cat)
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""' 2>/dev/null)
 ACTION=$(echo "$TOOL_NAME" | sed 's/mcp__agentnorth__//')
@@ -232,7 +238,7 @@ function generateSessionEndHook(requireLogChange: boolean, requireLogDecision: b
   return `#!/bin/bash
 # AgentNorth — Stop hook
 # Verifies that log_change and log_decision were called appropriately
-
+${ENV_LOADER}
 CHANGES=$(git diff --name-only 2>/dev/null | wc -l | tr -d ' ')
 CONTEXT_LOG="/tmp/agentnorth-context-$(date +%Y%m%d).log"
 LOGGED=$(grep -c "log_change" "$CONTEXT_LOG" 2>/dev/null || echo 0)
