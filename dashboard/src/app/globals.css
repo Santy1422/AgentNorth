@@ -5632,3 +5632,336 @@ html, body {
 }
 .graph-dep-item.clickable:hover { color: #c4b5fd; }
 .graph-dep-item.external { color: #60a5fa; }
+
+/* ─── Map Controls ─── */
+.map-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.map-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.map-toggle-group {
+  display: flex;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.map-toggle {
+  background: none;
+  border: none;
+  color: var(--text-4);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.map-toggle:hover { color: var(--text-2); }
+.map-toggle.active {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+.map-control-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.map-control-label {
+  font-size: 10px;
+  color: var(--text-4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.map-select {
+  background: var(--bg-2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  color: var(--text-2);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  outline: none;
+}
+.map-select:focus { border-color: var(--accent); }
+
+/* ─── Map Legend ─── */
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 6px;
+}
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-4);
+}
+.map-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ─── Treemap Container ─── */
+.treemap-container {
+  min-height: 300px;
+}
+
+/* Module-level treemap */
+.treemap-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.treemap-module {
+  min-width: 180px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.02);
+}
+.treemap-module-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.treemap-module-header:hover { background: rgba(255,255,255,0.06); }
+.tmh-name { font-size: 13px; font-weight: 600; }
+.tmh-stats { font-size: 10px; color: var(--text-4); margin-left: auto; }
+.tmh-arrow { color: var(--text-4); font-size: 12px; }
+
+/* Mini file cells in module-level treemap */
+.treemap-files { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px; }
+.treemap-files.mini .treemap-cell-mini {
+  min-width: 48px;
+  min-height: 28px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.treemap-cell-mini:hover { transform: scale(1.04); z-index: 1; }
+.treemap-cell-mini.overflow {
+  background: rgba(255,255,255,0.04) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text-4);
+}
+.tcm-name {
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-3);
+}
+
+/* Zoomed module: full file cells */
+.treemap-module-zoomed { position: relative; }
+.treemap-module-zoomed .treemap-files {
+  gap: 4px;
+  padding: 0;
+}
+.treemap-cell-file {
+  min-width: 120px;
+  min-height: 64px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s;
+  position: relative;
+}
+.treemap-cell-file:hover { transform: scale(1.02); z-index: 2; }
+.treemap-cell-file.hovered {
+  z-index: 3;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+}
+.treemap-cell-file.connected {
+  box-shadow: 0 0 0 2px var(--accent);
+  z-index: 2;
+}
+.treemap-cell-file.dimmed { opacity: 0.25; }
+.tcf-name { font-size: 12px; font-weight: 500; color: #fff; }
+.tcf-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-4);
+}
+.tcf-kind {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #fff;
+  font-weight: 500;
+}
+.tcf-exports { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+.tcf-export {
+  font-size: 9px;
+  padding: 1px 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  color: var(--text-4);
+}
+.tcf-export.muted { color: var(--text-5); }
+
+/* Hover tooltip */
+.treemap-tooltip {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-2);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+  z-index: 10;
+}
+.tt-name { font-size: 13px; font-weight: 600; color: #fff; }
+.tt-path { font-size: 10px; color: var(--text-4); margin-bottom: 6px; }
+.tt-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+.tt-deps { margin-top: 4px; }
+.tt-label { font-size: 10px; color: var(--text-4); display: block; margin-bottom: 2px; }
+.tt-dep {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-3);
+  margin-right: 8px;
+}
+
+/* ─── Layers View ─── */
+.layers-view { display: flex; flex-direction: column; gap: 4px; }
+.layers-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.layer-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 11px;
+  transition: all 0.15s;
+  position: relative;
+}
+.layer-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.layer-chip.md { padding: 6px 12px; font-size: 12px; }
+.layer-chip.lg { padding: 7px 14px; font-size: 12px; font-weight: 500; }
+.layer-chip.xl { padding: 8px 16px; font-size: 13px; font-weight: 600; }
+.layer-chip.warn-large::after {
+  content: "!";
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  background: var(--yellow);
+  color: #000;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.layer-chip.warn-hot { animation: pulse-border 2s infinite; }
+@keyframes pulse-border {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3); }
+}
+.lc-dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
+.lc-name { white-space: nowrap; }
+.lc-loc { font-size: 9px; color: var(--text-5); }
+.lc-badge {
+  background: rgba(255,255,255,0.1);
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+/* Layers module summary */
+.layers-module-summary {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.lms-label {
+  font-size: 10px;
+  color: var(--text-4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.lms-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lms-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.15s;
+}
+.lms-chip:hover { background: rgba(255,255,255,0.06); }
+.lms-name { font-size: 12px; font-weight: 500; }
+.lms-stats { font-size: 10px; color: var(--text-4); }
+
+/* ─── Node Detail: added LOC to links ─── */
+.fd-link-loc {
+  font-size: 10px;
+  color: var(--text-5);
+  margin-left: auto;
+}

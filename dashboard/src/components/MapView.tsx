@@ -35,12 +35,10 @@ function shortName(path: string): string {
 }
 
 function screenLabel(f: FileData): string {
-  // Make human-readable screen names from paths
   const p = f.path;
   if (p.includes("app/page.")) return "Home / Dashboard";
   if (p.includes("join/")) return "Join Team";
   if (p.includes("login")) return "Login";
-  // fallback
   const parts = p.split("/");
   const folder = parts[parts.length - 2] || "";
   const file = shortName(p).replace(/\.(tsx?|jsx?)$/, "");
@@ -53,7 +51,6 @@ function resolveImport(imp: { source: string; specifiers: string[] }, allFiles: 
   for (const f of allFiles) {
     const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
     if (src.endsWith(name) || src.endsWith("/" + name)) return f;
-    // @/ alias
     if (src.startsWith("@/") && f.path.includes(src.replace("@/", ""))) return f;
   }
   return null;
@@ -81,38 +78,81 @@ function getUsedBy(file: FileData, allFiles: FileData[]): FileData[] {
   );
 }
 
+type ViewMode = "treemap" | "layers";
+type ColorBy = "kind" | "module" | "complexity" | "churn";
+type SizeBy = "loc" | "imports" | "changes";
+
 // ─── Main Component ───
 export function MapView({ modules }: { modules: ModuleData[] }) {
   const { t } = useT();
-  const [selectedScreen, setSelectedScreen] = useState<FileData | null>(null);
-  const [selectedNode, setSelectedNode] = useState<FileData | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("treemap");
+  const [colorBy, setColorBy] = useState<ColorBy>("kind");
+  const [sizeBy, setSizeBy] = useState<SizeBy>("loc");
+  const [zoomedModule, setZoomedModule] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FileData | null>(null);
+  const [hoveredFile, setHoveredFile] = useState<FileData | null>(null);
   const [mapSearch, setMapSearch] = useState("");
 
-  const allFiles = useMemo(() => modules.flatMap((m) => m.files || []), [modules]);
-  // Deduplicate by path
-  const uniqueFiles = useMemo(() => {
+  const allFiles = useMemo(() => {
     const seen = new Set<string>();
-    return allFiles.filter((f) => {
+    return modules.flatMap((m) => m.files || []).filter((f) => {
       if (seen.has(f.path)) return false;
       seen.add(f.path);
       return true;
     });
+  }, [modules]);
+
+  const moduleColors = useMemo(() => {
+    const palette = ["#f97316", "#a78bfa", "#4ade80", "#60a5fa", "#f472b6", "#fbbf24", "#34d399", "#e879f9", "#fb923c", "#38bdf8"];
+    const map: Record<string, string> = {};
+    modules.forEach((m, i) => { map[m.name] = palette[i % palette.length]; });
+    return map;
+  }, [modules]);
+
+  // Import counts for sizing
+  const importCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const f of allFiles) {
+      const name = shortName(f.path).replace(/\.(tsx?|jsx?)$/, "");
+      counts[f.path] = allFiles.filter(
+        (other) => other.path !== f.path &&
+          other.imports?.some((imp) => imp.source.endsWith(name) || imp.source.endsWith("/" + name))
+      ).length;
+    }
+    return counts;
   }, [allFiles]);
 
-  const screens = useMemo(() => uniqueFiles.filter((f) => f.kind === "page"), [uniqueFiles]);
-  const routes = useMemo(() => uniqueFiles.filter((f) => f.kind === "route"), [uniqueFiles]);
-  const components = useMemo(() => uniqueFiles.filter((f) => f.kind === "component"), [uniqueFiles]);
-  const hooks = useMemo(() => uniqueFiles.filter((f) => f.kind === "hook"), [uniqueFiles]);
-  const libs = useMemo(() => uniqueFiles.filter((f) => f.kind === "lib"), [uniqueFiles]);
-  const models = useMemo(() => uniqueFiles.filter((f) => f.kind === "model"), [uniqueFiles]);
-  const others = useMemo(
-    () => uniqueFiles.filter((f) => !["page", "route", "component", "hook", "lib", "model"].includes(f.kind)),
-    [uniqueFiles]
-  );
+  const getFileSize = useCallback((f: FileData): number => {
+    if (sizeBy === "loc") return Math.max(f.loc, 10);
+    if (sizeBy === "imports") return Math.max((importCounts[f.path] || 0) + 1, 1) * 30;
+    if (sizeBy === "changes") return Math.max((f.change_frequency || 0) + 1, 1) * 30;
+    return f.loc;
+  }, [sizeBy, importCounts]);
 
-  const hasFiles = uniqueFiles.length > 0;
+  const getFileColor = useCallback((f: FileData, moduleName?: string): string => {
+    if (colorBy === "kind") return KIND_COLORS[f.kind] || KIND_COLORS.unknown;
+    if (colorBy === "module") return moduleColors[moduleName || ""] || "#71717a";
+    if (colorBy === "complexity") {
+      const c = f.complexity || 0;
+      if (c > 15) return "#ef4444";
+      if (c > 8) return "#f97316";
+      if (c > 4) return "#fbbf24";
+      return "#4ade80";
+    }
+    if (colorBy === "churn") {
+      const ch = f.change_frequency || 0;
+      if (ch > 10) return "#ef4444";
+      if (ch > 5) return "#f97316";
+      if (ch > 2) return "#fbbf24";
+      return "#4ade80";
+    }
+    return KIND_COLORS[f.kind] || "#71717a";
+  }, [colorBy, moduleColors]);
 
-  if (!hasFiles) {
+  const screens = useMemo(() => allFiles.filter((f) => f.kind === "page"), [allFiles]);
+  const routes = useMemo(() => allFiles.filter((f) => f.kind === "route"), [allFiles]);
+
+  if (allFiles.length === 0) {
     return (
       <section className="map-simple">
         <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
@@ -127,57 +167,89 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
     );
   }
 
-  // Back handler
   const handleBack = () => {
-    if (selectedNode) {
-      setSelectedNode(null);
-    } else {
-      setSelectedScreen(null);
-    }
+    if (selectedFile) { setSelectedFile(null); return; }
+    if (zoomedModule) { setZoomedModule(null); return; }
   };
+
+  const currentModule = zoomedModule ? modules.find((m) => m.name === zoomedModule) : null;
 
   return (
     <section className="map-simple">
+      {/* Header */}
       <div className="card-simple-head" style={{ padding: "0 0 18px" }}>
         <h2 className="breadcrumb">
           <button
-            className={"crumb" + (!selectedScreen ? " current" : "")}
-            onClick={() => {
-              setSelectedScreen(null);
-              setSelectedNode(null);
-            }}
+            className={"crumb" + (!zoomedModule && !selectedFile ? " current" : "")}
+            onClick={() => { setZoomedModule(null); setSelectedFile(null); }}
           >
             {t("map.architecture")}
           </button>
-          {selectedScreen && (
+          {zoomedModule && (
             <>
               <span className="crumb-sep">/</span>
               <button
-                className={"crumb" + (!selectedNode ? " current" : "")}
-                onClick={() => setSelectedNode(null)}
+                className={"crumb" + (!selectedFile ? " current" : "")}
+                onClick={() => setSelectedFile(null)}
               >
-                <span className="mono">{screenLabel(selectedScreen)}</span>
+                <span className="mono">{zoomedModule}</span>
               </button>
             </>
           )}
-          {selectedNode && (
+          {selectedFile && (
             <>
               <span className="crumb-sep">/</span>
-              <span className="crumb current mono">{shortName(selectedNode.path)}</span>
+              <span className="crumb current mono">{shortName(selectedFile.path)}</span>
             </>
           )}
         </h2>
         <span className="meta">
-          {!selectedScreen && `${screens.length} ${t("map.screens")} · ${routes.length} ${t("map.apis")} · ${uniqueFiles.length} files`}
-          {selectedScreen && !selectedNode && t("map.depFlow")}
-          {selectedNode && `${selectedNode.exports.length} ${t("map.exports")} · ${selectedNode.imports.length} ${t("map.imports")}`}
+          {!zoomedModule && !selectedFile && `${modules.length} modules · ${allFiles.length} files · ${screens.length} ${t("map.screens")} · ${routes.length} ${t("map.apis")}`}
+          {zoomedModule && !selectedFile && currentModule && `${currentModule.files_count} files · ${currentModule.loc.toLocaleString("en")} LOC`}
+          {selectedFile && `${selectedFile.exports.length} ${t("map.exports")} · ${selectedFile.imports.length} ${t("map.imports")}`}
         </span>
       </div>
 
-      {/* Search bar for map */}
-      {!selectedScreen && !selectedNode && (
-        <div className="map-search-bar">
-          <div className="map-search" style={{ flex: 1 }}>
+      {/* Controls bar */}
+      {!selectedFile && (
+        <div className="map-controls">
+          <div className="map-controls-left">
+            {/* View toggle */}
+            <div className="map-toggle-group">
+              <button className={"map-toggle" + (viewMode === "treemap" ? " active" : "")} onClick={() => setViewMode("treemap")}>
+                Treemap
+              </button>
+              <button className={"map-toggle" + (viewMode === "layers" ? " active" : "")} onClick={() => setViewMode("layers")}>
+                Layers
+              </button>
+            </div>
+
+            {/* Color by */}
+            <div className="map-control-group">
+              <span className="map-control-label">Color</span>
+              <select className="map-select" value={colorBy} onChange={(e) => setColorBy(e.target.value as ColorBy)}>
+                <option value="kind">File type</option>
+                <option value="module">Module</option>
+                <option value="complexity">Complexity</option>
+                <option value="churn">Change freq</option>
+              </select>
+            </div>
+
+            {/* Size by */}
+            {viewMode === "treemap" && (
+              <div className="map-control-group">
+                <span className="map-control-label">Size</span>
+                <select className="map-select" value={sizeBy} onChange={(e) => setSizeBy(e.target.value as SizeBy)}>
+                  <option value="loc">Lines of code</option>
+                  <option value="imports">Import count</option>
+                  <option value="changes">Change frequency</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Search */}
+          <div className="map-search">
             <span className="search-icon">&#x2315;</span>
             <input
               type="text"
@@ -185,42 +257,23 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
               value={mapSearch}
               onChange={(e) => setMapSearch(e.target.value)}
             />
-            {mapSearch && (
-              <button className="search-clear" onClick={() => setMapSearch("")}>x</button>
-            )}
+            {mapSearch && <button className="search-clear" onClick={() => setMapSearch("")}>x</button>}
           </div>
         </div>
       )}
 
-      {/* Search results */}
-      {!selectedScreen && !selectedNode && mapSearch.trim() && (
+      {/* Search results overlay */}
+      {!selectedFile && mapSearch.trim() && (
         <div className="map-search-results">
-          {uniqueFiles
+          {allFiles
             .filter((f) => {
               const q = mapSearch.toLowerCase();
-              return (
-                f.path.toLowerCase().includes(q) ||
-                f.exports.some((e) => e.toLowerCase().includes(q)) ||
-                shortName(f.path).toLowerCase().includes(q)
-              );
+              return f.path.toLowerCase().includes(q) || f.exports.some((e) => e.toLowerCase().includes(q)) || shortName(f.path).toLowerCase().includes(q);
             })
             .slice(0, 12)
             .map((f) => (
-              <button
-                key={f.path}
-                className="map-search-result"
-                onClick={() => {
-                  if (f.kind === "page") {
-                    setSelectedScreen(f);
-                  } else {
-                    setSelectedNode(f);
-                  }
-                  setMapSearch("");
-                }}
-              >
-                <span className="cov-file-kind" style={{ background: KIND_COLORS[f.kind] || KIND_COLORS.unknown }}>
-                  {f.kind}
-                </span>
+              <button key={f.path} className="map-search-result" onClick={() => { setSelectedFile(f); setMapSearch(""); }}>
+                <span className="cov-file-kind" style={{ background: KIND_COLORS[f.kind] || KIND_COLORS.unknown }}>{f.kind}</span>
                 <span className="mono" style={{ flex: 1 }}>{shortName(f.path)}</span>
                 <span style={{ fontSize: 11, color: "var(--text-4)" }}>{f.loc} LOC</span>
               </button>
@@ -228,35 +281,74 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
         </div>
       )}
 
-      {!selectedScreen && !selectedNode && !mapSearch.trim() && (
-        <ArchitectureOverview
-          screens={screens}
-          routes={routes}
-          components={components}
-          hooks={hooks}
-          libs={libs}
-          models={models}
-          others={others}
-          allFiles={uniqueFiles}
-          onSelectScreen={setSelectedScreen}
-          onSelectFile={setSelectedNode}
+      {/* Legend */}
+      {!selectedFile && !mapSearch.trim() && (
+        <div className="map-legend">
+          {colorBy === "kind" && Object.entries(KIND_COLORS).filter(([k]) => allFiles.some((f) => f.kind === k)).map(([kind, color]) => (
+            <span key={kind} className="map-legend-item">
+              <span className="map-legend-dot" style={{ background: color }}></span>
+              {KIND_LABELS[kind] || kind}
+            </span>
+          ))}
+          {colorBy === "module" && modules.map((m) => (
+            <span key={m.name} className="map-legend-item">
+              <span className="map-legend-dot" style={{ background: moduleColors[m.name] }}></span>
+              {m.name}
+            </span>
+          ))}
+          {colorBy === "complexity" && (
+            <>
+              <span className="map-legend-item"><span className="map-legend-dot" style={{ background: "#4ade80" }}></span>Low (0-4)</span>
+              <span className="map-legend-item"><span className="map-legend-dot" style={{ background: "#fbbf24" }}></span>Med (5-8)</span>
+              <span className="map-legend-item"><span className="map-legend-dot" style={{ background: "#f97316" }}></span>High (9-15)</span>
+              <span className="map-legend-item"><span className="map-legend-dot" style={{ background: "#ef4444" }}></span>Critical (15+)</span>
+            </>
+          )}
+          {colorBy === "churn" && (
+            <>
+              <span className="map-legend-item"><span className="map-legend-dot" style={{ background: "#4ade80" }}></span>Stable (0-2)</span>
+              <span className="map-legend-item"><span className="map-legend-dot" style={{ background: "#fbbf24" }}></span>Active (3-5)</span>
+              <span className="map-legend-item"><span className="map-legend-dot" style={{ background: "#f97316" }}></span>Hot (6-10)</span>
+              <span className="map-legend-item"><span className="map-legend-dot" style={{ background: "#ef4444" }}></span>Volatile (10+)</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Main content */}
+      {!selectedFile && !mapSearch.trim() && viewMode === "treemap" && (
+        <TreemapView
+          modules={modules}
+          allFiles={allFiles}
+          zoomedModule={zoomedModule}
+          hoveredFile={hoveredFile}
+          getFileSize={getFileSize}
+          getFileColor={getFileColor}
+          importCounts={importCounts}
+          onZoomModule={setZoomedModule}
+          onSelectFile={setSelectedFile}
+          onHoverFile={setHoveredFile}
         />
       )}
 
-      {selectedScreen && !selectedNode && (
-        <ScreenFlow
-          screen={selectedScreen}
-          allFiles={uniqueFiles}
-          onSelectFile={setSelectedNode}
-          onBack={handleBack}
+      {!selectedFile && !mapSearch.trim() && viewMode === "layers" && (
+        <LayersView
+          modules={modules}
+          allFiles={allFiles}
+          getFileColor={getFileColor}
+          importCounts={importCounts}
+          onSelectFile={setSelectedFile}
+          onZoomModule={setZoomedModule}
         />
       )}
 
-      {selectedNode && (
+      {selectedFile && (
         <NodeDetail
-          file={selectedNode}
-          allFiles={uniqueFiles}
-          onNavigate={setSelectedNode}
+          file={selectedFile}
+          allFiles={allFiles}
+          importCounts={importCounts}
+          getFileColor={getFileColor}
+          onNavigate={setSelectedFile}
           onBack={handleBack}
         />
       )}
@@ -264,423 +356,324 @@ export function MapView({ modules }: { modules: ModuleData[] }) {
   );
 }
 
-// ─── Level 1: Architecture Overview ───
-function ArchitectureOverview({
-  screens,
-  routes,
-  components,
-  hooks,
-  libs,
-  models,
-  others,
+// ─── Treemap View ───
+function TreemapView({
+  modules,
   allFiles,
-  onSelectScreen,
+  zoomedModule,
+  hoveredFile,
+  getFileSize,
+  getFileColor,
+  importCounts,
+  onZoomModule,
   onSelectFile,
+  onHoverFile,
 }: {
-  screens: FileData[];
-  routes: FileData[];
-  components: FileData[];
-  hooks: FileData[];
-  libs: FileData[];
-  models: FileData[];
-  others: FileData[];
+  modules: ModuleData[];
   allFiles: FileData[];
-  onSelectScreen: (f: FileData) => void;
+  zoomedModule: string | null;
+  hoveredFile: FileData | null;
+  getFileSize: (f: FileData) => number;
+  getFileColor: (f: FileData, mod?: string) => string;
+  importCounts: Record<string, number>;
+  onZoomModule: (name: string | null) => void;
   onSelectFile: (f: FileData) => void;
+  onHoverFile: (f: FileData | null) => void;
 }) {
   const { t } = useT();
-  return (
-    <div className="arch-overview">
-      {/* Screens - the main entry point */}
-      {screens.length > 0 && (
-        <div className="arch-layer">
-          <div className="arch-layer-label">
-            <span className="arch-dot" style={{ background: KIND_COLORS.page }}></span>
-            {t("map.screensTab")} ({screens.length})
-          </div>
-          <div className="arch-cards">
-            {screens.map((s) => {
-              const deps = getDirectDeps(s, allFiles);
-              const compCount = deps.filter((d) => d.kind === "component").length;
-              return (
-                <button key={s.path} className="arch-screen-card" onClick={() => onSelectScreen(s)}>
-                  <div className="asc-icon">&#x1F4F1;</div>
-                  <div className="asc-info">
-                    <div className="asc-name">{screenLabel(s)}</div>
-                    <div className="asc-path mono">{s.path}</div>
-                    <div className="asc-meta">
-                      {s.loc} LOC
-                      {compCount > 0 && <span> · {compCount} {t("map.components")}</span>}
-                      {deps.length > compCount && (
-                        <span> · {deps.length - compCount} {t("map.others")}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="asc-arrow">&rarr;</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
-      {/* Connector */}
-      {screens.length > 0 && components.length > 0 && (
-        <div className="arch-connector">
-          <div className="arch-connector-line"></div>
-          <span className="arch-connector-label">{t("map.uses")}</span>
-          <div className="arch-connector-line"></div>
-        </div>
-      )}
+  // Hover tooltip deps
+  const hoveredDeps = useMemo(() => {
+    if (!hoveredFile) return [];
+    return getDirectDeps(hoveredFile, allFiles);
+  }, [hoveredFile, allFiles]);
 
-      {/* Components */}
-      {components.length > 0 && (
-        <div className="arch-layer">
-          <div className="arch-layer-label">
-            <span className="arch-dot" style={{ background: KIND_COLORS.component }}></span>
-            {t("map.componentsTab")} ({components.length})
-          </div>
-          <div className="arch-chips-grid">
-            {components.map((c) => {
-              const usedBy = getUsedBy(c, allFiles);
-              const isLarge = c.loc > 300;
-              return (
-                <button key={c.path} className={"arch-chip" + (isLarge ? " large" : "")} onClick={() => onSelectFile(c)}>
-                  <span className="arch-chip-dot" style={{ background: KIND_COLORS.component }}></span>
-                  <span className="arch-chip-name mono">{shortName(c.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
-                  {isLarge && <span className="arch-chip-warn" title="Large file">!</span>}
-                  {usedBy.length > 0 && (
-                    <span className="arch-chip-badge">{usedBy.length}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+  const hoveredUsedBy = useMemo(() => {
+    if (!hoveredFile) return [];
+    return getUsedBy(hoveredFile, allFiles);
+  }, [hoveredFile, allFiles]);
 
-      {/* Connector */}
-      {(hooks.length > 0 || libs.length > 0) && (
-        <div className="arch-connector">
-          <div className="arch-connector-line"></div>
-          <span className="arch-connector-label">{t("map.import")}</span>
-          <div className="arch-connector-line"></div>
-        </div>
-      )}
+  // If zoomed into a module, show only that module's files
+  if (zoomedModule) {
+    const mod = modules.find((m) => m.name === zoomedModule);
+    if (!mod || !mod.files) return null;
+    const totalSize = mod.files.reduce((s, f) => s + getFileSize(f), 0);
 
-      {/* Hooks & Libs side by side */}
-      {(hooks.length > 0 || libs.length > 0) && (
-        <div className="arch-split">
-          {hooks.length > 0 && (
-            <div className="arch-layer">
-              <div className="arch-layer-label">
-                <span className="arch-dot" style={{ background: KIND_COLORS.hook }}></span>
-                {t("map.hooksTab")} ({hooks.length})
-              </div>
-              <div className="arch-chips-grid">
-                {hooks.map((h) => (
-                  <button key={h.path} className="arch-chip" onClick={() => onSelectFile(h)}>
-                    <span className="arch-chip-dot" style={{ background: KIND_COLORS.hook }}></span>
-                    <span className="arch-chip-name mono">{shortName(h.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {libs.length > 0 && (
-            <div className="arch-layer">
-              <div className="arch-layer-label">
-                <span className="arch-dot" style={{ background: KIND_COLORS.lib }}></span>
-                {t("map.libsTab")} ({libs.length})
-              </div>
-              <div className="arch-chips-grid">
-                {libs.map((l) => (
-                  <button key={l.path} className="arch-chip" onClick={() => onSelectFile(l)}>
-                    <span className="arch-chip-dot" style={{ background: KIND_COLORS.lib }}></span>
-                    <span className="arch-chip-name mono">{shortName(l.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Connector */}
-      {models.length > 0 && (
-        <div className="arch-connector">
-          <div className="arch-connector-line"></div>
-          <span className="arch-connector-label">{t("map.accessTo")}</span>
-          <div className="arch-connector-line"></div>
-        </div>
-      )}
-
-      {/* Models / Data layer */}
-      {models.length > 0 && (
-        <div className="arch-layer">
-          <div className="arch-layer-label">
-            <span className="arch-dot" style={{ background: KIND_COLORS.model }}></span>
-            {t("map.modelsTab")} ({models.length})
-          </div>
-          <div className="arch-chips-grid">
-            {models.map((m) => (
-              <button key={m.path} className="arch-chip" onClick={() => onSelectFile(m)}>
-                <span className="arch-chip-dot" style={{ background: KIND_COLORS.model }}></span>
-                <span className="arch-chip-name mono">{shortName(m.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* API Routes */}
-      {routes.length > 0 && (
-        <>
-          <div className="arch-separator"></div>
-          <div className="arch-layer">
-            <div className="arch-layer-label">
-              <span className="arch-dot" style={{ background: KIND_COLORS.route }}></span>
-              {t("map.routesTab")} ({routes.length})
-            </div>
-            <div className="arch-chips-grid">
-              {routes.map((r) => {
-                const pathLabel = r.path
-                  .replace(/.*\/app\/api\//, "/api/")
-                  .replace(/\/route\.(ts|tsx)$/, "")
-                  .replace(/\[\[\.\.\.route\]\]/, "*");
-                return (
-                  <button key={r.path} className="arch-chip route" onClick={() => onSelectFile(r)}>
-                    <span className="arch-chip-dot" style={{ background: KIND_COLORS.route }}></span>
-                    <span className="arch-chip-name mono">{pathLabel}</span>
-                    <span className="arch-chip-method">{t("map.getPost")}</span>
-                  </button>
+    return (
+      <div className="treemap-container">
+        <div className="treemap-module-zoomed">
+          <div className="treemap-files">
+            {mod.files
+              .sort((a, b) => getFileSize(b) - getFileSize(a))
+              .map((f) => {
+                const pct = (getFileSize(f) / totalSize) * 100;
+                const color = getFileColor(f, zoomedModule);
+                const isHovered = hoveredFile?.path === f.path;
+                const isConnected = hoveredFile && (
+                  hoveredDeps.some((d) => d.path === f.path) ||
+                  hoveredUsedBy.some((d) => d.path === f.path)
                 );
-              })}
-            </div>
-          </div>
-        </>
-      )}
+                const isDimmed = hoveredFile && !isHovered && !isConnected;
 
-      {/* Others */}
-      {others.length > 0 && (
-        <div className="arch-layer" style={{ marginTop: 8 }}>
-          <div className="arch-layer-label">
-            <span className="arch-dot" style={{ background: KIND_COLORS.unknown }}></span>
-            {t("map.othersTab")} ({others.length})
-          </div>
-          <div className="arch-chips-grid">
-            {others.map((o) => (
-              <button key={o.path} className="arch-chip" onClick={() => onSelectFile(o)}>
-                <span className="arch-chip-dot" style={{ background: KIND_COLORS[o.kind] || KIND_COLORS.unknown }}></span>
-                <span className="arch-chip-name mono">{shortName(o.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Level 2: Screen Flow ───
-function ScreenFlow({
-  screen,
-  allFiles,
-  onSelectFile,
-  onBack,
-}: {
-  screen: FileData;
-  allFiles: FileData[];
-  onSelectFile: (f: FileData) => void;
-  onBack: () => void;
-}) {
-  const { t } = useT();
-  // Build dependency tree
-  const directDeps = getDirectDeps(screen, allFiles);
-
-  // Group direct deps by kind
-  const depsByKind = useMemo(() => {
-    const groups: Record<string, FileData[]> = {};
-    for (const d of directDeps) {
-      const k = d.kind;
-      if (!groups[k]) groups[k] = [];
-      groups[k].push(d);
-    }
-    return groups;
-  }, [directDeps]);
-
-  // Second level: what do those components import?
-  const secondLevel = useMemo(() => {
-    const seen = new Set([screen.path, ...directDeps.map((d) => d.path)]);
-    const items: FileData[] = [];
-    for (const dep of directDeps) {
-      for (const sub of getDirectDeps(dep, allFiles)) {
-        if (!seen.has(sub.path)) {
-          seen.add(sub.path);
-          items.push(sub);
-        }
-      }
-    }
-    return items;
-  }, [screen, directDeps, allFiles]);
-
-  const secondByKind = useMemo(() => {
-    const groups: Record<string, FileData[]> = {};
-    for (const d of secondLevel) {
-      const k = d.kind;
-      if (!groups[k]) groups[k] = [];
-      groups[k].push(d);
-    }
-    return groups;
-  }, [secondLevel]);
-
-  // External deps
-  const externalImports = screen.imports.filter(
-    (imp) => !imp.source.startsWith(".") && !imp.source.startsWith("@/") && !imp.source.startsWith("~")
-  );
-
-  return (
-    <div className="screen-flow">
-      {/* The screen itself */}
-      <div className="sf-root">
-        <div className="sf-root-icon">&#x1F4F1;</div>
-        <div className="sf-root-info">
-          <div className="sf-root-name">{screenLabel(screen)}</div>
-          <div className="sf-root-path mono">{screen.path}</div>
-          <div className="sf-root-stats">
-            <span>{screen.loc} LOC</span>
-            <span>{screen.exports.length} exports</span>
-            <span>{directDeps.length} direct dependencies</span>
-          </div>
-        </div>
-      </div>
-
-      {directDeps.length > 0 && (
-        <div className="sf-connector-v">
-          <div className="sf-line-v"></div>
-          <span className="sf-connector-label">{t("map.importsDirect")}</span>
-        </div>
-      )}
-
-      {/* Direct dependencies grouped by kind */}
-      {Object.entries(depsByKind)
-        .sort(([a], [b]) => {
-          const order = ["component", "hook", "lib", "model", "route", "schema", "config", "unknown"];
-          return order.indexOf(a) - order.indexOf(b);
-        })
-        .map(([kind, files]) => (
-          <div key={kind} className="sf-dep-group">
-            <div className="sf-dep-group-label">
-              <span className="arch-dot" style={{ background: KIND_COLORS[kind] }}></span>
-              {KIND_LABELS[kind] || kind} ({files.length})
-            </div>
-            <div className="sf-dep-cards">
-              {files.map((f) => {
-                const subDeps = getDirectDeps(f, allFiles).filter(
-                  (sd) => sd.path !== screen.path
-                );
                 return (
-                  <button key={f.path} className="sf-dep-card" onClick={() => onSelectFile(f)}>
-                    <div className="sf-dc-head">
-                      <span className="fc-kind" style={{ background: KIND_COLORS[f.kind] }}>
-                        {f.kind}
-                      </span>
-                      <span className="sf-dc-name mono">
-                        {shortName(f.path).replace(/\.(tsx?|jsx?)$/, "")}
-                      </span>
-                      <span className="asc-arrow">&rarr;</span>
-                    </div>
-                    <div className="sf-dc-stats">
+                  <div
+                    key={f.path}
+                    className={"treemap-cell-file" + (isHovered ? " hovered" : "") + (isDimmed ? " dimmed" : "") + (isConnected ? " connected" : "")}
+                    style={{
+                      flexBasis: `${Math.max(pct, 3)}%`,
+                      flexGrow: Math.max(pct, 3),
+                      borderColor: color,
+                      background: `${color}15`,
+                    }}
+                    onClick={() => onSelectFile(f)}
+                    onMouseEnter={() => onHoverFile(f)}
+                    onMouseLeave={() => onHoverFile(null)}
+                  >
+                    <div className="tcf-name mono">{shortName(f.path).replace(/\.(tsx?|jsx?)$/, "")}</div>
+                    <div className="tcf-meta">
+                      <span className="tcf-kind" style={{ background: KIND_COLORS[f.kind] || KIND_COLORS.unknown }}>{f.kind}</span>
                       <span>{f.loc} LOC</span>
-                      {f.exports.length > 0 && <span>{f.exports.length} exp</span>}
-                      {subDeps.length > 0 && (
-                        <span style={{ color: "var(--text-3)" }}>
-                          {t("map.uses")} {subDeps.length}+
-                        </span>
-                      )}
+                      {(importCounts[f.path] || 0) > 0 && <span>{importCounts[f.path]} deps</span>}
                     </div>
                     {f.exports.length > 0 && (
-                      <div className="sf-dc-exports">
+                      <div className="tcf-exports">
                         {f.exports.slice(0, 3).map((e) => (
-                          <span key={e} className="fc-export mono">{e}</span>
+                          <span key={e} className="tcf-export mono">{e}</span>
                         ))}
-                        {f.exports.length > 3 && (
-                          <span className="fc-export muted">+{f.exports.length - 3}</span>
-                        )}
+                        {f.exports.length > 3 && <span className="tcf-export muted">+{f.exports.length - 3}</span>}
                       </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
-            </div>
-          </div>
-        ))}
-
-      {/* Second-level deps */}
-      {secondLevel.length > 0 && (
-        <>
-          <div className="sf-connector-v">
-            <div className="sf-line-v"></div>
-            <span className="sf-connector-label">{t("map.thoseUse")}</span>
-          </div>
-
-          {Object.entries(secondByKind)
-            .sort(([a], [b]) => {
-              const order = ["component", "hook", "lib", "model", "route", "schema", "config", "unknown"];
-              return order.indexOf(a) - order.indexOf(b);
-            })
-            .map(([kind, files]) => (
-              <div key={kind} className="sf-dep-group secondary">
-                <div className="sf-dep-group-label">
-                  <span className="arch-dot" style={{ background: KIND_COLORS[kind] }}></span>
-                  {KIND_LABELS[kind] || kind} ({files.length})
-                </div>
-                <div className="sf-dep-chips">
-                  {files.map((f) => (
-                    <button key={f.path} className="arch-chip" onClick={() => onSelectFile(f)}>
-                      <span className="arch-chip-dot" style={{ background: KIND_COLORS[f.kind] }}></span>
-                      <span className="arch-chip-name mono">
-                        {shortName(f.path).replace(/\.(tsx?|jsx?)$/, "")}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-        </>
-      )}
-
-      {/* External deps */}
-      {externalImports.length > 0 && (
-        <div className="sf-dep-group" style={{ marginTop: 8 }}>
-          <div className="sf-dep-group-label">
-            <span className="arch-dot" style={{ background: "#60a5fa" }}></span>
-            {t("map.extPackages")} ({externalImports.length})
-          </div>
-          <div className="sf-dep-chips">
-            {externalImports.map((imp) => (
-              <span key={imp.source} className="fd-chip ext mono">{imp.source}</span>
-            ))}
           </div>
         </div>
-      )}
 
-      <button className="btn-simple" style={{ marginTop: 20 }} onClick={onBack}>
-        &larr; {t("map.backToArch")}
-      </button>
+        {/* Hover tooltip */}
+        {hoveredFile && (
+          <div className="treemap-tooltip">
+            <div className="tt-name mono">{shortName(hoveredFile.path)}</div>
+            <div className="tt-path mono">{hoveredFile.path}</div>
+            <div className="tt-stats">
+              <span>{hoveredFile.loc} LOC</span>
+              {hoveredFile.complexity ? <span>complexity: {hoveredFile.complexity}</span> : null}
+              {hoveredFile.change_frequency ? <span>{hoveredFile.change_frequency} changes (3mo)</span> : null}
+              <span>{hoveredFile.exports.length} exports</span>
+            </div>
+            {hoveredDeps.length > 0 && (
+              <div className="tt-deps">
+                <span className="tt-label">Imports ({hoveredDeps.length}):</span>
+                {hoveredDeps.slice(0, 5).map((d) => (
+                  <span key={d.path} className="tt-dep">
+                    <span className="map-legend-dot" style={{ background: KIND_COLORS[d.kind] }}></span>
+                    {shortName(d.path).replace(/\.(tsx?|jsx?)$/, "")}
+                  </span>
+                ))}
+              </div>
+            )}
+            {hoveredUsedBy.length > 0 && (
+              <div className="tt-deps">
+                <span className="tt-label">Used by ({hoveredUsedBy.length}):</span>
+                {hoveredUsedBy.slice(0, 5).map((d) => (
+                  <span key={d.path} className="tt-dep">
+                    <span className="map-legend-dot" style={{ background: KIND_COLORS[d.kind] }}></span>
+                    {shortName(d.path).replace(/\.(tsx?|jsx?)$/, "")}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <button className="btn-simple" style={{ marginTop: 12 }} onClick={() => onZoomModule(null)}>
+          &larr; {t("map.backToArch")}
+        </button>
+      </div>
+    );
+  }
+
+  // Module-level treemap
+  const totalLoc = modules.reduce((s, m) => s + (m.loc || 0), 0);
+
+  return (
+    <div className="treemap-container">
+      <div className="treemap-modules">
+        {modules
+          .sort((a, b) => (b.loc || 0) - (a.loc || 0))
+          .map((m) => {
+            const pct = totalLoc > 0 ? (m.loc / totalLoc) * 100 : 100 / modules.length;
+            const files = m.files || [];
+            const modTotalSize = files.reduce((s, f) => s + getFileSize(f), 0);
+
+            return (
+              <div
+                key={m.name}
+                className="treemap-module"
+                style={{ flexBasis: `${Math.max(pct, 8)}%`, flexGrow: Math.max(pct, 8) }}
+              >
+                <button className="treemap-module-header" onClick={() => onZoomModule(m.name)}>
+                  <span className="tmh-name mono">{m.name}</span>
+                  <span className="tmh-stats">{m.files_count} files · {(m.loc || 0).toLocaleString("en")} LOC</span>
+                  <span className="tmh-arrow">&rarr;</span>
+                </button>
+                <div className="treemap-files mini">
+                  {files
+                    .sort((a, b) => getFileSize(b) - getFileSize(a))
+                    .slice(0, 20)
+                    .map((f) => {
+                      const filePct = modTotalSize > 0 ? (getFileSize(f) / modTotalSize) * 100 : 5;
+                      const color = getFileColor(f, m.name);
+                      return (
+                        <div
+                          key={f.path}
+                          className="treemap-cell-mini"
+                          style={{
+                            flexBasis: `${Math.max(filePct, 4)}%`,
+                            flexGrow: Math.max(filePct, 4),
+                            background: `${color}30`,
+                            borderColor: `${color}60`,
+                          }}
+                          title={`${shortName(f.path)} · ${f.loc} LOC · ${f.kind}`}
+                          onClick={(e) => { e.stopPropagation(); onSelectFile(f); }}
+                        >
+                          <span className="tcm-name mono">{shortName(f.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
+                        </div>
+                      );
+                    })}
+                  {files.length > 20 && (
+                    <div className="treemap-cell-mini overflow" onClick={() => onZoomModule(m.name)}>
+                      <span>+{files.length - 20}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+      </div>
     </div>
   );
 }
 
-// ─── Level 3: Node Detail ───
+// ─── Layers View (improved architecture flow) ───
+function LayersView({
+  modules,
+  allFiles,
+  getFileColor,
+  importCounts,
+  onSelectFile,
+  onZoomModule,
+}: {
+  modules: ModuleData[];
+  allFiles: FileData[];
+  getFileColor: (f: FileData, mod?: string) => string;
+  importCounts: Record<string, number>;
+  onSelectFile: (f: FileData) => void;
+  onZoomModule: (name: string) => void;
+}) {
+  const { t } = useT();
+
+  const byKind = useMemo(() => {
+    const groups: Record<string, FileData[]> = {};
+    for (const f of allFiles) {
+      const k = f.kind;
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(f);
+    }
+    return groups;
+  }, [allFiles]);
+
+  const kindOrder = ["page", "component", "hook", "lib", "model", "route", "schema", "test", "config", "unknown"];
+  const connectorLabels: Record<string, string> = {
+    page: t("map.uses"),
+    component: t("map.import"),
+    hook: t("map.import"),
+    lib: t("map.accessTo"),
+    model: "",
+    route: "",
+  };
+
+  return (
+    <div className="layers-view">
+      {kindOrder.map((kind, ki) => {
+        const files = byKind[kind];
+        if (!files || files.length === 0) return null;
+
+        // Sort by import count (most imported first)
+        const sorted = [...files].sort((a, b) => (importCounts[b.path] || 0) - (importCounts[a.path] || 0));
+
+        return (
+          <div key={kind}>
+            {ki > 0 && connectorLabels[kindOrder[ki - 1]] && (
+              <div className="arch-connector">
+                <div className="arch-connector-line"></div>
+                <span className="arch-connector-label">{connectorLabels[kindOrder[ki - 1]]}</span>
+                <div className="arch-connector-line"></div>
+              </div>
+            )}
+            <div className="arch-layer">
+              <div className="arch-layer-label">
+                <span className="arch-dot" style={{ background: KIND_COLORS[kind] }}></span>
+                {KIND_LABELS[kind] || kind} ({files.length})
+              </div>
+              <div className="layers-chips">
+                {sorted.map((f) => {
+                  const depCount = importCounts[f.path] || 0;
+                  const isLarge = f.loc > 300;
+                  const isHot = (f.change_frequency || 0) > 5;
+                  const color = getFileColor(f);
+                  // Scale chip size by LOC
+                  const sizeClass = f.loc > 500 ? " xl" : f.loc > 200 ? " lg" : f.loc > 80 ? " md" : "";
+
+                  return (
+                    <button
+                      key={f.path}
+                      className={"layer-chip" + sizeClass + (isLarge ? " warn-large" : "") + (isHot ? " warn-hot" : "")}
+                      style={{ borderColor: `${color}80`, background: `${color}12` }}
+                      onClick={() => onSelectFile(f)}
+                      title={`${shortName(f.path)} · ${f.loc} LOC${depCount > 0 ? ` · ${depCount} dependents` : ""}`}
+                    >
+                      <span className="lc-dot" style={{ background: color }}></span>
+                      <span className="lc-name mono">{shortName(f.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
+                      <span className="lc-loc">{f.loc}</span>
+                      {depCount > 0 && <span className="lc-badge">{depCount}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Module summary at bottom */}
+      <div className="layers-module-summary">
+        <div className="lms-label">Modules</div>
+        <div className="lms-chips">
+          {modules.map((m) => (
+            <button key={m.name} className="lms-chip" onClick={() => onZoomModule(m.name)}>
+              <span className="lms-name mono">{m.name}</span>
+              <span className="lms-stats">{m.files_count} files · {(m.loc || 0).toLocaleString("en")} LOC</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Node Detail ───
 function NodeDetail({
   file,
   allFiles,
+  importCounts,
+  getFileColor,
   onNavigate,
   onBack,
 }: {
   file: FileData;
   allFiles: FileData[];
+  importCounts: Record<string, number>;
+  getFileColor: (f: FileData) => string;
   onNavigate: (f: FileData) => void;
   onBack: () => void;
 }) {
@@ -720,6 +713,18 @@ function NodeDetail({
           <span className="fd-stat-num">{usedBy.length}</span>
           <span>{t("map.usedBy")}</span>
         </div>
+        {file.complexity ? (
+          <div className="fd-stat">
+            <span className="fd-stat-num" style={{ color: file.complexity > 15 ? "var(--red)" : file.complexity > 8 ? "var(--yellow)" : "var(--green)" }}>{file.complexity}</span>
+            <span>Complexity</span>
+          </div>
+        ) : null}
+        {file.change_frequency ? (
+          <div className="fd-stat">
+            <span className="fd-stat-num">{file.change_frequency}</span>
+            <span>Changes (3mo)</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="fd-sections">
@@ -735,13 +740,10 @@ function NodeDetail({
             <div className="fd-section-title">{t("map.exportsLabel")} ({file.exports.length})</div>
             <div className="fd-exports-xref">
               {file.exports.map((exp) => {
-                // Find who imports this specific export
                 const importers = allFiles.filter(
-                  (f) =>
-                    f.path !== file.path &&
-                    f.imports?.some(
-                      (imp) => imp.specifiers?.includes(exp) || imp.specifiers?.includes("default") && exp === "default"
-                    )
+                  (f) => f.path !== file.path && f.imports?.some(
+                    (imp) => imp.specifiers?.includes(exp) || (imp.specifiers?.includes("default") && exp === "default")
+                  )
                 );
                 return (
                   <div key={exp} className="fd-export-item">
@@ -749,11 +751,7 @@ function NodeDetail({
                     {importers.length > 0 ? (
                       <div className="fd-export-users">
                         {importers.map((u) => (
-                          <button
-                            key={u.path}
-                            className="fd-export-user"
-                            onClick={() => onNavigate(u)}
-                          >
+                          <button key={u.path} className="fd-export-user" onClick={() => onNavigate(u)}>
                             <span className="mc-kind-dot" style={{ background: KIND_COLORS[u.kind] }}></span>
                             <span className="mono">{shortName(u.path).replace(/\.(tsx?|jsx?)$/, "")}</span>
                           </button>
@@ -777,6 +775,7 @@ function NodeDetail({
                 <span className="mc-kind-dot" style={{ background: KIND_COLORS[target.kind] }}></span>
                 <span className="mono">{shortName(target.path)}</span>
                 <span className="fd-link-kind">{target.kind}</span>
+                <span className="fd-link-loc">{target.loc} LOC</span>
                 <span className="asc-arrow">&rarr;</span>
               </button>
             ))}
@@ -791,6 +790,7 @@ function NodeDetail({
                 <span className="mc-kind-dot" style={{ background: KIND_COLORS[f.kind] }}></span>
                 <span className="mono">{shortName(f.path)}</span>
                 <span className="fd-link-kind">{f.kind}</span>
+                <span className="fd-link-loc">{f.loc} LOC</span>
                 <span className="asc-arrow">&rarr;</span>
               </button>
             ))}
@@ -810,9 +810,7 @@ function NodeDetail({
 
         {deps.length === 0 && usedBy.length === 0 && (
           <div className="fd-section">
-            <div className="fd-orphan">
-              &#x26A0; {t("map.noConnections")}
-            </div>
+            <div className="fd-orphan">&#x26A0; {t("map.noConnections")}</div>
           </div>
         )}
       </div>
