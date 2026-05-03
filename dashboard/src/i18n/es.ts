@@ -9,6 +9,7 @@ export const es: Record<TranslationKey, string> = {
   "nav.coverage": "Cobertura",
   "nav.decisions": "Decisiones",
   "nav.apis": "APIs",
+  "nav.sessions": "Sesiones",
   "nav.guide": "Guia",
   "nav.projects": "Proyectos",
   "nav.logout": "Cerrar sesión",

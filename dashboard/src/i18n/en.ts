@@ -7,6 +7,7 @@ export const en = {
   "nav.coverage": "Coverage",
   "nav.decisions": "Decisions",
   "nav.apis": "APIs",
+  "nav.sessions": "Sessions",
   "nav.guide": "Guide",
   "nav.projects": "Projects",
   "nav.logout": "Sign out",

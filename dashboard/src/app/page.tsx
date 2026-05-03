@@ -15,8 +15,9 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { LoginScreen } from "@/components/LoginScreen";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 import { DependencyGraph } from "@/components/DependencyGraph";
+import { SessionsView } from "@/components/SessionsView";
 
-export type View = "main" | "map" | "deps" | "coverage" | "risks" | "apis" | "onboarding" | "module-detail" | "graph";
+export type View = "main" | "map" | "deps" | "coverage" | "risks" | "apis" | "onboarding" | "module-detail" | "graph" | "sessions";
 
 export interface ProjectRef {
   id: string;
@@ -104,6 +105,13 @@ export interface SessionData {
   claude_model?: string;
   conversation_id?: string;
   duration_mins?: number;
+  edits_count?: number;
+  bash_commands_count?: number;
+  tokens_cache_read?: number;
+  tokens_cache_creation?: number;
+  assistant_turns?: number;
+  user_turns?: number;
+  tool_calls?: Record<string, number>;
 }
 
 export interface EventData {
@@ -491,6 +499,7 @@ export default function Home() {
         )}
         {view === "apis" && <ApisView modules={data?.project.modules || []} />}
         {view === "graph" && <DependencyGraph modules={data?.project.modules || []} />}
+        {view === "sessions" && <SessionsView sessions={data?.sessions || []} />}
         {view === "onboarding" && <OnboardingGuide data={data} />}
         {view === "module-detail" && selectedModule && (
           <ModuleDetail
