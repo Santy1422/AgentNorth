@@ -255,6 +255,12 @@ export function SessionsView({ sessions }: { sessions: SessionData[] }) {
             <div className="session-stat-label">Cache Hit Rate</div>
           </div>
         )}
+        {sessions.some(s => (s.errors_count || 0) > 0) && (
+          <div className="session-stat-card" style={{ borderLeft: "3px solid var(--red)" }}>
+            <div className="session-stat-value" style={{ color: "var(--red)" }}>{sessions.reduce((sum, s) => sum + (s.errors_count || 0), 0)}</div>
+            <div className="session-stat-label">Total Errors</div>
+          </div>
+        )}
       </div>
 
       {sessions.length > 1 && <SessionTimeline sessions={sessions} />}
@@ -341,6 +347,50 @@ export function SessionsView({ sessions }: { sessions: SessionData[] }) {
                     <div>
                       <span className="session-section-label">Tool Usage</span>
                       <ToolBar tools={s.tool_calls} />
+                    </div>
+                  )}
+
+                  
+                  {/* Cost Breakdown */}
+                  {hasCost && (
+                    <div>
+                      <span className="session-section-label">Cost Breakdown</span>
+                      <div className="session-cost-breakdown">
+                        {(() => {
+                          const p = getPrice(s.claude_model || "");
+                          const inputCost = (s.tokens_input || 0) / 1_000_000 * p.input;
+                          const outputCost = (s.tokens_output || 0) / 1_000_000 * p.output;
+                          const cacheCost = (s.tokens_cache_read || 0) / 1_000_000 * p.cacheRead;
+                          const total = inputCost + outputCost + cacheCost;
+                          return (
+                            <>
+                              <div className="cost-bar-row">
+                                <span className="cost-bar-label">Input</span>
+                                <div className="cost-bar-track">
+                                  <div className="cost-bar-fill input" style={{ width: total > 0 ? (inputCost / total * 100) + "%" : "0%" }} />
+                                </div>
+                                <span className="cost-bar-value">{formatCost(inputCost)}</span>
+                              </div>
+                              <div className="cost-bar-row">
+                                <span className="cost-bar-label">Output</span>
+                                <div className="cost-bar-track">
+                                  <div className="cost-bar-fill output" style={{ width: total > 0 ? (outputCost / total * 100) + "%" : "0%" }} />
+                                </div>
+                                <span className="cost-bar-value">{formatCost(outputCost)}</span>
+                              </div>
+                              {cacheCost > 0.001 && (
+                                <div className="cost-bar-row">
+                                  <span className="cost-bar-label">Cache</span>
+                                  <div className="cost-bar-track">
+                                    <div className="cost-bar-fill cache" style={{ width: total > 0 ? (cacheCost / total * 100) + "%" : "0%" }} />
+                                  </div>
+                                  <span className="cost-bar-value">{formatCost(cacheCost)}</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
                   )}
 

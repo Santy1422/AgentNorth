@@ -66,6 +66,7 @@ export function MainView({
 }) {
   const { t } = useT();
   const dollars = (savedTokens / 100000).toFixed(2);
+  const savedDisplay = savedTokens >= 1_000_000 ? (savedTokens / 1_000_000).toFixed(1) + "M" : savedTokens >= 1_000 ? (savedTokens / 1_000).toFixed(1) + "K" : String(savedTokens);
   const totalEvents = data?.total_events || 0;
   const modulesCount = data?.project.modules?.length || 0;
   const decisionsCount = data?.decisions?.length || 0;
@@ -193,7 +194,7 @@ export function MainView({
       <section className="hero-v2">
         <div className="hero-v2-left">
           <div className="hero-v2-label">{t("main.tokensSaved")}</div>
-          <div className="hero-v2-num">{savedTokens.toLocaleString("en")}</div>
+          <div className="hero-v2-num">{savedDisplay}</div>
           <div className="hero-v2-sub">
             {"\u2248"} <span className="hero-money">${dollars}</span> {t("main.inCosts")}
           </div>

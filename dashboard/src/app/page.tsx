@@ -453,7 +453,13 @@ export default function Home() {
   if (authState === "loading") {
     return (
       <div className="loading-screen">
-        <div className="brand-mark" style={{ width: 48, height: 48, fontSize: 18, borderRadius: 12, animation: "pulse 1.5s infinite" }}>AN</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <div className="brand-mark" style={{ width: 48, height: 48, fontSize: 18, borderRadius: 12, animation: "pulse 1.5s infinite" }}>AN</div>
+          <div style={{ width: 200, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div className="skeleton skeleton-line" />
+            <div className="skeleton skeleton-line short" />
+          </div>
+        </div>
       </div>
     );
   }

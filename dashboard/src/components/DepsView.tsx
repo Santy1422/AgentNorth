@@ -83,8 +83,11 @@ export function DepsView({ deps, audit }: { deps: DepData[]; audit: AuditVuln[] 
             <div className="rs-num">{audit.length}</div>
             <div className="rs-label">
               {t("deps.vulnerabilities")}
-              {criticalCount > 0 && <span> · {t("deps.critical", { n: criticalCount })}</span>}
-              {highCount > 0 && <span> · {t("deps.high", { n: highCount })}</span>}
+            </div>
+            <div className="vuln-severity-bar" style={{ display: "flex", gap: 2, marginTop: 4 }}>
+              {criticalCount > 0 && <div style={{ flex: criticalCount, height: 3, background: "#ef4444", borderRadius: 2 }} title={criticalCount + " critical"} />}
+              {highCount > 0 && <div style={{ flex: highCount, height: 3, background: "#f97316", borderRadius: 2 }} title={highCount + " high"} />}
+              {audit.length - criticalCount - highCount > 0 && <div style={{ flex: audit.length - criticalCount - highCount, height: 3, background: "#fbbf24", borderRadius: 2 }} title={(audit.length - criticalCount - highCount) + " other"} />}
             </div>
           </div>
         ) : (
