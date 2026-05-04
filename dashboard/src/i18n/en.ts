@@ -5,7 +5,7 @@ export const en = {
   "nav.graph": "Graph",
   "nav.deps": "Deps",
   "nav.coverage": "Coverage",
-  "nav.decisions": "Decisions",
+  "nav.decisions": "Activity Log",
   "nav.apis": "APIs",
   "nav.sessions": "Sessions",
   "nav.guide": "Guide",

@@ -91,6 +91,71 @@ function ToolBar({ tools }: { tools: Record<string, number> }) {
   );
 }
 
+
+function SessionTimeline({ sessions }: { sessions: SessionData[] }) {
+  if (sessions.length === 0) return null;
+  
+  // Find time range
+  const starts = sessions.map(s => new Date(s.started_at).getTime());
+  const ends = sessions.map(s => s.ended_at ? new Date(s.ended_at).getTime() : Date.now());
+  const minTime = Math.min(...starts);
+  const maxTime = Math.max(...ends);
+  const range = maxTime - minTime || 1;
+  
+  // Only show if sessions span more than 5 minutes
+  if (range < 300000) return null;
+  
+  // Group by day for labels
+  const dayLabels: { label: string; pos: number }[] = [];
+  const startDate = new Date(minTime);
+  startDate.setHours(0, 0, 0, 0);
+  let cursor = startDate.getTime();
+  while (cursor <= maxTime) {
+    const d = new Date(cursor);
+    const pos = ((cursor - minTime) / range) * 100;
+    if (pos >= 0 && pos <= 100) {
+      dayLabels.push({ label: d.toLocaleDateString([], { weekday: "short", day: "numeric" }), pos });
+    }
+    cursor += 86400000;
+  }
+
+  return (
+    <div className="session-timeline">
+      <div className="session-timeline-header">
+        <span className="session-timeline-title">Session Timeline</span>
+        <span className="session-timeline-range">
+          {new Date(minTime).toLocaleDateString([], { month: "short", day: "numeric" })} — {new Date(maxTime).toLocaleDateString([], { month: "short", day: "numeric" })}
+        </span>
+      </div>
+      <div className="session-timeline-track">
+        {dayLabels.map((dl, i) => (
+          <div key={i} className="session-timeline-day-mark" style={{ left: dl.pos + "%" }}>
+            <div className="session-timeline-day-line" />
+            <span className="session-timeline-day-label">{dl.label}</span>
+          </div>
+        ))}
+        {sessions.map((s) => {
+          const start = new Date(s.started_at).getTime();
+          const end = s.ended_at ? new Date(s.ended_at).getTime() : Date.now();
+          const left = ((start - minTime) / range) * 100;
+          const width = Math.max(0.5, ((end - start) / range) * 100);
+          const isActive = !s.ended_at;
+          const cost = calcCost(s);
+          const intensity = cost > 1 ? "high" : cost > 0.1 ? "med" : "low";
+          return (
+            <div
+              key={s._id}
+              className={"session-timeline-bar " + intensity + (isActive ? " active" : "")}
+              style={{ left: left + "%", width: width + "%" }}
+              title={(s.dev_id?.name || "agent") + " · " + formatDuration(s) + (cost > 0.01 ? " · " + formatCost(cost) : "")}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Metric({ val, label, accent }: { val: string | number; label: string; accent?: boolean }) {
   return (
     <div className={"session-metric" + (accent ? " accent" : "")}>
@@ -191,6 +256,8 @@ export function SessionsView({ sessions }: { sessions: SessionData[] }) {
           </div>
         )}
       </div>
+
+      {sessions.length > 1 && <SessionTimeline sessions={sessions} />}
 
       {!hasTokenData && sessions.length > 0 && (
         <div className="sessions-hint">

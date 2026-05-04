@@ -17,7 +17,7 @@ export function RisksView({
   projectName?: string;
   onRefresh?: () => void;
 }) {
-  const [tab, setTab] = useState<"log" | "decisions" | "changes">("log");
+  const [tab, setTab] = useState<"log" | "decisions" | "changes" | "grouped">("log");
   const [search, setSearch] = useState("");
   const [showNewDecision, setShowNewDecision] = useState(false);
   const [newDecision, setNewDecision] = useState({ module: "", title: "", context: "", decision: "" });
@@ -60,31 +60,50 @@ export function RisksView({
       });
     }
 
-    // Add session milestones (start/end with decisions made)
+    // Add ALL session activity - every session is part of the Claude log
     if (sessions) {
       for (const s of sessions) {
-        if (s.decisions_logged && s.decisions_logged > 0) {
-          items.push({
-            type: "session-decisions",
-            id: `session-dec-${s._id}`,
-            date: s.ended_at || s.started_at,
-            title: `Session logged ${s.decisions_logged} decision${s.decisions_logged > 1 ? "s" : ""}`,
-            module: s.modules_visited?.[0] || "",
-            detail: `Branch: ${s.branch || "unknown"} · Model: ${s.claude_model || "unknown"} · Duration: ${formatDuration(s)}`,
-            author: s.dev_id?.name || "agent",
-            status: null,
-            sessionId: s._id,
-            sessionData: s,
-          });
-        }
-        if (s.changes_logged && s.changes_logged > 0 && !(s.decisions_logged && s.decisions_logged > 0)) {
+        // Session start event
+        items.push({
+          type: "session-decisions",
+          id: `session-start-${s._id}`,
+          date: s.started_at,
+          title: `Claude session started${s.branch ? " on " + s.branch : ""}`,
+          module: s.modules_visited?.[0] || "",
+          detail: [
+            s.claude_model ? "Model: " + s.claude_model : "",
+            s.modules_visited?.length ? "Modules: " + s.modules_visited.join(", ") : "",
+          ].filter(Boolean).join(" · "),
+          author: s.dev_id?.name || "agent",
+          status: null,
+          sessionId: s._id,
+          sessionData: s,
+        });
+
+        // Session end event with summary (only if ended)
+        if (s.ended_at) {
+          const parts: string[] = [];
+          if (s.files_changed_count) parts.push(s.files_changed_count + " files changed");
+          if (s.commit_shas?.length) parts.push(s.commit_shas.length + " commits");
+          if (s.decisions_logged) parts.push(s.decisions_logged + " decisions");
+          if (s.changes_logged) parts.push(s.changes_logged + " changes");
+          if (s.errors_count) parts.push(s.errors_count + " errors");
+          
+          const tokIn = s.tokens_input || 0;
+          const tokOut = s.tokens_output || 0;
+          const tokenInfo = tokIn > 0 ? `${(tokIn/1000).toFixed(0)}K in / ${(tokOut/1000).toFixed(0)}K out` : "";
+          
           items.push({
             type: "session-changes",
-            id: `session-chg-${s._id}`,
-            date: s.ended_at || s.started_at,
-            title: `Session made ${s.changes_logged} change${s.changes_logged > 1 ? "s" : ""} · ${s.files_changed_count || 0} files`,
+            id: `session-end-${s._id}`,
+            date: s.ended_at,
+            title: `Session completed · ${formatDuration(s)}${parts.length > 0 ? " · " + parts.join(", ") : ""}`,
             module: s.modules_visited?.[0] || "",
-            detail: `Branch: ${s.branch || "unknown"} · ${s.commit_shas?.length || 0} commits`,
+            detail: [
+              tokenInfo,
+              s.branch ? "Branch: " + s.branch : "",
+              s.files_touched?.length ? "Files: " + s.files_touched.slice(0, 5).map(f => f.split("/").pop()).join(", ") + (s.files_touched.length > 5 ? " +" + (s.files_touched.length - 5) + " more" : "") : "",
+            ].filter(Boolean).join(" · "),
             author: s.dev_id?.name || "agent",
             status: null,
             sessionId: s._id,
@@ -97,6 +116,18 @@ export function RisksView({
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return items;
   }, [decisions, changes, sessions]);
+
+  
+  // Group decisions by module for grouped view
+  const groupedDecisions = useMemo(() => {
+    const groups: Record<string, DecisionData[]> = {};
+    for (const d of decisions) {
+      const mod = d.module || "global";
+      if (!groups[mod]) groups[mod] = [];
+      groups[mod].push(d);
+    }
+    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+  }, [decisions]);
 
   const filteredDecisions = useMemo(() => {
     if (!search.trim()) return decisions;
@@ -131,8 +162,10 @@ export function RisksView({
           <div className="empty-title">{t("risks.noData")}</div>
           <div className="empty-desc">{t("risks.noDataDesc")}</div>
           <div className="empty-hint">
-            Decisions are logged automatically when Claude uses <code>agentnorth_log_decision()</code>.
-            They also sync from local <code>.agentnorth/decisions/</code> files via <code>agentnorth sync</code>.
+            <p>Decisions are logged automatically when Claude uses <code>agentnorth_log_decision()</code>.</p>
+            <p>They sync from local <code>.agentnorth/decisions/</code> files via <code>agentnorth sync</code>.</p>
+            <p style={{marginTop:8}}>To create a decision manually, run:</p>
+            <code style={{display:"block",marginTop:4,padding:"6px 10px",background:"var(--bg-3)",borderRadius:4}}>node packages/agentnorth/dist/bin/agentnorth.js index && node packages/agentnorth/dist/bin/agentnorth.js sync</code>
           </div>
         </div>
       </section>
@@ -230,6 +263,9 @@ export function RisksView({
           <button className={"cov-filter" + (tab === "changes" ? " active" : "")} onClick={() => setTab("changes")}>
             {t("risks.changesTab")} ({changes.length})
           </button>
+          <button className={"cov-filter" + (tab === "grouped" ? " active" : "")} onClick={() => setTab("grouped")}>
+            By Module ({groupedDecisions.length})
+          </button>
         </div>
         <div className="map-search" style={{ marginLeft: "auto" }}>
           <span className="search-icon">&#x2315;</span>
@@ -268,6 +304,26 @@ export function RisksView({
           {filteredChanges.map((c) => <ChangeRow key={c._id} change={c} />)}
         </div>
       )}
+      
+      {/* Grouped by module */}
+      {tab === "grouped" && (
+        <div className="decisions-grouped">
+          {groupedDecisions.map(([mod, decs]) => (
+            <div key={mod} className="decision-group">
+              <div className="decision-group-header">
+                <span className="decision-group-name">{mod}</span>
+                <span className="decision-group-count">{decs.length} decision{decs.length > 1 ? "s" : ""}</span>
+              </div>
+              <div className="decision-group-list">
+                {decs.map((d) => (
+                  <DecisionCard key={d._id} decision={d} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
     </section>
   );
 }
@@ -421,6 +477,44 @@ function ChangeRow({ change }: { change: ChangeData }) {
           </div>
           <div className="risk-foot">
             <span className="risk-by mono">{formatDate(change.created_at)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+// ─── Decision Card (grouped view, richer display) ───
+function DecisionCard({ decision }: { decision: DecisionData }) {
+  const [open, setOpen] = useState(false);
+  const statusColor = decision.status === "active" ? "#4ade80" : decision.status === "deprecated" ? "#f87171" : "#a1a1aa";
+
+  return (
+    <div className={"decision-card" + (open ? " open" : "")} onClick={() => setOpen(!open)}>
+      <div className="decision-card-header">
+        <div className="decision-card-status" style={{ background: statusColor }} />
+        <div className="decision-card-title">{decision.title}</div>
+        <span className="decision-card-date">{formatDate(decision.created_at)}</span>
+      </div>
+      {open && (
+        <div className="decision-card-body">
+          {decision.decision && (
+            <div className="decision-card-text">
+              <span className="decision-card-label">Decision:</span>
+              <p>{decision.decision}</p>
+            </div>
+          )}
+          {decision.context && (
+            <div className="decision-card-text context">
+              <span className="decision-card-label">Context:</span>
+              <p>{decision.context}</p>
+            </div>
+          )}
+          <div className="decision-card-footer">
+            <span className="decision-card-author">by {decision.author_name}</span>
+            <span className={"decision-card-status-badge " + decision.status}>{decision.status}</span>
           </div>
         </div>
       )}

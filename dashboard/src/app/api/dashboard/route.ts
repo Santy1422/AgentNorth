@@ -117,8 +117,8 @@ export async function GET(req: NextRequest) {
     }
 
     const [decisions, changes, sessions, events, stats, healthHistory] = await Promise.all([
-      Decision.find({ project_id: project._id }).sort({ created_at: -1 }).limit(20).lean(),
-      AgentChange.find({ project_id: project._id }).sort({ created_at: -1 }).limit(20).lean(),
+      Decision.find({ project_id: project._id }).sort({ created_at: -1 }).limit(100).lean(),
+      AgentChange.find({ project_id: project._id }).sort({ created_at: -1 }).limit(100).lean(),
       Session.find({ project_id: project._id })
         .sort({ started_at: -1 })
         .limit(20)

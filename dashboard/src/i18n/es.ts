@@ -7,7 +7,7 @@ export const es: Record<TranslationKey, string> = {
   "nav.graph": "Grafo",
   "nav.deps": "Deps",
   "nav.coverage": "Cobertura",
-  "nav.decisions": "Decisiones",
+  "nav.decisions": "Log de Actividad",
   "nav.apis": "APIs",
   "nav.sessions": "Sesiones",
   "nav.guide": "Guia",

@@ -43,6 +43,18 @@ function nodeRadius(loc: number, maxLoc: number): number {
   return 20 + t * 40;
 }
 
+
+function calcCoupling(modName: string, modules: ModuleData[]): { afferent: number; efferent: number; instability: string } {
+  const efferent = modules.find(m => m.name === modName)?.dependencies?.internal?.length || 0;
+  let afferent = 0;
+  for (const m of modules) {
+    if (m.name !== modName && m.dependencies?.internal?.includes(modName)) afferent++;
+  }
+  const total = afferent + efferent;
+  const instability = total > 0 ? (efferent / total).toFixed(2) : "0.00";
+  return { afferent, efferent, instability };
+}
+
 export function DependencyGraph({ modules }: { modules: ModuleData[] }) {
   const { t } = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -322,6 +334,30 @@ export function DependencyGraph({ modules }: { modules: ModuleData[] }) {
               ))}
             </div>
           )}
+          
+          {/* Coupling metrics */}
+          {(() => {
+            const coupling = calcCoupling(selected.mod.name, modules);
+            return (
+              <div className="graph-detail-section">
+                <div className="graph-detail-section-label">Coupling</div>
+                <div className="graph-detail-grid">
+                  <div className="graph-detail-stat">
+                    <div className="graph-detail-stat-label">Ca (afferent)</div>
+                    <div className="graph-detail-stat-value">{coupling.afferent}</div>
+                  </div>
+                  <div className="graph-detail-stat">
+                    <div className="graph-detail-stat-label">Ce (efferent)</div>
+                    <div className="graph-detail-stat-value">{coupling.efferent}</div>
+                  </div>
+                  <div className="graph-detail-stat">
+                    <div className="graph-detail-stat-label">Instability</div>
+                    <div className="graph-detail-stat-value" style={{ color: parseFloat(coupling.instability) > 0.7 ? "#fbbf24" : "#4ade80" }}>{coupling.instability}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           {(selected.mod.dependencies?.internal?.length ?? 0) > 0 && (
             <div className="graph-detail-section">
               <div className="graph-detail-section-label">{t("graph.internalDeps")}</div>
