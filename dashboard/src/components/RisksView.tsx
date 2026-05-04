@@ -1,22 +1,25 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { DecisionData, ChangeData, SessionData } from "@/app/page";
+import type { DecisionData, ChangeData, SessionData, ModuleData, FileData } from "@/app/page";
 import { useT } from "@/i18n/provider";
 
 export function RisksView({
   decisions,
   changes,
   sessions,
+  modules,
   projectName,
   onRefresh,
 }: {
   decisions: DecisionData[];
   changes: ChangeData[];
   sessions?: SessionData[];
+  modules?: ModuleData[];
   projectName?: string;
   onRefresh?: () => void;
 }) {
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [tab, setTab] = useState<"log" | "decisions" | "changes" | "grouped">("log");
   const [search, setSearch] = useState("");
   const [showNewDecision, setShowNewDecision] = useState(false);
@@ -25,6 +28,38 @@ export function RisksView({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const { t } = useT();
+  
+  // Build file lookup for detail view
+  const fileMap = useMemo(() => {
+    const map = new Map<string, { file: FileData; module: string }>();
+    if (!modules) return map;
+    for (const m of modules) {
+      for (const f of m.files || []) {
+        const shortName = f.path.split("/").pop() || f.path;
+        map.set(shortName, { file: f, module: m.name });
+        map.set(f.path, { file: f, module: m.name });
+      }
+    }
+    return map;
+  }, [modules]);
+
+  // Find which change explains why a file was modified
+  const findChangeForFile = (filePath: string): ChangeData | null => {
+    const shortName = filePath.split("/").pop() || filePath;
+    return changes.find(c => c.files_changed?.some(f => f.includes(shortName))) || null;
+  };
+
+  // Build GitHub commit URL from repo_url
+  const githubCommitUrl = (repoUrl: string, sha: string): string | null => {
+    if (!repoUrl) return null;
+    // Handle HTTPS and SSH formats
+    let base = repoUrl.replace(/\.git$/, "");
+    if (base.startsWith("git@")) {
+      base = base.replace("git@github.com:", "https://github.com/");
+    }
+    return base + "/commit/" + sha;
+  };
+
   const breakingChanges = changes.filter((c) => c.breaking);
 
   // Unified log: merge decisions + changes + session events into chronological feed
@@ -257,7 +292,7 @@ export function RisksView({
             <div className="risks-empty"><span>{t("risks.noActivity")}</span></div>
           )}
           {filteredLog.map((item) => (
-            <LogItemRow key={item.id} item={item} />
+            <LogItemRow key={item.id} item={item} fileMap={fileMap} selectedFile={selectedFile} setSelectedFile={setSelectedFile} findChangeForFile={findChangeForFile} githubCommitUrl={githubCommitUrl} />
           ))}
         </div>
       )}
@@ -317,7 +352,14 @@ interface LogItem {
 }
 
 // ─── Log Item Row (the main feed entry) ───
-function LogItemRow({ item }: { item: LogItem }) {
+function LogItemRow({ item, fileMap, selectedFile, setSelectedFile, findChangeForFile, githubCommitUrl }: {
+  item: LogItem;
+  fileMap: Map<string, { file: FileData; module: string }>;
+  selectedFile: string | null;
+  setSelectedFile: (f: string | null) => void;
+  findChangeForFile: (f: string) => ChangeData | null;
+  githubCommitUrl: (repoUrl: string, sha: string) => string | null;
+}) {
   const [open, setOpen] = useState(false);
 
   const typeConfig = {
@@ -382,10 +424,60 @@ function LogItemRow({ item }: { item: LogItem }) {
               <div className="log-item-files-section">
                 <span className="log-item-files-label">Files modified ({item.sessionData.files_touched.length}):</span>
                 <div className="log-item-files-grid">
-                  {item.sessionData.files_touched.map((f) => (
-                    <span key={f} className="log-item-file-tag mono">{f.split("/").pop()}</span>
-                  ))}
+                  {item.sessionData.files_touched.map((f) => {
+                      const shortName = f.split("/").pop() || f;
+                      const info = fileMap.get(shortName) || fileMap.get(f);
+                      return (
+                        <button 
+                          key={f} 
+                          className={"log-item-file-tag mono clickable" + (selectedFile === f ? " selected" : "")}
+                          onClick={(e) => { e.stopPropagation(); setSelectedFile(selectedFile === f ? null : f); }}
+                        >
+                          {info && <span className="file-tag-kind" style={{ background: info.file.kind === "component" ? "#a78bfa" : info.file.kind === "route" ? "#f472b6" : info.file.kind === "lib" ? "#fbbf24" : info.file.kind === "model" ? "#60a5fa" : "#71717a" }}>{info.file.kind}</span>}
+                          {shortName}
+                        </button>
+                      );
+                    })}
                 </div>
+                {/* File detail panel */}
+                {selectedFile && item.sessionData.files_touched.includes(selectedFile) && (() => {
+                  const shortName = selectedFile.split("/").pop() || selectedFile;
+                  const info = fileMap.get(shortName) || fileMap.get(selectedFile);
+                  const change = findChangeForFile(selectedFile);
+                  return (
+                    <div className="file-detail-panel" onClick={(e) => e.stopPropagation()}>
+                      <div className="fdp-header">
+                        <span className="fdp-path mono">{selectedFile}</span>
+                        <button className="fdp-close" onClick={() => setSelectedFile(null)}>&times;</button>
+                      </div>
+                      {info && (
+                        <div className="fdp-info">
+                          <span className="fdp-badge">{info.file.kind}</span>
+                          <span className="fdp-stat">{info.file.loc} LOC</span>
+                          <span className="fdp-stat">module: {info.module}</span>
+                          {info.file.exports?.length > 0 && <span className="fdp-stat">{info.file.exports.length} exports</span>}
+                          {info.file.complexity && <span className="fdp-stat">complexity: {info.file.complexity}</span>}
+                        </div>
+                      )}
+                      {info?.file.exports && info.file.exports.length > 0 && (
+                        <div className="fdp-exports">
+                          <span className="fdp-label">Exports:</span>
+                          {info.file.exports.map(e => <span key={e} className="fdp-export mono">{e}</span>)}
+                        </div>
+                      )}
+                      {change && (
+                        <div className="fdp-why">
+                          <span className="fdp-label">Why it changed:</span>
+                          <p className="fdp-reason">{change.summary}</p>
+                          {change.breaking && <span className="fdp-breaking">BREAKING CHANGE</span>}
+                        </div>
+                      )}
+                      {!info && !change && (
+                        <div className="fdp-no-info">File not in current index — may have been renamed or removed.</div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -393,9 +485,16 @@ function LogItemRow({ item }: { item: LogItem }) {
             {item.sessionData.commit_shas && item.sessionData.commit_shas.length > 0 && (
               <div className="log-item-commits">
                 <span className="log-item-files-label">Commits:</span>
-                {item.sessionData.commit_shas.map((sha) => (
-                  <span key={sha} className="log-item-commit-sha mono">{sha.slice(0, 7)}</span>
-                ))}
+                {item.sessionData.commit_shas.map((sha) => {
+                    const url = item.sessionData?.repo_url ? githubCommitUrl(item.sessionData.repo_url, sha) : null;
+                    return url ? (
+                      <a key={sha} className="log-item-commit-sha mono" href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                        {sha.slice(0, 7)} ↗
+                      </a>
+                    ) : (
+                      <span key={sha} className="log-item-commit-sha mono">{sha.slice(0, 7)}</span>
+                    );
+                  })}
               </div>
             )}
 

@@ -6688,3 +6688,139 @@ button:focus-visible, input:focus-visible {
   color: var(--text-2);
   margin-left: 2px;
 }
+
+/* ─── File Detail Panel (Activity Log) ─── */
+.log-item-file-tag.clickable {
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(96, 165, 250, 0.08);
+}
+.log-item-file-tag.clickable:hover {
+  background: rgba(96, 165, 250, 0.18);
+  border-color: rgba(96, 165, 250, 0.3);
+  transform: translateY(-1px);
+}
+.log-item-file-tag.clickable.selected {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: #60a5fa;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.15);
+}
+.file-tag-kind {
+  font-size: 8px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #000;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-family: var(--font);
+}
+.file-detail-panel {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--bg-3);
+  border: 1px solid var(--bg-4);
+  border-left: 3px solid #60a5fa;
+  border-radius: var(--radius-md);
+  animation: viewFadeIn 0.15s ease-out;
+}
+.fdp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.fdp-path {
+  font-size: 12px;
+  color: var(--text-1);
+  word-break: break-all;
+}
+.fdp-close {
+  background: none;
+  border: none;
+  color: var(--text-4);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+}
+.fdp-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.fdp-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  background: var(--bg-4);
+  color: var(--text-2);
+  border-radius: 10px;
+  font-weight: 600;
+}
+.fdp-stat {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.fdp-exports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.fdp-label {
+  font-size: 10px;
+  color: var(--text-4);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 4px;
+}
+.fdp-export {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: rgba(167, 139, 250, 0.1);
+  color: #a78bfa;
+  border-radius: 3px;
+}
+.fdp-why {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(201, 139, 91, 0.06);
+  border: 1px solid rgba(201, 139, 91, 0.15);
+  border-radius: var(--radius-sm);
+}
+.fdp-reason {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.fdp-breaking {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 10px;
+  padding: 2px 8px;
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--red);
+  border-radius: 4px;
+  font-weight: 600;
+}
+.fdp-no-info {
+  font-size: 11px;
+  color: var(--text-4);
+  font-style: italic;
+}
+/* Commit link styling */
+a.log-item-commit-sha {
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+a.log-item-commit-sha:hover {
+  background: rgba(74, 222, 128, 0.2);
+  text-decoration: underline;
+}

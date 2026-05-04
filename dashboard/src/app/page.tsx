@@ -500,6 +500,7 @@ export default function Home() {
             decisions={data?.decisions || []}
             changes={data?.changes || []}
             sessions={data?.sessions || []}
+            modules={data?.project.modules || []}
             projectName={activeProject?.name}
             onRefresh={() => fetchDashboard(activeProject?.id)}
           />
