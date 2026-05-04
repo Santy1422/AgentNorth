@@ -160,6 +160,36 @@ export function GlobalSearch({
       }
     }
 
+    // Search sessions
+    for (const s of (data as any).sessions || []) {
+      const model = s.claude_model || "";
+      const branch = s.branch || "";
+      const devName = s.dev_id?.name || "agent";
+      const searchable = `${model} ${branch} ${devName} ${(s.modules_visited || []).join(" ")}`.toLowerCase();
+      if (searchable.includes(q)) {
+        out.push({
+          type: "file",
+          title: `Session: ${devName} on ${branch || "unknown"}`,
+          subtitle: `${model.replace("claude-", "")} · ${s.started_at?.slice(0, 10) || ""}`,
+          view: "sessions",
+          color: s.ended_at ? "#71717a" : "#22c55e",
+        });
+      }
+    }
+
+    // Search modules
+    for (const m of data.project.modules || []) {
+      if (m.name.toLowerCase().includes(q) || m.description?.toLowerCase().includes(q)) {
+        out.push({
+          type: "file",
+          title: m.name,
+          subtitle: `module · ${m.files_count} files · ${m.loc.toLocaleString("en")} LOC`,
+          view: "coverage",
+          color: "#34d399",
+        });
+      }
+    }
+
     return { results: out.slice(0, 15), totalCount: out.length };
   }, [query, data, allFiles]);
 

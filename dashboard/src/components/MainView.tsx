@@ -505,6 +505,20 @@ export function MainView({
             <h2>{t("main.recentActivity")}</h2>
             <span className="meta">{t("main.realtimeSSE")}</span>
           </div>
+          {/* Recent decisions inline */}
+          {data?.decisions && data.decisions.length > 0 && (
+            <div className="main-decisions-mini">
+              {data.decisions.slice(0, 3).map((d) => (
+                <div key={d._id} className="main-decision-row">
+                  <span className="mdr-icon">&#x2713;</span>
+                  <div className="mdr-content">
+                    <span className="mdr-title">{d.title}</span>
+                    <span className="mdr-meta">{d.module || "global"} · {d.author_name} · {timeAgo(d.created_at)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="simple-feed">
             {feedRows.length > 0 ? (
               feedRows.map((r, i) => (

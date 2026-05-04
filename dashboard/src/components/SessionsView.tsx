@@ -125,6 +125,9 @@ export function SessionsView({ sessions }: { sessions: SessionData[] }) {
   const totalCommits = sessions.reduce((sum, s) => sum + (s.commit_shas?.length || 0), 0);
   const totalFiles = sessions.reduce((sum, s) => sum + (s.files_changed_count || 0), 0);
   const hasTokenData = totalInput > 0 || totalOutput > 0 || totalCacheRead > 0;
+  const costPerCommit = totalCommits > 0 ? totalCost / totalCommits : 0;
+  const costPerFile = totalFiles > 0 ? totalCost / totalFiles : 0;
+  const cacheHitRate = (totalInput + totalCacheRead) > 0 ? Math.round((totalCacheRead / (totalInput + totalCacheRead)) * 100) : 0;
 
   return (
     <div className="sessions-view">
@@ -175,6 +178,18 @@ export function SessionsView({ sessions }: { sessions: SessionData[] }) {
           <div className="session-stat-value">{totalFiles || "-"}</div>
           <div className="session-stat-label">Files Changed</div>
         </div>
+        {hasTokenData && costPerCommit > 0 && (
+          <div className="session-stat-card">
+            <div className="session-stat-value">{formatCost(costPerCommit)}</div>
+            <div className="session-stat-label">Cost / Commit</div>
+          </div>
+        )}
+        {hasTokenData && cacheHitRate > 0 && (
+          <div className="session-stat-card">
+            <div className="session-stat-value">{cacheHitRate}%</div>
+            <div className="session-stat-label">Cache Hit Rate</div>
+          </div>
+        )}
       </div>
 
       {!hasTokenData && sessions.length > 0 && (

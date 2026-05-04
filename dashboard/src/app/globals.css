@@ -6167,3 +6167,50 @@ html, body {
 .api-mw-item.rate-limit { color: #fbbf24; }
 .api-mw-item.warning { color: var(--red); background: rgba(239, 68, 68, 0.05); }
 .api-mw-icon { font-size: 12px; }
+
+/* Main Decisions Mini Feed */
+.main-decisions-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 10px;
+  background: rgba(99, 102, 241, 0.04);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 8px;
+}
+.main-decision-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.main-decision-row:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+.mdr-icon {
+  color: #6366f1;
+  font-size: 13px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.mdr-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mdr-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mdr-meta {
+  font-size: 11px;
+  color: var(--text-3);
+}
