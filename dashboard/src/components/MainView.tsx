@@ -69,6 +69,7 @@ export function MainView({
   const totalEvents = data?.total_events || 0;
   const modulesCount = data?.project.modules?.length || 0;
   const decisionsCount = data?.decisions?.length || 0;
+  const sessionsCount = data?.sessions?.length || 0;
 
   const allFiles = useMemo((): FileData[] => {
     if (!data) return [];
@@ -217,6 +218,15 @@ export function MainView({
             <span className="hero-v2-stat-num">{allFiles.length}</span>
             <span className="hero-v2-stat-label">{t("main.files")}</span>
           </div>
+          {sessionsCount > 0 && (
+            <>
+              <div className="hero-v2-divider" />
+              <div className="hero-v2-stat">
+                <span className="hero-v2-stat-num">{sessionsCount}</span>
+                <span className="hero-v2-stat-label">Sessions</span>
+              </div>
+            </>
+          )}
         </div>
       </section>
 

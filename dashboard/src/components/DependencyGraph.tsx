@@ -182,6 +182,20 @@ export function DependencyGraph({ modules }: { modules: ModuleData[] }) {
       ctx.strokeStyle = isHl ? "#a78bfa" : dimmed ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.12)";
       ctx.lineWidth = isHl ? 2 : 1;
       ctx.stroke();
+      // Draw arrowhead
+      if (!dimmed || isHl) {
+        const angle = Math.atan2(t.y - s.y, t.x - s.x);
+        const arrowLen = isHl ? 10 : 7;
+        const arrowX = t.x - Math.cos(angle) * t.r;
+        const arrowY = t.y - Math.sin(angle) * t.r;
+        ctx.beginPath();
+        ctx.moveTo(arrowX, arrowY);
+        ctx.lineTo(arrowX - arrowLen * Math.cos(angle - 0.4), arrowY - arrowLen * Math.sin(angle - 0.4));
+        ctx.lineTo(arrowX - arrowLen * Math.cos(angle + 0.4), arrowY - arrowLen * Math.sin(angle + 0.4));
+        ctx.closePath();
+        ctx.fillStyle = isHl ? "#a78bfa" : "rgba(255,255,255,0.15)";
+        ctx.fill();
+      }
     }
 
     // Nodes

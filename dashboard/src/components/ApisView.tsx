@@ -143,6 +143,19 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
     return list;
   }, [routes, filterMethod, search]);
 
+  
+  // Group routes by prefix for visual organization
+  const routeGroups = useMemo(() => {
+    const groups: Record<string, ApiRoute[]> = {};
+    for (const r of filtered) {
+      const parts = r.path.split("/").filter(Boolean);
+      const prefix = "/" + parts.slice(0, 2).join("/");
+      if (!groups[prefix]) groups[prefix] = [];
+      groups[prefix].push(r);
+    }
+    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filtered]);
+
   if (routes.length === 0) {
     return (
       <section className="risks-view">
@@ -224,7 +237,15 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
       </div>
 
       <div className="api-list">
-        {filtered.map((route) => (
+        {routeGroups.map(([prefix, groupRoutes]) => (
+          <div key={prefix} className="api-group">
+            {routeGroups.length > 1 && (
+              <div className="api-group-header">
+                <span className="api-group-prefix mono">{prefix}</span>
+                <span className="api-group-count">{groupRoutes.length} endpoint{groupRoutes.length > 1 ? "s" : ""}</span>
+              </div>
+            )}
+            {groupRoutes.map((route) => (
           <button
             key={route.file.path}
             className={"api-row" + (selectedRoute?.file.path === route.file.path ? " selected" : "")}
@@ -373,6 +394,8 @@ export function ApisView({ modules }: { modules: ModuleData[] }) {
               </div>
             )}
           </button>
+            ))}
+          </div>
         ))}
         {filtered.length === 0 && (
           <div className="risks-empty"><span>{t("apis.noResults")}</span></div>

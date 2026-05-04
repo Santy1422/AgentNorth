@@ -39,7 +39,10 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
     const totalLoc = modules.reduce((s, m) => s + (m.loc || 0), 0);
     const totalFiles = modules.reduce((s, m) => s + (m.files_count || 0), 0);
     const totalExports = modules.reduce((s, m) => s + (m.exports_count || 0), 0);
-    return { totalLoc, totalFiles, totalExports };
+    const testFiles = modules.flatMap(m => m.files || []).filter(f => f.kind === "test").length;
+    const sourceFiles = totalFiles - testFiles;
+    const testRatio = sourceFiles > 0 ? (testFiles / sourceFiles * 100).toFixed(0) : "0";
+    return { totalLoc, totalFiles, totalExports, testFiles, testRatio };
   }, [modules]);
 
   // Dead file detection: files that nobody imports AND have no exports used
@@ -137,6 +140,16 @@ export function CoverageView({ modules, onSelectModule }: { modules: ModuleData[
           <div className="cov-hero-row">
             <div className="cov-num">{stats.totalExports.toLocaleString("en")}</div>
             <div className="cov-label">{t("cov.exports")}</div>
+          </div>
+          <div className="cov-hero-row">
+            <div className="cov-num" style={{ color: Number(stats.testRatio) >= 20 ? "var(--green)" : Number(stats.testRatio) > 0 ? "var(--yellow)" : "var(--red)" }}>
+              {stats.testRatio}%
+            </div>
+            <div className="cov-label">Test Ratio</div>
+          </div>
+          <div className="cov-hero-row">
+            <div className="cov-num">{stats.testFiles}</div>
+            <div className="cov-label">Test Files</div>
           </div>
           <div className="cov-hero-row">
             <div className="cov-num" style={{ color: deadFiles.length > 0 ? "var(--yellow)" : "var(--green)" }}>
