@@ -236,7 +236,7 @@ export function GlobalSearch({
       <div className="global-search-container" ref={containerRef}>
         <div className="gs-input-wrap">
           <span className="gs-icon">{"\u2315"}</span>
-          <input
+          <input aria-label="Search"
             ref={inputRef}
             className="gs-input"
             type="text"

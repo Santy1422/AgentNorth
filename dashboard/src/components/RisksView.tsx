@@ -63,53 +63,26 @@ export function RisksView({
     // Add ALL session activity - every session is part of the Claude log
     if (sessions) {
       for (const s of sessions) {
-        // Session start event
-        items.push({
-          type: "session-decisions",
-          id: `session-start-${s._id}`,
-          date: s.started_at,
-          title: `Claude session started${s.branch ? " on " + s.branch : ""}`,
-          module: s.modules_visited?.[0] || "",
-          detail: [
-            s.claude_model ? "Model: " + s.claude_model : "",
-            s.modules_visited?.length ? "Modules: " + s.modules_visited.join(", ") : "",
-          ].filter(Boolean).join(" · "),
-          author: s.dev_id?.name || "agent",
-          status: null,
-          sessionId: s._id,
-          sessionData: s,
-        });
-
-        // Session end event with summary (only if ended)
-        if (s.ended_at) {
-          const parts: string[] = [];
-          if (s.files_changed_count) parts.push(s.files_changed_count + " files changed");
-          if (s.commit_shas?.length) parts.push(s.commit_shas.length + " commits");
-          if (s.decisions_logged) parts.push(s.decisions_logged + " decisions");
-          if (s.changes_logged) parts.push(s.changes_logged + " changes");
-          if (s.errors_count) parts.push(s.errors_count + " errors");
-          
-          const tokIn = s.tokens_input || 0;
-          const tokOut = s.tokens_output || 0;
-          const tokenInfo = tokIn > 0 ? `${(tokIn/1000).toFixed(0)}K in / ${(tokOut/1000).toFixed(0)}K out` : "";
-          
+        // Session start event — only show if it has meaningful data
+        if (s.files_touched?.length || s.commit_shas?.length || s.decisions_logged || s.changes_logged) {
           items.push({
-            type: "session-changes",
-            id: `session-end-${s._id}`,
-            date: s.ended_at,
-            title: `Session completed · ${formatDuration(s)}${parts.length > 0 ? " · " + parts.join(", ") : ""}`,
-            module: s.modules_visited?.[0] || "",
-            detail: [
-              tokenInfo,
-              s.branch ? "Branch: " + s.branch : "",
-              s.files_touched?.length ? "Files: " + s.files_touched.slice(0, 5).map(f => f.split("/").pop()).join(", ") + (s.files_touched.length > 5 ? " +" + (s.files_touched.length - 5) + " more" : "") : "",
-            ].filter(Boolean).join(" · "),
+            type: "session-decisions",
+            id: `session-start-${s._id}`,
+            date: s.started_at,
+            title: `Claude session${s.branch ? " on " + s.branch : ""}` + 
+              (s.files_touched?.length ? ` — touched ${s.files_touched.length} files` : "") +
+              (s.commit_shas?.length ? `, ${s.commit_shas.length} commits` : ""),
+            module: s.modules_visited?.join(", ") || "",
+            detail: s.files_touched?.map(f => f.split("/").pop()).join(", ") || "",
             author: s.dev_id?.name || "agent",
             status: null,
             sessionId: s._id,
             sessionData: s,
+            filesCount: s.files_touched?.length || 0,
           });
         }
+
+        // Skip session end — the start event already has all the info
       }
     }
 
@@ -388,10 +361,10 @@ function LogItemRow({ item }: { item: LogItem }) {
           </div>
         )}
 
-        {/* Session link */}
+        {/* Session details — show files touched prominently */}
         {open && item.sessionData && (
           <div className="log-item-session">
-            <span className="log-item-session-label">Session context:</span>
+            {/* Model + branch tags */}
             <div className="log-item-session-meta">
               {item.sessionData.claude_model && <span className="lis-tag model">{item.sessionData.claude_model.replace("claude-", "")}</span>}
               {item.sessionData.branch && <span className="lis-tag branch">{item.sessionData.branch}</span>}
@@ -399,12 +372,47 @@ function LogItemRow({ item }: { item: LogItem }) {
                 <span key={m} className="lis-tag module">{m}</span>
               ))}
               {(item.sessionData.tokens_input || 0) > 0 && (
-                <span className="lis-tag">{((item.sessionData.tokens_input || 0) / 1000).toFixed(0)}K in</span>
+                <span className="lis-tag">{((item.sessionData.tokens_input || 0) / 1000).toFixed(0)}K in / {((item.sessionData.tokens_output || 0) / 1000).toFixed(0)}K out</span>
               )}
-              {(item.sessionData.commit_shas?.length || 0) > 0 && (
-                <span className="lis-tag">{item.sessionData.commit_shas?.length} commits</span>
-              )}
+              {item.sessionData.duration_mins && <span className="lis-tag">{item.sessionData.duration_mins}m</span>}
             </div>
+
+            {/* FILES TOUCHED — this is what the user wants to see */}
+            {item.sessionData.files_touched && item.sessionData.files_touched.length > 0 && (
+              <div className="log-item-files-section">
+                <span className="log-item-files-label">Files modified ({item.sessionData.files_touched.length}):</span>
+                <div className="log-item-files-grid">
+                  {item.sessionData.files_touched.map((f) => (
+                    <span key={f} className="log-item-file-tag mono">{f.split("/").pop()}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Commits */}
+            {item.sessionData.commit_shas && item.sessionData.commit_shas.length > 0 && (
+              <div className="log-item-commits">
+                <span className="log-item-files-label">Commits:</span>
+                {item.sessionData.commit_shas.map((sha) => (
+                  <span key={sha} className="log-item-commit-sha mono">{sha.slice(0, 7)}</span>
+                ))}
+              </div>
+            )}
+
+            {/* Tool usage summary */}
+            {item.sessionData.tool_calls && Object.keys(item.sessionData.tool_calls).length > 0 && (
+              <div className="log-item-tools">
+                <span className="log-item-files-label">Tools used:</span>
+                <div className="log-item-tools-grid">
+                  {Object.entries(item.sessionData.tool_calls)
+                    .sort((a, b) => (b[1] as number) - (a[1] as number))
+                    .slice(0, 6)
+                    .map(([tool, count]) => (
+                      <span key={tool} className="log-item-tool-tag">{tool} <strong>{count as number}</strong></span>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
