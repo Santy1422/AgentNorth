@@ -51,12 +51,14 @@ export function RisksView({
 
   // Build GitHub commit URL from repo_url
   const githubCommitUrl = (repoUrl: string, sha: string): string | null => {
-    if (!repoUrl) return null;
-    // Handle HTTPS and SSH formats
-    let base = repoUrl.replace(/\.git$/, "");
+    if (!repoUrl || !sha) return null;
+    let base = repoUrl.trim().replace(/\.git$/, "").replace(/\/$/, "");
+    // SSH format: git@github.com:user/repo
     if (base.startsWith("git@")) {
-      base = base.replace("git@github.com:", "https://github.com/");
+      base = "https://github.com/" + base.replace(/^git@github\.com:/, "");
     }
+    // Ensure it looks like a valid GitHub URL
+    if (!base.includes("github.com")) return null;
     return base + "/commit/" + sha;
   };
 
