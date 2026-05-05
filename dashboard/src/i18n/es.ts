@@ -129,6 +129,11 @@ export const es: Record<TranslationKey, string> = {
   "login.footer": "AgentNorth — Apache-2.0",
 
   // OnboardingScreen
+  "onboarding.orJoinTeam": "O unite a un equipo existente",
+  "onboarding.joinDesc": "Si tenés un código de invitación de tu equipo, ingresalo acá para unirte a su organización.",
+  "onboarding.inviteCodePlaceholder": "Pegar código de invitación...",
+  "onboarding.joinBtn": "Unirse",
+  "onboarding.joinError": "Código inválido. Consultá con el admin de tu equipo.",
   "onboarding.welcome": "Bienvenido a AgentNorth",
   "onboarding.subtitle": "Configura tu primer proyecto en 2 minutos",
   "onboarding.step1Title": "Instala AgentNorth en tu repo",

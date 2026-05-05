@@ -12,10 +12,35 @@ export function OnboardingScreen() {
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinStatus, setJoinStatus] = useState<"idle" | "joining" | "done" | "error">("idle");
+  const [joinedOrg, setJoinedOrg] = useState("");
 
   useEffect(() => {
     fetch("/api/team").then(r => r.json()).then(setTeam).catch(() => {});
   }, []);
+
+  async function handleJoinTeam() {
+    if (!joinCode.trim()) return;
+    setJoinStatus("joining");
+    try {
+      const res = await fetch("/api/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: joinCode.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setJoinedOrg(data.org_name);
+        setJoinStatus("done");
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        setJoinStatus("error");
+      }
+    } catch {
+      setJoinStatus("error");
+    }
+  }
 
   async function generateKeys() {
     setLoading(true);
@@ -48,7 +73,41 @@ export function OnboardingScreen() {
           </div>
         </div>
 
-        {/* Step 1 */}
+        
+        {/* Join existing team option */}
+        <div className="onboard-join-section">
+          <div className="onboard-join-divider">
+            <span>{t("onboarding.orJoinTeam")}</span>
+          </div>
+          <div className="onboard-join-form">
+            <p className="os-desc">{t("onboarding.joinDesc")}</p>
+            <div className="os-join-row">
+              <input
+                type="text"
+                className="os-join-input"
+                placeholder={t("onboarding.inviteCodePlaceholder")}
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleJoinTeam()}
+              />
+              <button
+                className="onboard-btn small"
+                onClick={handleJoinTeam}
+                disabled={joinStatus === "joining" || !joinCode.trim()}
+              >
+                {joinStatus === "joining" ? "..." : t("onboarding.joinBtn")}
+              </button>
+            </div>
+            {joinStatus === "done" && (
+              <div className="os-join-success">Joined <strong>{joinedOrg}</strong>! Reloading...</div>
+            )}
+            {joinStatus === "error" && (
+              <div className="os-join-error">{t("onboarding.joinError")}</div>
+            )}
+          </div>
+        </div>
+
+{/* Step 1 */}
         <div className="onboard-step">
           <div className="os-num">1</div>
           <div className="os-body">

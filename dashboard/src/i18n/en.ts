@@ -127,6 +127,11 @@ export const en = {
   "login.footer": "AgentNorth — Apache-2.0",
 
   // OnboardingScreen
+  "onboarding.orJoinTeam": "Or join an existing team",
+  "onboarding.joinDesc": "Have an invite code from your team? Enter it here to join their organization instead of creating a new one.",
+  "onboarding.inviteCodePlaceholder": "Paste invite code...",
+  "onboarding.joinBtn": "Join",
+  "onboarding.joinError": "Invalid invite code. Check with your team admin.",
   "onboarding.welcome": "Welcome to AgentNorth",
   "onboarding.subtitle": "Set up your first project in 2 minutes",
   "onboarding.step1Title": "Install AgentNorth in your repo",
