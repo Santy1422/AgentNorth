@@ -132,25 +132,26 @@ A full-featured codebase intelligence dashboard inspired by **Backstage**, **Sou
 
 | Feature | Description |
 |---------|-------------|
-| **Health Scorecard** | Automated project health score with 6 checks (tests, security, complexity, docs, dead code, modularization) |
-| **Interactive Dependency Graph** | Force-directed canvas visualization of module relationships |
-| **Architecture Map** | Screen-first drill-down: Pages → Components → Hooks → Libs |
-| **Decision Timeline** | Merged chronological view of all decisions + changes |
-| **Activity Heatmap** | GitHub-style 12-week contribution grid |
-| **Documentation Coverage** | Treemap visualization sized by LOC, colored by doc % |
-| **API Catalog** | Auto-detected endpoints with method filtering and caller tracking |
-| **Module Detail Pages** | Backstage-inspired entity pages with tabs (Overview, Files, Decisions, Deps) |
+| **Health Scorecard** | Automated project health score with 6 checks (tests, security, complexity, docs, dead code, modularization). Score ring visualization with check breakdown. |
+| **Interactive Dependency Graph** | Force-directed canvas with arrow-directed edges, hover-reveal connections, drag nodes, zoom/pan. Detail panel shows coupling metrics (Ca/Ce/Instability). |
+| **Architecture Map** | Treemap visualization (area=LOC, color by kind/module/complexity/churn). Click to zoom into modules. Hover to reveal dependency connections. Layers view alternative. |
+| **Activity Log** | Chronological feed of everything Claude does — decisions, changes, session lifecycle. Click any file to see details (kind, LOC, exports, "why it changed"). Commit SHAs link to GitHub diffs. |
+| **Activity Heatmap** | GitHub-style 12-week contribution grid for decisions + changes |
+| **Documentation Coverage** | Treemap sized by LOC, colored by doc %. Test-to-source ratio. Dead file detection with blast radius analysis. |
+| **API Catalog** | Auto-detected endpoints grouped by path prefix. Middleware detection per route (auth, zod, rate-limit, cors, cache). Flags unprotected endpoints. |
+| **Module Detail Pages** | Backstage-inspired entity pages with tabs (Overview, Files, Decisions, Deps). Dependency flow visualization (who uses this / what it uses). |
+| **Session Tracking** | Full telemetry: tokens in/out, cost breakdown (input/output/cache), tool usage bar chart, files touched, commits, timeline visualization. Cost/commit and cache hit rate metrics. |
 | **Onboarding Guide** | Auto-generated guide for new developers joining the project |
-| **Change Impact Analysis** | Blast radius visualization per file |
-| **Global Search (Cmd+K)** | Search across files, decisions, APIs, dependencies with keyboard nav |
+| **Change Impact Analysis** | Blast radius visualization — direct + transitive dependents per file |
+| **Global Search (Cmd+K)** | Search across files, decisions, APIs, sessions, modules with keyboard nav |
 | **Embeddable Badges** | SVG badges for health, coverage, modules — put them in your README |
-| **Health Score History** | Track project health over time with daily snapshots |
+| **Health Score History** | Track project health over time with daily snapshots, bar chart trend |
 | **Real-time SSE** | Instant dashboard updates when agents sync — no polling |
 | **Bidirectional Sync** | Dashboard → repo and repo → dashboard |
-| **Keyboard Shortcuts** | Alt+1-8 for view navigation, Cmd+K for search |
+| **Keyboard Shortcuts** | Alt+1-9 for view navigation, Cmd+K for search |
 | **Contributors** | Per-module contributor tracking from git history |
 | **Smart Warnings** | Auto-generated alerts for complexity, coupling, hot files |
-| **Session Tracking** | Full session lifecycle: model, branch, tokens, files touched, decisions made |
+| **UX Polish** | Shimmer loading skeletons, view transitions, card hover elevation, micro-interactions, custom scrollbar, focus rings, accessibility |
 
 ### Enforcement via Claude Code Hooks
 
