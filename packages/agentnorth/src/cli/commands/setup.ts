@@ -557,13 +557,23 @@ export async function setupCommand(): Promise<void> {
     await writeFile(settingsPath, generateSettings(rootDir), "utf-8");
   }
 
-  // Generate CLAUDE.md if it doesn't exist
+  // Generate or append to CLAUDE.md
   const claudeMdPath = join(rootDir, "CLAUDE.md");
+  const agentNorthSection = generateClaudeMd(config.project.name);
   if (!existsSync(claudeMdPath)) {
-    await writeFile(claudeMdPath, generateClaudeMd(config.project.name), "utf-8");
+    await writeFile(claudeMdPath, agentNorthSection, "utf-8");
     console.log("  Created CLAUDE.md");
   } else {
-    console.log("  CLAUDE.md already exists (skipped)");
+    const existing = await readFile(claudeMdPath, "utf-8");
+    if (existing.includes("AgentNorth")) {
+      console.log("  CLAUDE.md already has AgentNorth section (skipped)");
+    } else {
+      // Append AgentNorth section to existing CLAUDE.md (strip the # CLAUDE.md header)
+      const sectionOnly = agentNorthSection.replace(/^# CLAUDE\.md\n+/, "");
+      const separator = existing.endsWith("\n") ? "\n" : "\n\n";
+      await writeFile(claudeMdPath, existing + separator + sectionOnly, "utf-8");
+      console.log("  Appended AgentNorth section to existing CLAUDE.md");
+    }
   }
 
   console.log(`
