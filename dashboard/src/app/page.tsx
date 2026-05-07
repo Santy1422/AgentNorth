@@ -16,8 +16,9 @@ import { LoginScreen } from "@/components/LoginScreen";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 import { DependencyGraph } from "@/components/DependencyGraph";
 import { SessionsView } from "@/components/SessionsView";
+import { SettingsView } from "@/components/SettingsView";
 
-export type View = "main" | "map" | "deps" | "coverage" | "risks" | "apis" | "onboarding" | "module-detail" | "graph" | "sessions";
+export type View = "main" | "map" | "deps" | "coverage" | "risks" | "apis" | "onboarding" | "module-detail" | "graph" | "sessions" | "settings";
 
 export interface ProjectRef {
   id: string;
@@ -509,6 +510,7 @@ export default function Home() {
         {view === "graph" && <DependencyGraph modules={data?.project.modules || []} />}
         {view === "sessions" && <SessionsView sessions={data?.sessions || []} />}
         {view === "onboarding" && <OnboardingGuide data={data} />}
+        {view === "settings" && <SettingsView />}
         {view === "module-detail" && selectedModule && (
           <ModuleDetail
             moduleName={selectedModule}

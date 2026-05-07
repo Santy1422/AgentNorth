@@ -14,7 +14,8 @@ const NAV_ITEMS: { view: View; key: string; shortcut: string }[] = [
   { view: "risks", key: "nav.decisions", shortcut: "6" },
   { view: "apis", key: "nav.apis", shortcut: "7" },
   { view: "sessions", key: "nav.sessions", shortcut: "8" },
-  { view: "onboarding", key: "nav.guide", shortcut: "9" },
+  { view: "settings", key: "nav.settings", shortcut: "9" },
+  { view: "onboarding", key: "nav.guide", shortcut: "0" },
 ];
 
 function formatTime(d: Date): string {
